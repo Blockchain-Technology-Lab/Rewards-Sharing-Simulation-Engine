@@ -1,0 +1,126 @@
+# -*- coding: utf-8 -*-
+"""
+Created on Thu Jun 10 12:59:49 2021
+
+@author: chris
+"""
+
+from mesa import Model
+from mesa.datacollection import DataCollector
+from mesa.time import RandomActivation, BaseScheduler
+from mesa.space import MultiGrid
+
+from stakeholder import Stakeholder
+import helper as hlp
+
+MIN_CONSECUTIVE_IDLE_STEPS_FOR_CONVERGENCE = 25
+
+
+def get_number_of_pools(model):
+    return len([1 for pool in model.pools if pool is not None])
+
+
+def get_pool_sizes(model):
+    return [pool.stake if pool is not None else 0 for pool in model.pools]
+
+
+class Simulation(Model):  # aka System?
+    """
+    Simulation of staking behaviour in Proof-of-Stake Blockchains.
+    """
+
+    def __init__(self, n=100, k=10, alpha=0.3, total_stake=1, max_iterations=100, seed=None,
+                 pool_splitting=False, width=10, height=10):
+        self.num_agents = n
+        self.k = k
+        self.alpha = alpha
+        self.total_stake = total_stake
+        self.max_iterations = max_iterations
+        self.pool_splitting = pool_splitting  # True if players are allowed to operate multiple pools
+
+        self.current_step = 0
+        self.running = True  # for batch running and visualisation purposes
+        self.schedule = BaseScheduler(
+            self)  # RandomActivation(self)  <- use base if you want them to get activated in specific order
+
+        self.grid = MultiGrid(width, height, True)
+
+        self.initialize_system()
+        self.initialize_players()
+
+        self.datacollector = DataCollector(
+            model_reporters={"#Pools": get_number_of_pools, "Pool": get_pool_sizes},
+            agent_reporters={"Utility": "utility"})
+
+    def initialize_players(self):
+        # initialize system
+        agent_types = ['M', 'NM']  # myopic, non-myopic
+
+        # Allocate stake to the players, sampling from a Pareto distribution
+        stake_distribution = hlp.generate_stake_distr(self.num_agents, self.total_stake)
+
+        # Allocate cost to the players, sampling from a uniform distribution
+        cost_distribution = hlp.generate_cost_distr(num_agents=self.num_agents)
+        # todo cost distribution for pool splitting? mc1 + c2 for each player (where m = #player's pools)
+
+        # Create agents
+        for i in range(self.num_agents):
+            agent_type = 'M'  # random.choice(agent_types)
+            agent = Stakeholder(i, self, agent_type, cost=cost_distribution[i],
+                                stake=stake_distribution[i])
+            self.schedule.add(agent)
+
+            x = self.random.randrange(self.grid.width)
+            y = self.random.randrange(self.grid.height)
+            self.grid.place_agent(agent, (x, y))
+
+    def initialize_system(self):
+        # self.initial_states = {"inactive":0, "maximally_decentralised":1, "nicely_decentralised":2}
+        element = [] if self.pool_splitting else None
+        self.pools = [element] * self.num_agents
+        self.idle_steps = 0
+        self.current_step_idle = True
+        # todo add aggregate values as fields? (e.g. total delegated stake)
+
+    # One step of the model
+    def step(self):
+        self.datacollector.collect(self)
+        # Activate all agents (in the order specified by self.schedule) to perform all their actions for one time step
+        self.schedule.step()
+        if (self.current_step_idle):
+            self.idle_steps += 1
+            if (self.has_converged()):
+                self.running = False
+        else:
+            self.idle_steps = 0
+        self.current_step += 1
+        self.current_step_idle = True
+        self.get_status()
+
+    # Run multiple steps
+    def run_model(self, max_steps=1):
+        i = 0
+        while (i < max_steps and self.running):
+            self.step()
+            i += 1
+
+
+    def has_converged(self):
+        """
+            Check whether the system has reached convergence
+        """
+        return self.idle_steps >= MIN_CONSECUTIVE_IDLE_STEPS_FOR_CONVERGENCE
+
+    def get_status(self):
+        return
+        print("Step {}".format(self.current_step))
+        print("Number of agents: {} \n Number of pools: {} \n"
+              .format(self.num_agents, len([1 for p in self.pools if p != None])))
+        '''print("Pools: ")
+        for i,agent in enumerate(self.schedule.agents):
+            stake = self.pools[i].stake if self.pools[i] is not None else 0
+            print("Agent {}: Stake: {:.3f}, Cost: {:.3f}, Pool stake: {:.3f} \n"
+                  .format(agent.unique_id, agent.stake, agent.cost, stake))'''
+        '''for pool in self.pools:
+            if pool is not None:
+                print(pool)'''
