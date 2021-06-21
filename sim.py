@@ -30,7 +30,7 @@ class Simulation(Model):  # aka System?
     """
 
     def __init__(self, n=100, k=10, alpha=0.3, total_stake=1, max_iterations=100, seed=None,
-                 pool_splitting=False, width=10, height=10):
+                 pool_splitting=False):
         self.num_agents = n
         self.k = k
         self.alpha = alpha
@@ -42,8 +42,6 @@ class Simulation(Model):  # aka System?
         self.running = True  # for batch running and visualisation purposes
         self.schedule = BaseScheduler(
             self)  # RandomActivation(self)  <- use base if you want them to get activated in specific order
-
-        self.grid = MultiGrid(width, height, True)
 
         self.initialize_system()
         self.initialize_players()
@@ -70,10 +68,6 @@ class Simulation(Model):  # aka System?
                                 stake=stake_distribution[i])
             self.schedule.add(agent)
 
-            x = self.random.randrange(self.grid.width)
-            y = self.random.randrange(self.grid.height)
-            self.grid.place_agent(agent, (x, y))
-
     def initialize_system(self):
         # self.initial_states = {"inactive":0, "maximally_decentralised":1, "nicely_decentralised":2}
         element = [] if self.pool_splitting else None
@@ -85,6 +79,10 @@ class Simulation(Model):  # aka System?
     # One step of the model
     def step(self):
         self.datacollector.collect(self)
+
+        if (self.current_step >= self.max_iterations): #todo keep in mind that step starts at 0
+            self.running = False
+
         # Activate all agents (in the order specified by self.schedule) to perform all their actions for one time step
         self.schedule.step()
         if (self.current_step_idle):
@@ -107,15 +105,16 @@ class Simulation(Model):  # aka System?
 
     def has_converged(self):
         """
-            Check whether the system has reached convergence
+            Check whether the system has reached a state of equilibrium,
+            where no player wants to change their strategy
         """
         return self.idle_steps >= MIN_CONSECUTIVE_IDLE_STEPS_FOR_CONVERGENCE
 
     def get_status(self):
         return
         print("Step {}".format(self.current_step))
-        print("Number of agents: {} \n Number of pools: {} \n"
-              .format(self.num_agents, len([1 for p in self.pools if p != None])))
+        '''print("Number of agents: {} \n Number of pools: {} \n"
+              .format(self.num_agents, len([1 for p in self.pools if p != None])))'''
         '''print("Pools: ")
         for i,agent in enumerate(self.schedule.agents):
             stake = self.pools[i].stake if self.pools[i] is not None else 0

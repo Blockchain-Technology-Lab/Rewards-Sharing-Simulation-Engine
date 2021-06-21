@@ -22,6 +22,7 @@ var StackedChartModule = function(series, canvas_width, canvas_height) {
     };
 
     // For generating random (distinguishable) colours
+    //todo check why colors are very similar when using sliders
     function selectColor(colorNum, colors){
         if (colors < 1) colors = 1; // defaults to one color - avoid divide by zero
         return "hsl(" + (colorNum * (360 / colors) % 360) + ",100%,50%)";
@@ -31,7 +32,7 @@ var StackedChartModule = function(series, canvas_width, canvas_height) {
     var datasets = []
     for (var i in series) {
         var s = series[i];
-        var datasets_number = s.Datasets;
+        var datasets_number = s.Num_agents;
 
         for (var j=0; j< datasets_number; j++) {
             var color = selectColor(j, datasets_number);
@@ -63,14 +64,19 @@ var StackedChartModule = function(series, canvas_width, canvas_height) {
           axis: 'x',
           intersect: false
         },
-        tooltips: {
+        /*tooltips: {
             mode: 'index',
             intersect: false
         },
         hover: {
-            mode: 'nearest',
+            mode: 'point',
             intersect: true
-        },
+        },*/
+        tooltips: {enabled: false},
+        hover: {mode: null},
+        legend: {
+            display: false
+         },
         scales: {
             // note: using lists for the axes to accommodate stacking
             xAxis: [{

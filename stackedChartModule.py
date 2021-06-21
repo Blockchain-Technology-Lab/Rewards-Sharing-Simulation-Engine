@@ -28,15 +28,6 @@ class StackedChartModule(VisualizationElement):
                              retrieve data from.
         template: "chart_module.html" stores the HTML template for the module.
 
-
-    Example:
-        schelling_chart = ChartModule([{"Label": "happy", "Color": "Black"}],
-                                      data_collector_name="datacollector")
-
-        More Pythonic customization; in particular, have both series-level and
-        chart-level options settable in Python, and passed to the front-end
-        the same way that "Color" is currently.
-
     """
 
     package_includes = ["Chart.min.js"]
@@ -79,12 +70,12 @@ class StackedChartModule(VisualizationElement):
             name = s["Label"]
             try:
                 values = data_collector.model_vars[name][-1]  # Latest values collected
-                print("values: ")
-                print(values)
+                #print("values: ")
+                #print(values)
                 for val in values:
                     current_values.append(val)
             except (IndexError, KeyError):
                 val = 0 #todo should I append val in this case?
-        print("Current values: ")
-        print(current_values)
+        #print("Current values: ")
+        #print(current_values)
         return current_values
