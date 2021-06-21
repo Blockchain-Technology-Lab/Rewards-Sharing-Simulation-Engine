@@ -5,41 +5,45 @@ import numpy as np
 
 def main():
     print("Hello Blockchain World!")
-    sim = Simulation(n=10, k=3)
+    sim = Simulation(n=100, k=10)
     sim.run_model(156)
 
     sim_df = sim.datacollector.get_model_vars_dataframe()
 
-    plt.figure()
+    figures_dir = "../figures/"
+
     pool_nums = sim_df["#Pools"]
+    plt.figure()
     pool_nums.plot()
     plt.title("#Pools")
-    plt.show()
+    plt.savefig(figures_dir + "poolCount.png", bbox_inches='tight')
 
     agent_utility = sim.datacollector.get_agent_vars_dataframe()
-    print(agent_utility)
+    #print(agent_utility)
     end_util = agent_utility.xs(15, level="Step")["Utility"]
     plt.figure()
     plt.hist(end_util)
     plt.title("Step 15 utility")
-    plt.show()
+    plt.savefig(figures_dir + "utilityStep15.png", bbox_inches='tight')
 
-    plt.figure()
     one_agent_util = agent_utility.xs(3, level="AgentID")
+    plt.figure()
     plt.plot(one_agent_util)
     plt.title("Agent 3 utility")
-    plt.xlabel("Step")
+    plt.xlabel("Iteration")
     plt.ylabel("Utility")
-    plt.show()
+    plt.savefig(figures_dir + "utilityAgent3.png", bbox_inches='tight')
 
-    plt.figure()
     pool_sizes_by_step = sim_df["Pool"]
     pool_sizes_by_pool = np.array(list(pool_sizes_by_step)).T
+    plt.figure()
     plt.stackplot(range(len(pool_sizes_by_step)), pool_sizes_by_pool)
-    plt.title("Pool sizes")
-    plt.show()
+    plt.title("Pool dynamics")
+    plt.xlabel("Iteration")
+    plt.ylabel("Stake")
+    plt.savefig(figures_dir + "poolDynamics.png", bbox_inches='tight')
 
-    #todo save relevant charts as images in a dedicated directory
+    plt.show()
 
 
 if __name__ == "__main__":

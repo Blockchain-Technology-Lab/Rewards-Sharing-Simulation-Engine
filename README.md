@@ -1,2 +1,2 @@
 # PoS-Pooling-Games-Simulation
-Tool to simulate staking behaviour on Proof-of-Stake Blockchains.
+Tool to simulate staking behaviour in Proof-of-Stake Blockchains.

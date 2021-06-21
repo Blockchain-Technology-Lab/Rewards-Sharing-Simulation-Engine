@@ -8,7 +8,6 @@ Module for drawing live-updating line charts using Charts.js
 import json
 from mesa.visualization.ModularVisualization import VisualizationElement
 
-
 class StackedChartModule(VisualizationElement):
     """Each chart can visualize one or more model-level series as lines
      with the data value on the Y axis and the step number as the X axis.

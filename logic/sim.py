@@ -7,11 +7,11 @@ Created on Thu Jun 10 12:59:49 2021
 
 from mesa import Model
 from mesa.datacollection import DataCollector
-from mesa.time import RandomActivation, BaseScheduler
-from mesa.space import MultiGrid
+from mesa.time import BaseScheduler
+import random
 
-from stakeholder import Stakeholder
-import helper as hlp
+from logic.stakeholder import Stakeholder
+from logic import helper as hlp
 
 MIN_CONSECUTIVE_IDLE_STEPS_FOR_CONVERGENCE = 25
 
@@ -63,7 +63,7 @@ class Simulation(Model):  # aka System?
 
         # Create agents
         for i in range(self.num_agents):
-            agent_type = 'M'  # random.choice(agent_types)
+            agent_type = random.choice(agent_types)
             agent = Stakeholder(i, self, agent_type, cost=cost_distribution[i],
                                 stake=stake_distribution[i])
             self.schedule.add(agent)
@@ -111,15 +111,15 @@ class Simulation(Model):  # aka System?
         return self.idle_steps >= MIN_CONSECUTIVE_IDLE_STEPS_FOR_CONVERGENCE
 
     def get_status(self):
-        return
         print("Step {}".format(self.current_step))
         '''print("Number of agents: {} \n Number of pools: {} \n"
               .format(self.num_agents, len([1 for p in self.pools if p != None])))'''
-        '''print("Pools: ")
-        for i,agent in enumerate(self.schedule.agents):
-            stake = self.pools[i].stake if self.pools[i] is not None else 0
-            print("Agent {}: Stake: {:.3f}, Cost: {:.3f}, Pool stake: {:.3f} \n"
-                  .format(agent.unique_id, agent.stake, agent.cost, stake))'''
+        '''print("Pools: ")'''
+        #for i, agent in enumerate(self.schedule.agents):
+            #agent.get_status()
+            #stake = self.pools[i].stake if self.pools[i] is not None else 0
+            #print("Agent {}: Stake: {:.3f}, Cost: {:.3f}, Pool stake: {:.3f} \n"
+            #     .format(agent.unique_id, agent.stake, agent.cost, stake))
         '''for pool in self.pools:
             if pool is not None:
                 print(pool)'''

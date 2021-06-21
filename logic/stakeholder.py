@@ -8,10 +8,9 @@ Created on Fri Jun 11 17:14:45 2021
 from mesa import Agent
 import random
 
-import helper as hlp
-from pool import Pool
-from strategy import SinglePoolStrategy
-from strategy import MAX_POOLS
+from logic import helper as hlp
+from logic.pool import Pool
+from logic.strategy import SinglePoolStrategy
 
 UTILITY_THRESHOLD = 0 #relates to inertial equilibrium 
 
@@ -23,7 +22,7 @@ class Stakeholder(Agent):
         self.cost = cost #the cost of running one pool (assume that running n pools will cost n times as much)
         self.stake = stake
         self.utility = utility
-        self.type = agent_type
+        self.isMyopic = agent_type == 'M'
         # pools field that points to the player's pools?
         
         self.initialize_strategy()
@@ -61,7 +60,6 @@ class Stakeholder(Agent):
                 if (i == self.unique_id):
                     if (allocation_changes[i] == self.strategy.stake_allocations[i]):
                         #means that the pool needs to be created now
-                        #todo change margin
                         self.open_pool(pledge=allocation_changes[self.unique_id])
                         continue
                     elif (self.strategy.stake_allocations[i] == 0):
@@ -111,7 +109,7 @@ class Stakeholder(Agent):
         
         return SinglePoolStrategy(pledge, margin, stake_allocations)
     
-    def calculate_myopic_utility(self, strategy):
+    def calculate_utility(self, strategy):
         utility = 0
         for i, a in enumerate(strategy.stake_allocations):
             if (a > 0):
@@ -121,34 +119,30 @@ class Stakeholder(Agent):
                     #calculate pool owner utility
                     if (pool is None):
                         # player hasn't created their pool yet, so we calculate the utility of a hypothetical pool
-                        pool = Pool(strategy.margin, self.cost, strategy.pledge, self.unique_id)
+                        pool = Pool(margin=strategy.margin, cost=self.cost, pledge=strategy.pledge, owner=self.unique_id)
+                        # calculate non-myopic stake for hypothetical pool todo maybe only for NM players?
+                        hlp.calculate_pool_stake_NM(pool,
+                                                    self.model.pools,
+                                                    self.unique_id,
+                                                    self.model.alpha,
+                                                    1/self.model.k
+                                                    )
                     utility += self.calculate_po_utility(pool, a)
                 else:
-                    #calculate delegator utility
-                    if (pool is None):
-                        print("POOL IS NOOOOOONE")
-                        continue #todo should never be none when choosing strategy non-randomly, so raise exception or sth
-                    utility += self.calculate_delegator_utility(pool, a)
+                    # calculate delegator utility
+                    try:
+                        utility += self.calculate_delegator_utility(pool, a)
+                    except ZeroDivisionError: #todo change exception handling
+                        print("POOL IS NOOOOOONE") #should never be none when choosing strategy non-randomly
+
         
         return utility
-    
-    def calculate_non_myopic_utility(self, strategy):
-        pass
-    
-    def calculate_utility(self, strategy): 
-        # todo have different utilities to choose from
-        #for now just myopic utility
-        if (self.type == 'M'):
-            return self.calculate_myopic_utility(strategy)
-        else:
-            print("what are you doing here??")
-            return self.calculate_non_myopic_utility(strategy)
         
     
-    def calculate_po_utility(self, pool, stake_allocation): 
+    def calculate_po_utility(self, pool, stake_allocation):
         pledge = pool.pledge
         m = pool.margin
-        pool_stake = pool.stake
+        pool_stake = pool.stake if self.isMyopic else pool.stake_NM
         alpha = self.model.alpha
         beta = 1/self.model.k
         r = hlp.calculate_pool_reward(pool_stake, pledge, alpha, beta)
@@ -174,14 +168,19 @@ class Stakeholder(Agent):
         #calculate the pool's reward
         alpha = self.model.alpha
         beta = 1/self.model.k
-        r = hlp.calculate_pool_reward(pool.stake, pool.pledge, alpha, beta)
-        u = (1 - pool.margin) * (r - pool.cost) * stake_allocation/pool.stake
+        pool_stake = pool.stake if self.isMyopic else pool.stake_NM
+        r = hlp.calculate_pool_reward(pool_stake, pool.pledge, alpha, beta)
+        u = (1 - pool.margin) * (r - pool.cost) * stake_allocation/pool_stake
         utility = max(0, u)
         
         return utility
-    
-    ''' Randomly pick a new strategy and if it yields higher utility than the current one use it, else repeat '''
+
     def random_walk(self, max_steps = 10):
+        """
+        Randomly pick a new strategy and if it yields higher utility than the current one use it, else repeat
+        :param max_steps: if no better strategy is found after trying max_steps times, then keep the old strategy
+        :return: bool (true if strategy was changed and false if it wasn't), allocation changes (or None in case of no changes)
+        """
         if (max_steps == 0): #termination condition so that we don't get stuck for ever in case of (local) max
             return (False, None)
         new_strategy = self.get_random_valid_strategy()
@@ -202,23 +201,35 @@ class Stakeholder(Agent):
         strategy_changed, allocation_changes  = self.random_walk()
         return strategy_changed, allocation_changes
         
-    
-    def get_status(self):
-        print("Agent id: {}, type: {}, utility: {}, stake: {}, cost:{}"
-              .format(self.unique_id, self.type, self.utility, self.stake, self.cost))
-        self.strategy.print_()
-        print("\n")
-        
     def delegate(self):
         pass
     
-    def calculate_margin(self):
-        m = 1
+    def calculate_margin(self, potential_pool_reward, potential_pool_stake):
+        """
+        Calculate a player's optimal margin, based on the formula suggested in the paper
+        :return: float that describes the margin the player will use when opening a pool
+        #todo maybe return negative margin (e.g. -1) to signify that the pool can't be profitable (e.g. if r < c)?
+        """
+        q = self.stake / potential_pool_stake if potential_pool_stake else 0
+        denom = (potential_pool_reward - self.cost) * (1 - q)
+        m = (self.utility - (potential_pool_reward - self.cost) * q) / denom if denom else 0
         return m
     
     def open_pool(self, pledge):
-        m = self.calculate_margin()
-        pool = Pool(owner=self.unique_id, margin=m, cost=self.cost, pledge=pledge)
+        pool = Pool(owner=self.unique_id, cost=self.cost, pledge=pledge)
+
+        alpha = self.model.alpha
+        beta = 1 / self.model.k
+
+        # calculate optimal margin
+        potential_pool_stake = max(pool.stake, beta)
+        potential_pool_reward = hlp.calculate_pool_reward(potential_pool_stake, pledge, alpha, beta)
+        m = self.calculate_margin(potential_pool_reward, potential_pool_stake)
+        pool.margin = m
+
+        # calculate non-myopic stake
+        hlp.calculate_pool_stake_NM(pool, self.model.pools, self.unique_id, alpha, beta)
+
         #self.model.pools[self.unique_id].append(pool) #for multipool strategies
         self.model.pools[self.unique_id] = pool
         #todo assert that len(self.model.pools[self.unique_id] == self.strategy.number_of_pools)
@@ -229,3 +240,10 @@ class Stakeholder(Agent):
           for agent in self.model.schedule.agents:
               agent.strategy.stake_allocations[self.unique_id] = 0
           #todo also update aggregate values
+
+
+    def get_status(self):
+        print("Agent id: {}, is myopic: {}, utility: {}, stake: {}, cost:{}"
+              .format(self.unique_id, self.isMyopic, self.utility, self.stake, self.cost))
+        self.strategy.print_()
+        print("\n")

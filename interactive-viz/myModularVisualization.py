@@ -7,7 +7,19 @@ import tornado.escape
 import webbrowser
 
 class MyPageHandler(PageHandler):
-    pass
+    def get(self):
+        elements = self.application.visualization_elements
+        for i, element in enumerate(elements):
+            element.index = i
+        self.render(
+            "my_modular_template.html",
+            port=self.application.port,
+            model_name=self.application.model_name,
+            description=self.application.description,
+            package_includes=self.application.package_includes,
+            local_includes=self.application.local_includes,
+            scripts=self.application.js_code,
+        )
 
 class MySocketHandler(SocketHandler):
     """

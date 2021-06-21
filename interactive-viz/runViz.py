@@ -4,9 +4,11 @@ Created on Thu Jun 17 13:51:21 2021
 
 @author: chris
 """
+import mesa.visualization.ModularVisualization
 
-from sim import Simulation
-from myModularVisualization import  MyModularServer
+from logic.sim import Simulation
+from myModularVisualization import MyModularServer
+from mesa.visualization.ModularVisualization import ModularServer
 from mesa.visualization.modules import ChartModule
 from stackedChartModule import StackedChartModule
 from mesa.visualization.UserParam import UserSettableParameter
@@ -44,7 +46,8 @@ model_params = {
 
 }
 
-server = MyModularServer(Simulation,
+#todo figure out why MyModularServer is not working now
+server = ModularServer(Simulation,
                        [poolsChart, poolDynamicsStackedChart],
                        "PoS Pooling Games",
                        model_params)
