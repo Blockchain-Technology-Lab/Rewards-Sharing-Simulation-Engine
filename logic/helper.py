@@ -62,7 +62,13 @@ def calculate_pool_stake_NM(pool, pools, pool_index, alpha, beta):
     sat_prob = calculate_pool_saturation_prob(desirabilities, pool_index)
     return pool.calculate_stake_NM(beta, sat_prob)
 
+def isListFlat(l):
+    # assume that the list is homogeneous, so only check the first element
+    return not isinstance(l[0], list)
+
 def flatten_list(l):
+    if isListFlat(l):
+        return l
     return sum(l, [])
 
 def softmax(vector):

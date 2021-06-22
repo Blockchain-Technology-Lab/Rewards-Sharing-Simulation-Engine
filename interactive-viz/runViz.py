@@ -24,11 +24,11 @@ poolDynamicsStackedChart = StackedChartModule([{"Label": "Pool",
 
 model_params = {
     "n": UserSettableParameter(
-        "slider", "Number of stakeholders", 10, 2, 100,
+        "slider", "Number of stakeholders", 100, 2, 200,
         description="The number of stakeholders / players in the system."
     ),
     "k": UserSettableParameter(
-        "slider", "k", 3, 1, 100,
+        "slider", "k", 10, 1, 100,
         description="The k value of the system."
     ),
     "alpha": UserSettableParameter(

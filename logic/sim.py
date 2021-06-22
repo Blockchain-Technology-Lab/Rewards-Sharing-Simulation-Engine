@@ -17,11 +17,15 @@ MIN_CONSECUTIVE_IDLE_STEPS_FOR_CONVERGENCE = 25
 
 
 def get_number_of_pools(model):
-    return len([1 for pool in model.pools if pool is not None])
+    return len([1 for pool in model.pools if pool is not None and pool != []])
 
 
 def get_pool_sizes(model):
-    return [pool.stake if pool is not None else 0 for pool in model.pools]
+    return [pool.stake if pool is not None else 0 for pool in hlp.flatten_list(model.pools)]
+
+# Only valid when poolSplitting = True
+def get_pool_group_sizes(model):
+    return [sum([pool.stake for pool in group]) for group in model.pools]
 
 
 class Simulation(Model):  # aka System?
@@ -65,7 +69,7 @@ class Simulation(Model):  # aka System?
         for i in range(self.num_agents):
             agent_type = random.choice(agent_types)
             agent = Stakeholder(i, self, agent_type, cost=cost_distribution[i],
-                                stake=stake_distribution[i])
+                                stake=stake_distribution[i], canSplitPools=self.pool_splitting)
             self.schedule.add(agent)
 
     def initialize_system(self):
@@ -80,14 +84,14 @@ class Simulation(Model):  # aka System?
     def step(self):
         self.datacollector.collect(self)
 
-        if (self.current_step >= self.max_iterations): #todo keep in mind that step starts at 0
+        if self.current_step >= self.max_iterations: #todo keep in mind that step starts at 0
             self.running = False
 
         # Activate all agents (in the order specified by self.schedule) to perform all their actions for one time step
         self.schedule.step()
-        if (self.current_step_idle):
+        if self.current_step_idle:
             self.idle_steps += 1
-            if (self.has_converged()):
+            if self.has_converged():
                 self.running = False
         else:
             self.idle_steps = 0
