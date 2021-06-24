@@ -8,24 +8,24 @@ import mesa.visualization.ModularVisualization
 
 from logic.sim import Simulation
 from myModularVisualization import MyModularServer
-from mesa.visualization.ModularVisualization import ModularServer
+#from mesa.visualization.ModularVisualization import ModularServer
 from mesa.visualization.modules import ChartModule
 from stackedChartModule import StackedChartModule
 from mesa.visualization.UserParam import UserSettableParameter
+from myChartModule import MyChartModule
 
 num_agents = 100
-poolsChart = ChartModule([{"Label": "#Pools",
+poolsChart = MyChartModule([{"Label": "#Pools",
                       "Color": "Blue"}],
                     data_collector_name='datacollector')
 
-#todo check why this chart misses one step
 poolDynamicsStackedChart = StackedChartModule([{"Label": "Pool",
                       "Num_agents": num_agents}],  data_collector_name='datacollector')
 
 model_params = {
     "n": UserSettableParameter(
         "slider", "Number of stakeholders", 100, 2, 200,
-        description="The number of stakeholders / players in the system."
+        description="The number of stakeholders in the system."
     ),
     "k": UserSettableParameter(
         "slider", "k", 10, 1, 100,
@@ -40,14 +40,25 @@ model_params = {
     "max_iterations": UserSettableParameter(
         "slider", "Max iterations", 100, 1, 300, 2,
         description="The maximum number of iterations of the system."
+    ),
+
+    "cost_min": UserSettableParameter(
+        "slider", "Minimum cost", 0.001, 0.001, 0.05, 0.001,
+        description="The minimum possible cost for operating a stake pool."
+    ),
+
+    "cost_max": UserSettableParameter(
+        "slider", "Maximum cost", 0.002, 0.002, 0.1, 0.001,
+        description="The maximum possible cost for operating a stake pool."
     )
+
 
     # user input options: TYPES = (NUMBER, CHECKBOX, CHOICE, SLIDER, STATIC_TEXT)
 
 }
 
-#todo figure out why MyModularServer is not working now
-server = ModularServer(Simulation,
+#todo figure out why MyModularServer was not working at some point
+server = MyModularServer(Simulation,
                        [poolsChart, poolDynamicsStackedChart],
                        "PoS Pooling Games",
                        model_params)

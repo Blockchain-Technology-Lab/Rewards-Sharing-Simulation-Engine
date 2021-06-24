@@ -40,7 +40,11 @@ class Pool:
         return self.desirability
 
 
-    def calculate_stake_NM(self, beta, sat_prob):
+    def calculate_stake_NM_myWay(self, beta, sat_prob):
         self.stake_NM = sat_prob * beta + (1 - sat_prob) * self.pledge
+        return self.stake_NM
+
+    def calculate_stake_NM(self, k, beta, rank):
+        self.stake_NM = self.pledge if rank > k else max(beta, self.stake)
         return self.stake_NM
 

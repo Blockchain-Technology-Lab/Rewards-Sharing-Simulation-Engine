@@ -8,7 +8,6 @@ Created on Thu Jun 10 12:59:49 2021
 from mesa import Model
 from mesa.datacollection import DataCollector
 from mesa.time import BaseScheduler
-import random
 
 from logic.stakeholder import Stakeholder
 from logic import helper as hlp
@@ -28,19 +27,25 @@ def get_pool_group_sizes(model):
     return [sum([pool.stake for pool in group]) for group in model.pools]
 
 
-class Simulation(Model):  # aka System?
+class Simulation(Model):
     """
     Simulation of staking behaviour in Proof-of-Stake Blockchains.
     """
 
     def __init__(self, n=100, k=10, alpha=0.3, total_stake=1, max_iterations=100, seed=None,
-                 pool_splitting=False):
+                 pool_splitting=False, cost_min=0.001, cost_max=0.002):
+        if seed is not None:
+            pass #todo set random seed (bur for random or numpy?)
+
         self.num_agents = n
         self.k = k
+        self.beta = 1/k
         self.alpha = alpha
         self.total_stake = total_stake
         self.max_iterations = max_iterations
         self.pool_splitting = pool_splitting  # True if players are allowed to operate multiple pools
+        self.cost_min = cost_min
+        self.cost_max = cost_max
 
         self.current_step = 0
         self.running = True  # for batch running and visualisation purposes
@@ -62,12 +67,13 @@ class Simulation(Model):  # aka System?
         stake_distribution = hlp.generate_stake_distr(self.num_agents, self.total_stake)
 
         # Allocate cost to the players, sampling from a uniform distribution
-        cost_distribution = hlp.generate_cost_distr(num_agents=self.num_agents)
+        cost_distribution = hlp.generate_cost_distr(num_agents=self.num_agents, low=self.cost_min, high=self.cost_max)
         # todo cost distribution for pool splitting? mc1 + c2 for each player (where m = #player's pools)
 
         # Create agents
         for i in range(self.num_agents):
-            agent_type = random.choice(agent_types)
+            # for now only non-myopic agents, in the future we can mix them
+            agent_type = 'NM'#random.choice(agent_types)
             agent = Stakeholder(i, self, agent_type, cost=cost_distribution[i],
                                 stake=stake_distribution[i], canSplitPools=self.pool_splitting)
             self.schedule.add(agent)
@@ -84,7 +90,7 @@ class Simulation(Model):  # aka System?
     def step(self):
         self.datacollector.collect(self)
 
-        if self.current_step >= self.max_iterations: #todo keep in mind that step starts at 0
+        if self.current_step >= self.max_iterations:
             self.running = False
 
         # Activate all agents (in the order specified by self.schedule) to perform all their actions for one time step
@@ -115,6 +121,7 @@ class Simulation(Model):  # aka System?
         return self.idle_steps >= MIN_CONSECUTIVE_IDLE_STEPS_FOR_CONVERGENCE
 
     def get_status(self):
+        return
         print("Step {}".format(self.current_step))
         '''print("Number of agents: {} \n Number of pools: {} \n"
               .format(self.num_agents, len([1 for p in self.pools if p != None])))'''

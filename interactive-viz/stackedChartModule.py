@@ -69,12 +69,10 @@ class StackedChartModule(VisualizationElement):
             name = s["Label"]
             try:
                 values = data_collector.model_vars[name][-1]  # Latest values collected
-                #print("values: ")
-                #print(values)
-                for val in values:
-                    current_values.append(val)
             except (IndexError, KeyError):
-                val = 0 #todo should I append val in this case?
+                continue
+            for val in values:
+                current_values.append(val)
         #print("Current values: ")
         #print(current_values)
         return current_values

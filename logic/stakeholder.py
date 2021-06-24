@@ -6,7 +6,6 @@ Created on Fri Jun 11 17:14:45 2021
 """
 
 from mesa import Agent
-import random
 
 from logic import helper as hlp
 from logic.pool import Pool
@@ -15,6 +14,7 @@ from logic.strategy import SinglePoolStrategy, MultiPoolStrategy
 UTILITY_THRESHOLD = 0.0001 # for defining an inertial equilibrium
 
 #todo when using the sim/model object, stick to calling methods instead of accessing fields directly
+
 
 class Stakeholder(Agent):
     def __init__(self, unique_id, model, agent_type, stake=0, cost=0, utility=0, canSplitPools=False):
@@ -38,8 +38,7 @@ class Stakeholder(Agent):
             self.model.current_step_idle = False
         #self.get_status()
         #print('----------------------')
-        
-        
+
     def initialize_strategy(self):
         if self.canSplitPools:
             strategy = MultiPoolStrategy()
@@ -62,7 +61,7 @@ class Stakeholder(Agent):
                 if (i == self.unique_id):
                     if (allocation_changes[i] == self.strategy.stake_allocations[i]):
                         #means that the pool needs to be created now
-                        self.open_pool(pledge=allocation_changes[self.unique_id])
+                        self.open_pool(pledge=allocation_changes[self.unique_id], margin=self.strategy.margin) #todo update for pool splitting
                         continue
                     elif (self.strategy.stake_allocations[i] == 0):
                         # means that the pool nees to be destroyed, since it has been abandoned by its owner
@@ -117,7 +116,8 @@ class Stakeholder(Agent):
                                                         self.model.pools,
                                                         self.unique_id,
                                                         self.model.alpha,
-                                                        1/self.model.k
+                                                        self.model.beta,
+                                                        self.model.k
                                                         )
                         utility += self.calculate_po_utility(pool, a)
                     else:
@@ -136,7 +136,7 @@ class Stakeholder(Agent):
         m = pool.margin
         pool_stake = pool.stake if self.isMyopic else pool.stake_NM
         alpha = self.model.alpha
-        beta = 1/self.model.k
+        beta = self.model.beta
         r = hlp.calculate_pool_reward(pool_stake, pledge, alpha, beta)
         u_0 = r - self.cost
         utility = u_0 if u_0 <= 0 else u_0*(m + ((1-m)*stake_allocation/pool_stake))
@@ -159,7 +159,7 @@ class Stakeholder(Agent):
     def calculate_delegator_utility(self, pool, stake_allocation): 
         #calculate the pool's reward
         alpha = self.model.alpha
-        beta = 1/self.model.k
+        beta = self.model.beta
         pool_stake = pool.stake if self.isMyopic else pool.stake_NM
         r = hlp.calculate_pool_reward(pool_stake, pool.pledge, alpha, beta)
         u = (1 - pool.margin) * (r - pool.cost) * stake_allocation/pool_stake
@@ -207,20 +207,21 @@ class Stakeholder(Agent):
         m = (self.utility - (potential_pool_reward - self.cost) * q) / denom if denom else 0
         return m
     
-    def open_pool(self, pledge):
-        pool = Pool(owner=self.unique_id, cost=self.cost, pledge=pledge)
+    def open_pool(self, pledge, margin):
+        pool = Pool(owner=self.unique_id, cost=self.cost, pledge=pledge, margin=margin)
 
         alpha = self.model.alpha
-        beta = 1 / self.model.k
+        beta = self.model.beta
+        k = self.model.k
 
         # calculate optimal margin
-        potential_pool_stake = max(pool.stake, beta)
-        potential_pool_reward = hlp.calculate_pool_reward(potential_pool_stake, pledge, alpha, beta)
-        m = self.calculate_margin(potential_pool_reward, potential_pool_stake)
-        pool.margin = m #todo either add this margin to the player's strategy or use the margin that is already there
+        #potential_pool_stake = max(pool.stake, beta)
+        #potential_pool_reward = hlp.calculate_pool_reward(potential_pool_stake, pledge, alpha, beta)
+        #m = self.calculate_margin(potential_pool_reward, potential_pool_stake)
+        #pool.margin = m #todo either add this margin to the player's strategy or use the margin that is already there
 
         # calculate non-myopic stake
-        hlp.calculate_pool_stake_NM(pool, self.model.pools, self.unique_id, alpha, beta)
+        hlp.calculate_pool_stake_NM(pool, self.model.pools, self.unique_id, alpha, beta, k)
         #todo update for pool splitting
         #self.model.pools[self.unique_id].append(pool) #for multipool strategies
         self.model.pools[self.unique_id] = pool
@@ -230,7 +231,7 @@ class Stakeholder(Agent):
           self.model.pools[self.unique_id] = None
           #undelegate delegators' stake
           for agent in self.model.schedule.agents:
-              agent.strategy.stake_allocations[self.unique_id] = 0
+              agent.strategy.stake_allocations[self.unique_id] = 0 #todo update to accommodate pool splitting
           #todo also update aggregate values
 
 

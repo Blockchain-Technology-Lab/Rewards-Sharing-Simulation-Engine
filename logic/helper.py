@@ -11,7 +11,7 @@ from numpy.random import default_rng
 PARETO_ALPHA_PARAM = 1.5
 C_MIN = 0.001
 C_MAX = 0.002
-TOTAL_EPOCH_REWARDS_R = 1 #todo find suitable value
+TOTAL_EPOCH_REWARDS_R = 1
 
 
 def generate_stake_distr(num_agents, total_stake):
@@ -51,7 +51,7 @@ def calculate_pool_saturation_prob(desirabilities, pool_index):
     probs = softmax(desirabilities)
     return probs[pool_index]
 
-def calculate_pool_stake_NM(pool, pools, pool_index, alpha, beta):
+def calculate_pool_stake_NM_myWay(pool, pools, pool_index, alpha, beta):
     desirabilities = [pool.desirability if pool is not None else 0 for pool in pools]
     # add desirability of current pool
     if (pool is None):
@@ -62,14 +62,27 @@ def calculate_pool_stake_NM(pool, pools, pool_index, alpha, beta):
     sat_prob = calculate_pool_saturation_prob(desirabilities, pool_index)
     return pool.calculate_stake_NM(beta, sat_prob)
 
+def calculate_pool_stake_NM(pool, pools, pool_index, alpha, beta, k):
+    desirabilities = [pool.desirability if pool is not None else 0 for pool in pools]
+    # add desirability of current pool
+    if (pool is None):
+        pool = pools[pool_index]
+    potential_pool_profit = calculate_potential_profit(pool, alpha, beta)
+    desirability = pool.calculate_desirability(potential_pool_profit)
+    desirabilities[pool_index] = desirability
+    #todo maybe cache?
+    ranks = np.argsort(-np.array(desirabilities)) # the rank can be defined as the index of the sorted desirabilities, in descending order
+
+    return pool.calculate_stake_NM(k, beta, ranks[pool_index])
+
 def isListFlat(l):
     # assume that the list is homogeneous, so only check the first element
     return not isinstance(l[0], list)
 
 def flatten_list(l):
-    if isListFlat(l):
-        return l
-    return sum(l, [])
+    while not isListFlat(l):
+        l = sum(l, [])
+    return l
 
 def softmax(vector):
     np_vector = np.array(vector)
