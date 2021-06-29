@@ -21,8 +21,15 @@ var StackedChartModule = function(series, canvas_width, canvas_height) {
         return 'rgba(' + r + ',' + g + ',' + b + ',0.1)';
     };
 
+    function shuffleArray(array) {
+        for (let i = array.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [array[i], array[j]] = [array[j], array[i]];
+        }
+        return array
+    }
+
     // For generating random (distinguishable) colours
-    //todo check why colors are very similar when using sliders
     function selectColor(colorNum, colors){
         if (colors < 1) colors = 1; // defaults to one color - avoid divide by zero
         return "hsl(" + (colorNum * (360 / colors) % 360) + ",100%,50%)";
@@ -34,8 +41,11 @@ var StackedChartModule = function(series, canvas_width, canvas_height) {
         var s = series[i];
         var datasets_number = s.Num_agents;
 
+        for (var color_indexes=[],i=0;i<datasets_number;++i) color_indexes[i]=i;
+        color_indexes = shuffleArray(color_indexes)
+
         for (var j=0; j< datasets_number; j++) {
-            var color = selectColor(j, datasets_number);
+            var color = selectColor(color_indexes[j], datasets_number);
             var pool_nr = j + 1;
             var new_series = {
                 label: s.Label + pool_nr,
@@ -64,19 +74,26 @@ var StackedChartModule = function(series, canvas_width, canvas_height) {
           axis: 'x',
           intersect: false
         },
-        /*tooltips: {
+        tooltips: {
+            filter: function (tooltipItem) {
+                //todo also similar for legend
+                return tooltipItem.yLabel != 0
+            },
             mode: 'index',
             intersect: false
         },
         hover: {
             mode: 'point',
             intersect: true
-        },*/
-        tooltips: {enabled: false},
-        hover: {mode: null},
+        },
         legend: {
             display: false
          },
+        /*tooltips: {enabled: false},
+        hover: {mode: null},
+        legend: {
+            display: false
+         },*/
         scales: {
             // note: using lists for the axes to accommodate stacking
             xAxis: [{
@@ -85,10 +102,11 @@ var StackedChartModule = function(series, canvas_width, canvas_height) {
                 title: { //todo figure out why axis title doesn't show
                     display: true,
                     text: 'Step'
-                },
+                }/*,
                 ticks: {
-                    maxTicksLimit: 11
-                }
+                    autoSkip:  true,
+                    maxTicksLimit: 11 //todo figure out why this is not respected
+                }*/
             }],
             yAxes: [{
                 stacked: true,
@@ -109,7 +127,7 @@ var StackedChartModule = function(series, canvas_width, canvas_height) {
 
     this.render = function(data) {
         chart.data.labels.push(control.tick);
-        console.log("Data: " + data)
+        //console.log("Data: " + data)
         for (i = 0; i < data.length; i++) {
             chart.data.datasets[i].data.push(data[i]);
         }

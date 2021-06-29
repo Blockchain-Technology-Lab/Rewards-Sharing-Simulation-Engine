@@ -23,7 +23,7 @@ class Pool:
         self.pledge = pledge
         self.stake = pledge
         self.owner = owner
-        self.desirability = 0 #todo redundant?
+        self.desirability = 0
         self.stake_NM = 0
 
         
@@ -31,6 +31,15 @@ class Pool:
         self.stake += stake
 
     def calculate_desirability(self, potential_profit):
+        """
+        Note: this follows the paper's approach, where the desirability is always non-negative
+        :param potential_profit:
+        :return:
+        """
+        self.desirability = (1 - self.margin) * potential_profit if potential_profit > 0 else 0
+        return self.desirability
+
+    def calculate_desirability_myWay(self, potential_profit):
         """
         Note: the desirability can be negative (if the pool's potential reward does not suffice to cover its cost)
         :param potential_profit:

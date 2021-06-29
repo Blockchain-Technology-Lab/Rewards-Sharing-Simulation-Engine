@@ -12,7 +12,7 @@ from mesa.time import BaseScheduler
 from logic.stakeholder import Stakeholder
 from logic import helper as hlp
 
-MIN_CONSECUTIVE_IDLE_STEPS_FOR_CONVERGENCE = 25
+MIN_CONSECUTIVE_IDLE_STEPS_FOR_CONVERGENCE = 5
 
 
 def get_number_of_pools(model):
@@ -21,6 +21,7 @@ def get_number_of_pools(model):
 
 def get_pool_sizes(model):
     return [pool.stake if pool is not None else 0 for pool in hlp.flatten_list(model.pools)]
+
 
 # Only valid when poolSplitting = True
 def get_pool_group_sizes(model):
@@ -75,7 +76,7 @@ class Simulation(Model):
             # for now only non-myopic agents, in the future we can mix them
             agent_type = 'NM'#random.choice(agent_types)
             agent = Stakeholder(i, self, agent_type, cost=cost_distribution[i],
-                                stake=stake_distribution[i], canSplitPools=self.pool_splitting)
+                                stake=stake_distribution[i], can_split_pools=self.pool_splitting)
             self.schedule.add(agent)
 
     def initialize_system(self):
