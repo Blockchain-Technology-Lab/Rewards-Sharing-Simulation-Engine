@@ -4,13 +4,14 @@ Created on Thu Jun 10 12:59:49 2021
 
 @author: chris
 """
+import random
 
 from mesa import Model
 from mesa.datacollection import DataCollector
-from mesa.time import BaseScheduler
+from mesa.time import BaseScheduler, SimultaneousActivation, RandomActivation
 
-from logic.stakeholder import Stakeholder
-from logic import helper as hlp
+from stakeholder import Stakeholder
+import helper as hlp
 
 MIN_CONSECUTIVE_IDLE_STEPS_FOR_CONVERGENCE = 5
 
@@ -36,7 +37,7 @@ class Simulation(Model):
     def __init__(self, n=100, k=10, alpha=0.3, total_stake=1, max_iterations=100, seed=None,
                  pool_splitting=False, cost_min=0.001, cost_max=0.002):
         if seed is not None:
-            pass #todo set random seed (bur for random or numpy?)
+            random.seed(seed)
 
         self.num_agents = n
         self.k = k
@@ -50,8 +51,7 @@ class Simulation(Model):
 
         self.current_step = 0
         self.running = True  # for batch running and visualisation purposes
-        self.schedule = BaseScheduler(
-            self)  # RandomActivation(self)  <- use base if you want them to get activated in specific order
+        self.schedule = RandomActivation(self)   #BaseScheduler(self)  # SimultaneousActivation(self)  <- use base if you want them to get activated in specific order
 
         self.initialize_system()
         self.initialize_players()

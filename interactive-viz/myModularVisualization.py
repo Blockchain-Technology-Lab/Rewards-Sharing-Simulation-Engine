@@ -6,6 +6,7 @@ import os
 import tornado.escape
 import webbrowser
 
+
 class MyPageHandler(PageHandler):
     def get(self):
         elements = self.application.visualization_elements
@@ -20,6 +21,7 @@ class MyPageHandler(PageHandler):
             local_includes=self.application.local_includes,
             scripts=self.application.js_code,
         )
+
 
 class MySocketHandler(SocketHandler):
     """
@@ -51,7 +53,7 @@ class MySocketHandler(SocketHandler):
             # Is the param editable?
             if param in self.application.user_params:
                 if isinstance(
-                    self.application.model_kwargs[param], UserSettableParameter
+                        self.application.model_kwargs[param], UserSettableParameter
                 ):
                     self.application.model_kwargs[param].value = value
                 else:
@@ -62,7 +64,8 @@ class MySocketHandler(SocketHandler):
             if self.application.verbose:
                 print("Unexpected message!")
 
-#taken from  mesa.visualization.ModularVisualization
+
+# taken from  mesa.visualization.ModularVisualization
 class MyModularServer(tornado.web.Application):
     """Main visualization application."""
 
@@ -92,7 +95,7 @@ class MyModularServer(tornado.web.Application):
     EXCLUDE_LIST = ("width", "height")
 
     def __init__(
-        self, model_cls, visualization_elements, name="Mesa Model", model_params={}
+            self, model_cls, visualization_elements, name="Mesa Model", model_params={}
     ):
         """Create a new visualization server with the given elements."""
         # Prep visualization elements:
@@ -138,7 +141,7 @@ class MyModularServer(tornado.web.Application):
         for key, val in self.model_kwargs.items():
             if isinstance(val, UserSettableParameter):
                 if (
-                    val.param_type == "static_text"
+                        val.param_type == "static_text"
                 ):  # static_text is never used for setting params
                     continue
                 model_params[key] = val.value

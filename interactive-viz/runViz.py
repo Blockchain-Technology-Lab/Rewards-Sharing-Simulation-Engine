@@ -8,7 +8,7 @@ import mesa.visualization.ModularVisualization
 
 from logic.sim import Simulation
 from myModularVisualization import MyModularServer
-#from mesa.visualization.ModularVisualization import ModularServer
+from mesa.visualization.ModularVisualization import ModularServer
 from mesa.visualization.modules import ChartModule
 from stackedChartModule import StackedChartModule
 from mesa.visualization.UserParam import UserSettableParameter
@@ -16,9 +16,10 @@ from myChartModule import MyChartModule
 
 num_agents = 100
 poolsChart = MyChartModule([{"Label": "#Pools",
-                      "Color": "Blue"}],
-                    data_collector_name='datacollector')
+                             "Color": "Blue"}],
+                           data_collector_name='datacollector')
 
+# todo investigate why there are missing steps from the charts
 poolDynamicsStackedChart = StackedChartModule([{"Label": "Pool",
                       "Num_agents": num_agents}],  data_collector_name='datacollector')
 
@@ -50,15 +51,18 @@ model_params = {
     "cost_max": UserSettableParameter(
         "slider", "Maximum cost", 0.002, 0.002, 0.1, 0.001,
         description="The maximum possible cost for operating a stake pool."
+    ),
+
+    "seed": UserSettableParameter(
+        "number", "Random seed", 42, description="Seed for reproducibility"
     )
 
-
     # user input options: TYPES = (NUMBER, CHECKBOX, CHOICE, SLIDER, STATIC_TEXT)
-
 }
 
-#todo figure out why MyModularServer was not working at some point
-server = MyModularServer(Simulation,
+# todo figure out why MyModularServer was not working at some point
+# figured out: it only works when I use the ModularServer first so it probably caches some necessary files
+server = ModularServer(Simulation,
                        [poolsChart, poolDynamicsStackedChart],
                        "PoS Pooling Games",
                        model_params)

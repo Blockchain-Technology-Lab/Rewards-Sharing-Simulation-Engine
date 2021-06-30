@@ -53,15 +53,17 @@ def normalize_distr(distr, normal_sum=1):
     return [normal_sum * float(i) / s for i in distr] if s != 0 else distr
 
 
-def calculate_potential_profit(pool, alpha, beta):
+def calculate_potential_profit(pledge, cost, alpha, beta):
     """
 
+    :param pledge:
+    :param cost:
     :param alpha:
     :param beta:
     :return: float, the maximum possible profit that this pool can yield
     """
-    potential_reward = calculate_pool_reward(beta, pool.pledge, alpha, beta)
-    return potential_reward - pool.cost
+    potential_reward = calculate_pool_reward(beta, pledge, alpha, beta)
+    return potential_reward - cost
 
 
 def calculate_pool_reward(stake, pledge, alpha, beta):
@@ -70,25 +72,6 @@ def calculate_pool_reward(stake, pledge, alpha, beta):
     s = min(stake, beta)
     reward = (TOTAL_EPOCH_REWARDS_R / (1 + alpha)) * (s + (l * alpha * ((s - l * (1 - s / beta)) / beta)))
     return reward
-
-
-def calculate_pool_saturation_prob(desirabilities, pool_index):
-    # todo cache the softmax result to use in other calls?
-    # todo add temperature param to adjust the influence of the desirability on the resulting probability
-    probs = softmax(desirabilities)
-    return probs[pool_index]
-
-
-def calculate_pool_stake_NM_myWay(pool, pools, pool_index, alpha, beta):
-    desirabilities = [pool.desirability if pool is not None else 0 for pool in pools]
-    # add desirability of current pool
-    if (pool is None):
-        pool = pools[pool_index]
-    potential_pool_profit = calculate_potential_profit(pool, alpha, beta)
-    desirability = pool.calculate_desirability(potential_pool_profit)
-    desirabilities[pool_index] = desirability
-    sat_prob = calculate_pool_saturation_prob(desirabilities, pool_index)
-    return pool.calculate_stake_NM(beta, sat_prob)
 
 
 def calculate_pool_stake_NM(pool, pools, pool_index, alpha, beta, k):
@@ -106,14 +89,13 @@ def calculate_pool_stake_NM(pool, pools, pool_index, alpha, beta, k):
     # add desirability of current pool
     if pool is None:
         pool = pools[pool_index]
-    potential_pool_profit = calculate_potential_profit(pool, alpha, beta)
+    potential_pool_profit = calculate_potential_profit(pool.pledge, pool.cost, alpha, beta)
     desirability = pool.calculate_desirability(potential_pool_profit)
     desirabilities[pool_index] = desirability
     # todo maybe cache?
-    ranks = np.argsort(-np.array(
-        desirabilities))  # the rank can be defined as the index of the sorted desirabilities, in descending order
-
-    return pool.calculate_stake_NM(k, beta, ranks[pool_index])
+    rank = calculate_rank(desirabilities,
+                          pool_index)  # the rank can be defined as the index of the sorted desirabilities, in descending order
+    return pool.calculate_stake_NM(k, beta, rank)
 
 
 # Examine whether a pool leading strategy has the potential to rank the player's pool in the top k
@@ -126,8 +108,9 @@ def check_pool_potential(strategy, model, player_id):
     players = model.schedule.agents
     pools = model.pools.copy()
 
-    pool = Pool(players[player_id].cost, strategy.pledge, player_id, strategy.margin)  # todo create pool constructor that takes strategy as argument
-    potential_profit = calculate_potential_profit(pool, alpha, beta)
+    pool = Pool(players[player_id].cost, strategy.pledge, player_id,
+                strategy.margin)  # todo create pool constructor that takes strategy as argument
+    potential_profit = calculate_potential_profit(pool.pledge, pool.cost, alpha, beta)
     pool.calculate_desirability(potential_profit)
     pools[player_id] = pool
 
@@ -144,8 +127,9 @@ def check_pool_potential(strategy, model, player_id):
             if r <= c:
                 continue  # since the potential reward cannot even cover the cost, player i has no chance for a pool
             m_prime = max((u - (r - c) * q) / ((r - c) * (1 - q)), 0) if q < 1 else 0
+            # monitor m_prime (is it often 0?)
             pool = Pool(c, s, i, m_prime)
-            potential_profit = calculate_potential_profit(pool, alpha, beta)
+            potential_profit = calculate_potential_profit(pool.pledge, pool.cost, alpha, beta)
             pool.calculate_desirability(potential_profit)
             pools[i] = pool
 
@@ -155,11 +139,17 @@ def check_pool_potential(strategy, model, player_id):
     return rank < k
 
 
-def calculate_rank(desirabilities, player_id):
+def calculate_ranks(desirabilities):
     ranks = [0 for i in range(len(desirabilities))]
-    indices = np.argsort(-np.array(desirabilities))  # the rank is the index of the sorted desirabilities (in descending order)
+    indices = np.argsort(
+        -np.array(desirabilities))  # the rank is the index of the sorted desirabilities (in descending order)
     for rank, index in enumerate(indices):
         ranks[index] = rank
+    return ranks
+
+
+def calculate_rank(desirabilities, player_id):
+    ranks = calculate_ranks(desirabilities)
     return ranks[player_id]
 
 
@@ -174,7 +164,30 @@ def flatten_list(l):
     return l
 
 
+'''
+unused for now but could be useful in the future
+
+def calculate_pool_saturation_prob(desirabilities, pool_index):
+    # todo cache the softmax result to use in other calls?
+    # todo add temperature param to adjust the influence of the desirability on the resulting probability
+    probs = softmax(desirabilities)
+    return probs[pool_index]
+
+
+def calculate_pool_stake_NM_myWay(pool, pools, pool_index, alpha, beta):
+    desirabilities = [pool.desirability if pool is not None else 0 for pool in pools]
+    # add desirability of current pool
+    if (pool is None):
+        pool = pools[pool_index]
+    potential_pool_profit = calculate_potential_profit(pool.pledge, pool.cost, alpha, beta)
+    desirability = pool.calculate_desirability(potential_pool_profit)
+    desirabilities[pool_index] = desirability
+    sat_prob = calculate_pool_saturation_prob(desirabilities, pool_index)
+    return pool.calculate_stake_NM(beta, sat_prob)
+    
 def softmax(vector):
     np_vector = np.array(vector)
     e = np.exp(np_vector)
     return e / np.sum(e)
+
+'''

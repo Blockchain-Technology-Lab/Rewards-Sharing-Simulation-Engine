@@ -5,8 +5,8 @@ from mesa.batchrunner import BatchRunnerMP
 import time
 import matplotlib.pyplot as plt
 
-from logic.sim import Simulation
-from logic.sim import get_number_of_pools
+from sim import Simulation
+from sim import get_number_of_pools
 
 if __name__ == '__main__':
     freeze_support()

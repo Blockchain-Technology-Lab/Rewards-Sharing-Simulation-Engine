@@ -6,7 +6,7 @@ Created on Fri Jun 11 17:13:20 2021
 """
 from abc import ABC, abstractmethod
 import random
-import logic.helper as hlp
+import helper as hlp
 
 MAX_POOLS = 10  # max number of pools that a stakeholder can open (when pool splitting is allowed)
 
