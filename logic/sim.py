@@ -10,10 +10,10 @@ from mesa import Model
 from mesa.datacollection import DataCollector
 from mesa.time import BaseScheduler, SimultaneousActivation, RandomActivation
 
-from stakeholder import Stakeholder
-import helper as hlp
+from logic.stakeholder import Stakeholder
+import logic.helper as hlp
 
-MIN_CONSECUTIVE_IDLE_STEPS_FOR_CONVERGENCE = 5
+MIN_CONSECUTIVE_IDLE_STEPS_FOR_CONVERGENCE = 10
 
 
 def get_number_of_pools(model):

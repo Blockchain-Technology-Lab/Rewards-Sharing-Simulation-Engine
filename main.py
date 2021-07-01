@@ -1,4 +1,4 @@
-from sim import Simulation
+from logic.sim import Simulation
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -10,7 +10,7 @@ def main():
 
     sim_df = sim.datacollector.get_model_vars_dataframe()
 
-    figures_dir = "../figures/"
+    figures_dir = "figures/"
 
     pool_nums = sim_df["#Pools"]
     plt.figure()
@@ -20,11 +20,11 @@ def main():
 
     agent_utility = sim.datacollector.get_agent_vars_dataframe()
     #print(agent_utility)
-    end_util = agent_utility.xs(15, level="Step")["Utility"]
+    end_util = agent_utility.xs(2, level="Step")["Utility"]
     plt.figure()
     plt.hist(end_util)
-    plt.title("Step 15 utility")
-    plt.savefig(figures_dir + "utilityStep15.png", bbox_inches='tight')
+    plt.title("Step 2 utility")
+    plt.savefig(figures_dir + "utilityStep2.png", bbox_inches='tight')
 
     one_agent_util = agent_utility.xs(3, level="AgentID")
     plt.figure()

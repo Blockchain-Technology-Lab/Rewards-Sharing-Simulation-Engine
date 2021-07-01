@@ -8,7 +8,7 @@ Created on Sun Jun 13 08:15:26 2021
 import numpy as np
 from numpy.random import default_rng
 
-from pool import Pool
+from logic.pool import Pool
 
 PARETO_ALPHA_PARAM = 1.5
 C_MIN = 0.001

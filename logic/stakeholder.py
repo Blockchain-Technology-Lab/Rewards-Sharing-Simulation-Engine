@@ -7,9 +7,9 @@ Created on Fri Jun 11 17:14:45 2021
 
 from mesa import Agent
 
-import helper as hlp
-from pool import Pool
-from strategy import SinglePoolStrategy, MultiPoolStrategy
+import logic.helper as hlp
+from logic.pool import Pool
+from logic.strategy import SinglePoolStrategy, MultiPoolStrategy
 
 UTILITY_THRESHOLD = 0.0001  # note: if the threshold is high then many delegation moves are ignored
 IDLE_STEPS_AFTER_OPENING_POOL = 10
@@ -71,7 +71,7 @@ class Stakeholder(Agent):
         return strategy_changed, new_utility
 
     # todo maybe move to helper (with extra arguments)
-    def should_open_pool(self):
+    def has_potential_for_pool(self):
         saturation_point = self.model.beta
 
         current_pool_owners = [pool.owner for pool in self.model.pools if pool is not None]  # assumes no pool splitting
@@ -96,17 +96,20 @@ class Stakeholder(Agent):
 
         return any(profit < potential_profits[self.unique_id] for profit in potential_profits.values())
 
-    def should_keep_pool(self):
-        pass
-
     # consider an operator AND delegator strategy for EVERYONE, then decide between the 2 and then as usual
     # basically give the chance to everyone to create a pool
     def not_so_random_walk(self):
 
+        self.utility = self.calculate_utility(
+            self.strategy)  # recalculate utility because pool formation may have changed since last calculation
+
+        potential_strategies = {"operator": {"utility": 0, "strategy": None},
+                                "delegator": {"utility": 0, "strategy": None}}
+
         if not self.strategy.is_pool_operator:
             # for players who don't already have pools check if they should open one
 
-            if self.should_open_pool():
+            if self.has_potential_for_pool():
                 # find the most suitable pool params and calculate the potential utility of operating a pool with these params
 
                 # first calculate the potential profits of all players
@@ -126,27 +129,42 @@ class Stakeholder(Agent):
 
                 new_strategy = SinglePoolStrategy(pledge, margin, allocations, is_pool_operator=True) # todo update for pool splitting
                 new_utility = self.calculate_utility(new_strategy)
+
                 if new_utility - self.utility > UTILITY_THRESHOLD:
-                    self.new_strategy = new_strategy
+                    potential_strategies["operator"]["utility"] = new_utility
+                    potential_strategies["operator"]["strategy"] = new_strategy
+                    '''self.new_strategy = new_strategy
                     self.idle_steps_remaining = IDLE_STEPS_AFTER_OPENING_POOL
-                    return True, new_utility #todo calculate utility earlier and only open pool if new utility is higher?
+                    return True, new_utility'''
 
         # if the player doesn't want to open a pool (or already has one), then find a good delegation strategy and calculate its potential utility
         # for now random choice of delegation todo change
         max_steps = 100
         for i in range(max_steps):
             new_strategy = self.strategy.create_random_delegator_strategy(self.model.pools, self.unique_id, self.stake)
-            self.utility = self.calculate_utility(
-                self.strategy)  # recalculate utility because pool formation may have changed since last calculation
             new_utility = self.calculate_utility(new_strategy)
 
             if new_utility - self.utility > UTILITY_THRESHOLD:
-                self.new_strategy = new_strategy
-                return True, new_utility
+                potential_strategies["delegator"]["utility"] = new_utility
+                potential_strategies["delegator"]["strategy"] = new_strategy
+                '''self.new_strategy = new_strategy
+                return True, new_utility'''
 
-        return False, None  # no strategy found that is better than the current one
+        #return False, None  # no strategy found that is better than the current one
 
-        # compare the above with the utility of the current strategy and pick one of the 3 #todo also try that approach
+        # compare the above with the utility of the current strategy and pick one of the 3
+        strategy_changed, utility = False, self.utility
+        if potential_strategies["delegator"]["utility"] > utility:
+            self.new_strategy = potential_strategies["delegator"]["strategy"]
+            strategy_changed = True
+            utility = potential_strategies["delegator"]["utility"]
+        if potential_strategies["operator"]["utility"] > utility:
+            self.new_strategy = potential_strategies["operator"]["strategy"]
+            strategy_changed = True
+            utility = potential_strategies["operator"]["utility"]
+            self.idle_steps_remaining = IDLE_STEPS_AFTER_OPENING_POOL
+        return strategy_changed, utility
+
 
     def get_perfect_strategy(self):
         pass
