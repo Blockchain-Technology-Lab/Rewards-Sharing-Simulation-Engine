@@ -1,7 +1,39 @@
-from mesa.visualization.modules.ChartVisualization import ChartModule
+import json
+from mesa.visualization.ModularVisualization import VisualizationElement
 
 
-class MyChartModule(ChartModule):
+class MyChartModule(VisualizationElement):
+
+    package_includes = ["Chart.min.js"]
+    local_includes = ["MyChartModule.js"]
+
+    def __init__(
+        self,
+        series,
+        canvas_height=200,
+        canvas_width=500,
+        data_collector_name="datacollector",
+    ):
+        """
+        Create a new line chart visualization.
+
+        Args:
+            series: A list of dictionaries containing series names and
+                    HTML colors to chart them in, e.g.
+                    [{"Label": "happy", "Color": "Black"},]
+            canvas_height, canvas_width: Size in pixels of the chart to draw.
+            data_collector_name: Name of the DataCollector to use.
+        """
+
+        self.series = series
+        self.canvas_height = canvas_height
+        self.canvas_width = canvas_width
+        self.data_collector_name = data_collector_name
+
+        series_json = json.dumps(self.series)
+        new_element = "new MyChartModule({}, {},  {})"
+        new_element = new_element.format(series_json, canvas_width, canvas_height)
+        self.js_code = "elements.push(" + new_element + ");"
 
     def render(self, model):
         current_values = []

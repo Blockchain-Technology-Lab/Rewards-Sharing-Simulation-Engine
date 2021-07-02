@@ -9,7 +9,6 @@ import mesa.visualization.ModularVisualization
 from logic.sim import Simulation
 from myModularVisualization import MyModularServer
 from mesa.visualization.ModularVisualization import ModularServer
-from mesa.visualization.modules import ChartModule
 from stackedChartModule import StackedChartModule
 from mesa.visualization.UserParam import UserSettableParameter
 from myChartModule import MyChartModule

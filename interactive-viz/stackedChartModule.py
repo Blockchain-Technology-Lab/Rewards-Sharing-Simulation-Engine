@@ -65,7 +65,6 @@ class StackedChartModule(VisualizationElement):
         data_collector = getattr(model, self.data_collector_name)
 
         for s in self.series:
-            print(s)
             name = s["Label"]
             try:
                 values = data_collector.model_vars[name][-1]  # Latest values collected
@@ -73,6 +72,4 @@ class StackedChartModule(VisualizationElement):
                 continue
             for val in values:
                 current_values.append(val)
-        #print("Current values: ")
-        #print(current_values)
         return current_values
