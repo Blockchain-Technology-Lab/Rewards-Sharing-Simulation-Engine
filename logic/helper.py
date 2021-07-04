@@ -98,6 +98,34 @@ def calculate_pool_stake_NM(pool, pools, pool_index, alpha, beta, k):
     return pool.calculate_stake_NM(k, beta, rank)
 
 
+def calculate_ranks(desirabilities):
+    ranks = [0 for i in range(len(desirabilities))]
+    indices = np.argsort(
+        -np.array(desirabilities))  # the rank is the index of the sorted desirabilities (in descending order)
+    for rank, index in enumerate(indices):
+        ranks[index] = rank
+    return ranks
+
+
+def calculate_rank(desirabilities, player_id):
+    ranks = calculate_ranks(desirabilities)
+    return ranks[player_id]
+
+
+def is_list_flat(l):
+    # assume that the list is homogeneous, so only check the first element
+    return not isinstance(l[0], list)
+
+
+def flatten_list(l):
+    if not is_list_flat(l):
+        l = sum(l, [])
+    return l
+
+
+'''
+unused for now but could be useful in the future
+
 # Examine whether a pool leading strategy has the potential to rank the player's pool in the top k
 def check_pool_potential(strategy, model, player_id):
     alpha = model.alpha
@@ -137,35 +165,6 @@ def check_pool_potential(strategy, model, player_id):
     rank = calculate_rank(desirabilities, player_id)
     result = rank < k
     return rank < k
-
-
-def calculate_ranks(desirabilities):
-    ranks = [0 for i in range(len(desirabilities))]
-    indices = np.argsort(
-        -np.array(desirabilities))  # the rank is the index of the sorted desirabilities (in descending order)
-    for rank, index in enumerate(indices):
-        ranks[index] = rank
-    return ranks
-
-
-def calculate_rank(desirabilities, player_id):
-    ranks = calculate_ranks(desirabilities)
-    return ranks[player_id]
-
-
-def is_list_flat(l):
-    # assume that the list is homogeneous, so only check the first element
-    return not isinstance(l[0], list)
-
-
-def flatten_list(l):
-    if not is_list_flat(l):
-        l = sum(l, [])
-    return l
-
-
-'''
-unused for now but could be useful in the future
 
 def calculate_pool_saturation_prob(desirabilities, pool_index):
     # todo cache the softmax result to use in other calls?
