@@ -4,6 +4,7 @@ Created on Fri Jun 11 17:14:45 2021
 
 @author: chris
 """
+from contextlib import suppress
 
 from mesa import Agent
 
@@ -11,7 +12,7 @@ import logic.helper as hlp
 from logic.pool import Pool
 from logic.strategy import SinglePoolStrategy, MultiPoolStrategy
 
-UTILITY_THRESHOLD = 0.0001  # note: if the threshold is high then many delegation moves are ignored
+UTILITY_THRESHOLD = 0.00000001  # note: if the threshold is high then many delegation moves are ignored
 IDLE_STEPS_AFTER_OPENING_POOL = 10
 
 
@@ -155,8 +156,11 @@ class Stakeholder(Agent):
         saturation_point = self.model.beta
         alpha = self.model.alpha
 
-        pools = self.model.pools
+        pools = self.model.pools.copy()
         pool_owners = [pool.owner for pool in pools if pool is not None]  # assumes no pool splitting
+        with suppress(ValueError):
+            # remove the current player from the list in case he's an SPO
+            pool_owners.remove(self.unique_id)
 
         # Calculate the potential profits of all current pools
         potential_profits = {agent.unique_id:
@@ -165,7 +169,7 @@ class Stakeholder(Agent):
                              if agent.unique_id in pool_owners}
 
         stake_to_delegate = self.stake
-        allocations = [0 for pool in range(len(self.model.pools))]
+        allocations = [0 for pool in range(len(pools))]
 
         # Delegate the stake to the most (potentially) profitable pools as long as they're not oversaturated
         for pool_index in sorted(potential_profits, reverse=True):
@@ -207,7 +211,6 @@ class Stakeholder(Agent):
 
         # For all players (current pool owners, prospective pool owners and players who don't even consider running a pool)
         # find a possible delegation strategy and calculate its potential utility
-        # for now random choice of delegation todo change
         possible_moves["delegator"] = self.find_delegation_move_pp()
 
         # compare the above with the utility of the current strategy and pick one of the 3
