@@ -22,10 +22,10 @@ class Stakeholder(Agent):
         # the player's cost of running one pool (for now assume that running n pools will cost n times as much)
         self.cost = cost
         self.stake = stake
-        self.utility = utility
         self.isMyopic = agent_type == 'M'
         self.canSplitPools = can_split_pools
         self.idle_steps_remaining = 0
+        self.new_strategy = None
         # pools field that points to the player's pools?
 
         if strategy is None:
@@ -48,11 +48,9 @@ class Stakeholder(Agent):
             # for players that are excluded from this round (e.g. operators who recently opened their pool)
             self.idle_steps_remaining -= 1
             return
-        strategy_changed, new_utility = self.make_move()
-        if strategy_changed:
-            # The player has changed their strategy, so now they have to execute it
-            self.execute_strategy(new_utility)
-            self.model.current_step_idle = False
+        self.make_move()
+        if self.model.activation_order != "Simultaneous":
+            self.advance()
         # self.get_status()
         # print('----------------------')
 
@@ -60,7 +58,10 @@ class Stakeholder(Agent):
     # specifically, "step() activates the agent and stages any necessary changes, but does not apply them yet
     #                advance() then applies the changes"
     def advance(self):
-        pass
+        if self.new_strategy is not None:
+            # The player has changed their strategy, so now they have to execute it
+            self.execute_strategy()
+            self.model.current_step_idle = False
 
     def make_move(self):
         """
@@ -68,8 +69,7 @@ class Stakeholder(Agent):
         :return: bool (true if strategy was changed and false if it wasn't), allocation changes
                                                             (or None in case of no changes)
         """
-        strategy_changed, new_utility = self.update_strategy()
-        return strategy_changed, new_utility
+        self.update_strategy()
 
     # todo maybe move to helper (with extra arguments)
     def has_potential_for_pool(self):
@@ -141,9 +141,10 @@ class Stakeholder(Agent):
 
         return new_utility, new_strategy
 
-    def find_delegation_move_random(self, max_steps=100):
+    def find_delegation_move_random(self, current_utility, max_steps=100):
         """
         Choose a delegation move using a random walk
+        :param current_utility:
         :param max_steps:
         :return: a delegation strategy that yields higher utility than the current one
         OR the last strategy that was examined (if none of the examined strategies had higher utility than the current)
@@ -152,7 +153,7 @@ class Stakeholder(Agent):
             strategy = self.strategy.create_random_delegator_strategy(self.model.pools, self.unique_id, self.stake)
             utility = self.calculate_utility(strategy)
 
-            if utility - self.utility > UTILITY_THRESHOLD:
+            if utility - current_utility > UTILITY_THRESHOLD:
                 break
         return utility, strategy
 
@@ -227,9 +228,9 @@ class Stakeholder(Agent):
         """
 
         # Recalculate utility because pool formation may have changed since last calculation
-        self.utility = self.calculate_utility(self.strategy)  #todo decide if utility field is really needed in Stakeholder
+        current_utility = self.calculate_utility(self.strategy)
 
-        possible_moves = {"current": (self.utility + UTILITY_THRESHOLD, self.strategy)}  # every dict value is a tuple of utility, strategy
+        possible_moves = {"current": (current_utility + UTILITY_THRESHOLD, self.strategy)}  # every dict value is a tuple of utility, strategy
 
         if not self.strategy.is_pool_operator:
             # For players who don't already have pools check if they should open one
@@ -248,13 +249,8 @@ class Stakeholder(Agent):
 
         # compare the above with the utility of the current strategy and pick one of the 3
         max_utility_option = max(possible_moves, key=lambda key: possible_moves[key][0]) #todo in case of tie choose easiest strategy
-        if max_utility_option == "current":
-            strategy_changed = False
-        else:
-            strategy_changed = True
-            self.new_strategy = possible_moves[max_utility_option][1]
 
-        return strategy_changed, possible_moves[max_utility_option][0]
+        self.new_strategy = None if max_utility_option == "current" else possible_moves[max_utility_option][1]
 
     def calculate_utility(self, strategy):
         utility = 0
@@ -322,24 +318,32 @@ class Stakeholder(Agent):
 
         return utility
 
-    def execute_strategy(self, new_utility):
+    def execute_strategy(self):
         """
         Execute the player's current strategy
         :return: void
 
         """
+        current_pools = self.model.pools
+        # since players are allowed to make moves simultaneously, we need to check for validity
+        # when we apply their chosen strategies (e.g. delegating to a pool that just closed)
+        move_still_valid = all([(current_pools[i] is not None or allocation == 0) for i, allocation
+                                in enumerate(self.new_strategy.stake_allocations) if i != self.unique_id])
+        # for now if the move is not 100% valid, we discard it completely (alternatively we could only discard the invalid part)
+        if not move_still_valid:
+            self.new_strategy = None
+            return
 
         allocation_changes = [self.new_strategy.stake_allocations[i] - self.strategy.stake_allocations[i] for i in
                               range(len(self.strategy.stake_allocations))]
         own_pool_changes = {'margin': self.new_strategy.margin - self.strategy.margin,
                             'pledge': self.new_strategy.pledge - self.strategy.pledge}
 
-        self.utility = new_utility
         self.strategy = self.new_strategy
-        self.new_strategy = None
+        self.new_strategy = None #todo maybe redundant?
 
         # first deal with possible margin or pledge changes
-        if self.model.pools[self.unique_id] is not None:
+        if self.model.pools[self.unique_id] is not None: #todo replace with current_pools but make sure that it works
             self.model.pools[self.unique_id].margin += own_pool_changes['margin']
             self.model.pools[self.unique_id].margin += own_pool_changes['pledge']
 
@@ -391,8 +395,8 @@ class Stakeholder(Agent):
         # todo also update aggregate values
 
     def get_status(self):
-        print("Agent id: {}, is myopic: {}, utility: {}, stake: {}, cost:{}"
-              .format(self.unique_id, self.isMyopic, self.utility, self.stake, self.cost))
+        print("Agent id: {}, is myopic: {}, stake: {}, cost:{}"
+              .format(self.unique_id, self.isMyopic, self.stake, self.cost))
         self.strategy.print_()
         print("\n")
 

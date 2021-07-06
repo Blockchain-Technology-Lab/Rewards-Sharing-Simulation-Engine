@@ -16,6 +16,7 @@ import logic.helper as hlp
 MIN_CONSECUTIVE_IDLE_STEPS_FOR_CONVERGENCE = 11
 
 
+
 def get_number_of_pools(model):
     return len([1 for pool in model.pools if pool is not None and pool != []])
 
@@ -34,8 +35,15 @@ class Simulation(Model):
     Simulation of staking behaviour in Proof-of-Stake Blockchains.
     """
 
+    activation_orders = {
+        "Sequential": BaseScheduler,
+        "Random": RandomActivation,
+        "Simultaneous": SimultaneousActivation
+    }
+
     def __init__(self, n=100, k=10, alpha=0.3, total_stake=1, max_iterations=100, seed=None,
-                 cost_min=0.001, cost_max=0.002, pareto_param=1.5, pareto_trunc=False, pool_splitting=False):
+                 cost_min=0.001, cost_max=0.002, pareto_param=1.5, pareto_trunc=False,
+                 activation_order="Random", pool_splitting=False):
         if seed is not None:
             random.seed(seed)
 
@@ -53,14 +61,17 @@ class Simulation(Model):
 
         self.current_step = 0
         self.running = True  # for batch running and visualisation purposes
-        self.schedule = RandomActivation(self)   #BaseScheduler(self)  # SimultaneousActivation(self)  <- use base if you want them to get activated in specific order
+
+        self.activation_order = activation_order
+
+        self.schedule = self.activation_orders[activation_order](self) #SimultaneousActivation(self)  #BaseScheduler(self)  #RandomActivation(self)   <- use base if you want them to get activated in specific order
 
         self.initialize_system()
         self.initialize_players()
 
         self.datacollector = DataCollector(
-            model_reporters={"#Pools": get_number_of_pools, "Pool": get_pool_sizes},
-            agent_reporters={"Utility": "utility"})
+            model_reporters={"#Pools": get_number_of_pools, "Pool": get_pool_sizes})
+            #agent_reporters={"Utility": "utility"})
 
     def initialize_players(self):
         # initialize system

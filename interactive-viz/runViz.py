@@ -58,6 +58,9 @@ model_params = {
 
     "pareto_trunc": UserSettableParameter("checkbox", "Pareto truncated", False),
 
+    "activation_order": UserSettableParameter("choice", "Player activation order", value="Random",
+                                              choices=list(Simulation.activation_orders.keys())),
+
     "seed": UserSettableParameter(
         "number", "Random seed", 42, description="Seed for reproducibility"
     ),
