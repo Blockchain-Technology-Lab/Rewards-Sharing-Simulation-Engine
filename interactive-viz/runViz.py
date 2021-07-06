@@ -10,6 +10,7 @@ from logic.sim import Simulation
 #from myModularVisualization import MyModularServer
 from mesa.visualization.ModularVisualization import ModularServer
 from stackedChartModule import StackedChartModule
+from scatterChartModule import ScatterChartModule
 from mesa.visualization.UserParam import UserSettableParameter
 from myChartModule import MyChartModule
 
@@ -21,6 +22,9 @@ poolsChart = MyChartModule([{"Label": "#Pools",
 # todo investigate why there are missing steps from the charts
 poolDynamicsStackedChart = StackedChartModule([{"Label": "Pool",
                       "Num_agents": num_agents}],  data_collector_name='datacollector')
+
+poolScatterChart = ScatterChartModule([{"Label": "StakePairs"}],
+                                      data_collector_name='datacollector')
 
 model_params = {
     "n": UserSettableParameter(
@@ -73,7 +77,7 @@ model_params = {
 # todo figure out why MyModularServer was not working at some point
 # figured out: it only works when I use the ModularServer first so it probably caches some necessary files
 server = ModularServer(Simulation,
-                       [poolsChart, poolDynamicsStackedChart],
+                       [poolsChart, poolDynamicsStackedChart, poolScatterChart],
                        "PoS Pooling Games",
                        model_params)
 server.port = 8521 # The default

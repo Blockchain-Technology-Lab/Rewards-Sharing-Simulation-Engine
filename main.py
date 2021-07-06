@@ -18,7 +18,7 @@ def main():
     plt.title("#Pools")
     plt.savefig(figures_dir + "poolCount.png", bbox_inches='tight')
 
-    agent_utility = sim.datacollector.get_agent_vars_dataframe()
+    '''agent_utility = sim.datacollector.get_agent_vars_dataframe()
     #print(agent_utility)
     end_util = agent_utility.xs(2, level="Step")["Utility"]
     plt.figure()
@@ -32,7 +32,7 @@ def main():
     plt.title("Agent 3 utility")
     plt.xlabel("Iteration")
     plt.ylabel("Utility")
-    plt.savefig(figures_dir + "utilityAgent3.png", bbox_inches='tight')
+    plt.savefig(figures_dir + "utilityAgent3.png", bbox_inches='tight')'''
 
     pool_sizes_by_step = sim_df["Pool"]
     pool_sizes_by_pool = np.array(list(pool_sizes_by_step)).T
@@ -42,6 +42,16 @@ def main():
     plt.xlabel("Iteration")
     plt.ylabel("Stake")
     plt.savefig(figures_dir + "poolDynamics.png", bbox_inches='tight')
+
+    last_stakes = sim_df["StakePairs"].iloc[-1]
+    x = last_stakes['x']
+    y = last_stakes['y']
+    plt.figure()
+    plt.scatter(x, y)
+    plt.title("Owner stake vs pool stake")
+    plt.xlabel("Pool owner stake")
+    plt.ylabel("Pool stake")
+    plt.savefig(figures_dir + "stakePairs.png", bbox_inches='tight')
 
     plt.show()
 

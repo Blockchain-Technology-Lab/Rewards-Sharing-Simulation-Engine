@@ -5,7 +5,7 @@ from mesa.visualization.ModularVisualization import VisualizationElement
 class MyChartModule(VisualizationElement):
 
     package_includes = ["Chart.min.js"]
-    local_includes = ["MyChartModule.js"]
+    local_includes = ["myChartModule.js"]
 
     def __init__(
         self,

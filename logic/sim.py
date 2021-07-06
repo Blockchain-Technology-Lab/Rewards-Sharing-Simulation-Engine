@@ -16,13 +16,18 @@ import logic.helper as hlp
 MIN_CONSECUTIVE_IDLE_STEPS_FOR_CONVERGENCE = 11
 
 
-
 def get_number_of_pools(model):
     return len([1 for pool in model.pools if pool is not None and pool != []])
 
 
 def get_pool_sizes(model):
     return [pool.stake if pool is not None else 0 for pool in hlp.flatten_list(model.pools)]
+
+
+def get_stake_pairs(model):
+    players = model.schedule.agents
+    return {'x': [players[pool.owner].stake if pool is not None else 0 for pool in hlp.flatten_list(model.pools)],
+            'y': [pool.stake if pool is not None else 0 for pool in hlp.flatten_list(model.pools)]}
 
 
 # Only valid when poolSplitting = True
@@ -49,7 +54,7 @@ class Simulation(Model):
 
         self.num_agents = n
         self.k = k
-        self.beta = 1/k
+        self.beta = 1 / k
         self.alpha = alpha
         self.total_stake = total_stake
         self.max_iterations = max_iterations
@@ -64,14 +69,16 @@ class Simulation(Model):
 
         self.activation_order = activation_order
 
-        self.schedule = self.activation_orders[activation_order](self) #SimultaneousActivation(self)  #BaseScheduler(self)  #RandomActivation(self)   <- use base if you want them to get activated in specific order
+        self.schedule = self.activation_orders[activation_order](
+            self)  # SimultaneousActivation(self)  #BaseScheduler(self)  #RandomActivation(self)   <- use base if you want them to get activated in specific order
 
         self.initialize_system()
         self.initialize_players()
 
         self.datacollector = DataCollector(
-            model_reporters={"#Pools": get_number_of_pools, "Pool": get_pool_sizes})
-            #agent_reporters={"Utility": "utility"})
+            model_reporters={"#Pools": get_number_of_pools, "Pool": get_pool_sizes,
+                             "StakePairs": get_stake_pairs})  # todo change "Pool" label
+        # agent_reporters={"Utility": "utility"})
 
     def initialize_players(self):
         # initialize system
@@ -88,7 +95,7 @@ class Simulation(Model):
         # Create agents
         for i in range(self.num_agents):
             # for now only non-myopic agents, in the future we can mix them
-            agent_type = 'NM'#random.choice(agent_types)
+            agent_type = 'NM'  # random.choice(agent_types)
             agent = Stakeholder(i, self, agent_type, cost=cost_distribution[i],
                                 stake=stake_distribution[i], can_split_pools=self.pool_splitting)
             self.schedule.add(agent)
@@ -127,7 +134,6 @@ class Simulation(Model):
             self.step()
             i += 1
 
-
     def has_converged(self):
         """
             Check whether the system has reached a state of equilibrium,
@@ -140,11 +146,11 @@ class Simulation(Model):
         print("Number of agents: {} \n Number of pools: {} \n"
               .format(self.num_agents, len([1 for p in self.pools if p != None])))
         '''print("Pools: ")'''
-        #for i, agent in enumerate(self.schedule.agents):
-            #agent.get_status()
-            #stake = self.pools[i].stake if self.pools[i] is not None else 0
-            #print("Agent {}: Stake: {:.3f}, Cost: {:.3f}, Pool stake: {:.3f} \n"
-            #     .format(agent.unique_id, agent.stake, agent.cost, stake))
+        # for i, agent in enumerate(self.schedule.agents):
+        # agent.get_status()
+        # stake = self.pools[i].stake if self.pools[i] is not None else 0
+        # print("Agent {}: Stake: {:.3f}, Cost: {:.3f}, Pool stake: {:.3f} \n"
+        #     .format(agent.unique_id, agent.stake, agent.cost, stake))
         '''for pool in self.pools:
             if pool is not None:
                 print(pool)'''
