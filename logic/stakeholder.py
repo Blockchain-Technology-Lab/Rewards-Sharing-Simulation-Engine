@@ -139,20 +139,55 @@ class Stakeholder(Agent):
                                           is_pool_operator=True)  # todo update for pool splitting
         new_utility = self.calculate_utility(new_strategy)
 
-        if new_utility - self.utility > UTILITY_THRESHOLD:
-            return new_utility, new_strategy
-        return -1, None
+        return new_utility, new_strategy
 
     def find_delegation_move_random(self, max_steps=100):
+        """
+        Choose a delegation move using a random walk
+        :param max_steps:
+        :return: a delegation strategy that yields higher utility than the current one
+        OR the last strategy that was examined (if none of the examined strategies had higher utility than the current)
+        """
         for i in range(max_steps):
             strategy = self.strategy.create_random_delegator_strategy(self.model.pools, self.unique_id, self.stake)
             utility = self.calculate_utility(strategy)
 
             if utility - self.utility > UTILITY_THRESHOLD:
-                return utility, strategy
-        return -1, None
+                break
+        return utility, strategy
 
-    def find_delegation_move_pp(self):
+    def find_delegation_move_desirability(self):
+        """
+        Choose a delegation move based on the desirability of the existing pools
+        :return:
+        """
+        saturation_point = self.model.beta
+        stake_to_delegate = self.stake
+
+        pools = self.model.pools.copy()
+        desirabilities = {pool.owner: pool.desirability for pool in pools
+                          if pool is not None and pool.owner != self.unique_id}
+        allocations = [0 for _ in range(len(pools))]
+
+        # Delegate the stake to the most pools with the highest desirability, as long as they're not oversaturated
+        for pool_index in sorted(desirabilities, reverse=True):
+            if stake_to_delegate == 0:
+                break
+            if pools[pool_index].stake < saturation_point:
+                stake_to_saturation = saturation_point - pools[pool_index].stake
+                allocations[pool_index] = min(stake_to_delegate, stake_to_saturation)
+                stake_to_delegate -= allocations[pool_index]
+
+        strategy = SinglePoolStrategy(stake_allocations=allocations, is_pool_operator=False)
+        utility = self.calculate_utility(strategy)
+
+        return utility, strategy
+
+    def find_delegation_move_potential_profit(self):
+        """
+        Choose a delegation move based on the potential profit of the existing pools
+        :return:
+        """
         saturation_point = self.model.beta
         alpha = self.model.alpha
 
@@ -182,9 +217,7 @@ class Stakeholder(Agent):
         strategy = SinglePoolStrategy(stake_allocations=allocations, is_pool_operator=False)
         utility = self.calculate_utility(strategy)
 
-        if utility - self.utility > UTILITY_THRESHOLD:
-            return utility, strategy
-        return -1, None
+        return utility, strategy
 
     def update_strategy(self):
         """
@@ -196,7 +229,7 @@ class Stakeholder(Agent):
         # Recalculate utility because pool formation may have changed since last calculation
         self.utility = self.calculate_utility(self.strategy)  #todo decide if utility field is really needed in Stakeholder
 
-        possible_moves = {"current": (self.utility, self.strategy)}  # every dict value is a tuple of utility, strategy
+        possible_moves = {"current": (self.utility + UTILITY_THRESHOLD, self.strategy)}  # every dict value is a tuple of utility, strategy
 
         if not self.strategy.is_pool_operator:
             # For players who don't already have pools check if they should open one
@@ -211,7 +244,7 @@ class Stakeholder(Agent):
 
         # For all players (current pool owners, prospective pool owners and players who don't even consider running a pool)
         # find a possible delegation strategy and calculate its potential utility
-        possible_moves["delegator"] = self.find_delegation_move_pp()
+        possible_moves["delegator"] = self.find_delegation_move_desirability()
 
         # compare the above with the utility of the current strategy and pick one of the 3
         max_utility_option = max(possible_moves, key=lambda key: possible_moves[key][0]) #todo in case of tie choose easiest strategy

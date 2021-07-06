@@ -13,7 +13,7 @@ from mesa.time import BaseScheduler, SimultaneousActivation, RandomActivation
 from logic.stakeholder import Stakeholder
 import logic.helper as hlp
 
-MIN_CONSECUTIVE_IDLE_STEPS_FOR_CONVERGENCE = 10
+MIN_CONSECUTIVE_IDLE_STEPS_FOR_CONVERGENCE = 11
 
 
 def get_number_of_pools(model):
@@ -35,7 +35,7 @@ class Simulation(Model):
     """
 
     def __init__(self, n=100, k=10, alpha=0.3, total_stake=1, max_iterations=100, seed=None,
-                 pool_splitting=False, cost_min=0.001, cost_max=0.002):
+                 cost_min=0.001, cost_max=0.002, pareto_param=1.5, pareto_trunc=False, pool_splitting=False):
         if seed is not None:
             random.seed(seed)
 
@@ -48,6 +48,8 @@ class Simulation(Model):
         self.pool_splitting = pool_splitting  # True if players are allowed to operate multiple pools
         self.cost_min = cost_min
         self.cost_max = cost_max
+        self.pareto_param = pareto_param
+        self.pareto_trunc = pareto_trunc
 
         self.current_step = 0
         self.running = True  # for batch running and visualisation purposes
@@ -65,7 +67,8 @@ class Simulation(Model):
         agent_types = ['M', 'NM']  # myopic, non-myopic
 
         # Allocate stake to the players, sampling from a Pareto distribution
-        stake_distribution = hlp.generate_stake_distr(self.num_agents, self.total_stake)
+        stake_distribution = hlp.generate_stake_distr(self.num_agents, self.total_stake,
+                                                      self.pareto_param, self.pareto_trunc)
 
         # Allocate cost to the players, sampling from a uniform distribution
         cost_distribution = hlp.generate_cost_distr(num_agents=self.num_agents, low=self.cost_min, high=self.cost_max)
@@ -122,10 +125,9 @@ class Simulation(Model):
         return self.idle_steps >= MIN_CONSECUTIVE_IDLE_STEPS_FOR_CONVERGENCE
 
     def get_status(self):
-        return
         print("Step {}".format(self.current_step))
-        '''print("Number of agents: {} \n Number of pools: {} \n"
-              .format(self.num_agents, len([1 for p in self.pools if p != None])))'''
+        print("Number of agents: {} \n Number of pools: {} \n"
+              .format(self.num_agents, len([1 for p in self.pools if p != None])))
         '''print("Pools: ")'''
         #for i, agent in enumerate(self.schedule.agents):
             #agent.get_status()

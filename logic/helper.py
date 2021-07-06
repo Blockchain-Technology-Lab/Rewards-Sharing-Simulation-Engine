@@ -10,13 +10,10 @@ from numpy.random import default_rng
 
 from logic.pool import Pool
 
-PARETO_ALPHA_PARAM = 1.5
-C_MIN = 0.001
-C_MAX = 0.002
 TOTAL_EPOCH_REWARDS_R = 1
 
 
-def generate_stake_distr(num_agents, total_stake):
+def generate_stake_distr(num_agents, total_stake, pareto_param, truncated=False):
     """
     Generate a distribution for the players' initial stake (wealth),
     sampling from a Pareto distribution
@@ -25,11 +22,11 @@ def generate_stake_distr(num_agents, total_stake):
     :return:
     """
     rng = default_rng(seed=156)
-    distr = rng.pareto(PARETO_ALPHA_PARAM, num_agents)
+    distr = rng.pareto(pareto_param, num_agents)
     return normalize_distr(distr, normal_sum=total_stake)
 
 
-def generate_cost_distr(num_agents, low=C_MIN, high=C_MAX):
+def generate_cost_distr(num_agents, low, high):
     """
     Generate a distribution for the players' costs of operating pools,
     sampling from a unifrom distribution
