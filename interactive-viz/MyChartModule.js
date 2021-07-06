@@ -76,6 +76,11 @@ var MyChartModule = function(series, canvas_width, canvas_height) {
                 }
             }]
         },
+        elements: {
+            point:{
+                radius: 0 //to hide points from line
+            }
+        },
         legend: {
             display: false
         }

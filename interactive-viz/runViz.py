@@ -7,7 +7,7 @@ Created on Thu Jun 17 13:51:21 2021
 import mesa.visualization.ModularVisualization
 
 from logic.sim import Simulation
-from myModularVisualization import MyModularServer
+#from myModularVisualization import MyModularServer
 from mesa.visualization.ModularVisualization import ModularServer
 from stackedChartModule import StackedChartModule
 from mesa.visualization.UserParam import UserSettableParameter
@@ -35,7 +35,6 @@ model_params = {
         "slider", "α", 0.3, 0, 1, 0.01,
         description="The alpha value of the system."
     ),
-    "pool_splitting": UserSettableParameter("checkbox", "Pool Splitting", False),
 
     "max_iterations": UserSettableParameter(
         "slider", "Max iterations", 100, 1, 300, 2,
@@ -52,9 +51,18 @@ model_params = {
         description="The maximum possible cost for operating a stake pool."
     ),
 
+    "pareto_param": UserSettableParameter(
+      "slider", "Pareto shape value", 1.5, 0.1, 5, 0.1,
+        description="The parameter that determines the shape of the distribution that the stake will be sampled from"
+    ),
+
+    "pareto_trunc": UserSettableParameter("checkbox", "Pareto truncated", False),
+
     "seed": UserSettableParameter(
         "number", "Random seed", 42, description="Seed for reproducibility"
-    )
+    ),
+
+    "pool_splitting": UserSettableParameter("checkbox", "Pool Splitting", False)
 
     # user input options: TYPES = (NUMBER, CHECKBOX, CHOICE, SLIDER, STATIC_TEXT)
 }

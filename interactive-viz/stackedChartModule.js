@@ -106,6 +106,11 @@ var StackedChartModule = function(series, canvas_width, canvas_height) {
             mode: 'index',
             intersect: false
         },
+        elements: {
+            point:{
+                radius: 0 //to hide points from line
+            }
+        },
         hover: {
             mode: 'point',
             intersect: true
@@ -124,8 +129,6 @@ var StackedChartModule = function(series, canvas_width, canvas_height) {
 
     this.render = function(data) {
         chart.data.labels.push(control.tick);
-        //console.log("Data: " + data)
-        console.log(chart.options)
         for (i = 0; i < data.length; i++) {
             chart.data.datasets[i].data.push(data[i]);
         }
@@ -137,6 +140,9 @@ var StackedChartModule = function(series, canvas_width, canvas_height) {
         chart.data.datasets.forEach(function(dataset) {
             while (dataset.data.length) { dataset.data.pop(); }
         });
+        datasets_number = series[0].Num_agents;
+        console.log(datasets_number)
+
         chart.update();
     };
 };
