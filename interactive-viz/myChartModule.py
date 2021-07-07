@@ -44,6 +44,6 @@ class MyChartModule(VisualizationElement):
             try:
                 val = data_collector.model_vars[name][-1]  # Latest value
             except (IndexError, KeyError):
-                continue #todo maybe add sth to know if it happens any time other than the beginning
+                continue  # todo maybe add sth to know if it happens any time other than the beginning
             current_values.append(val)
         return current_values

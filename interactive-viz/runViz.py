@@ -7,28 +7,28 @@ Created on Thu Jun 17 13:51:21 2021
 import mesa.visualization.ModularVisualization
 
 from logic.sim import Simulation
-#from myModularVisualization import MyModularServer
+# from myModularVisualization import MyModularServer
 from mesa.visualization.ModularVisualization import ModularServer
 from stackedChartModule import StackedChartModule
 from scatterChartModule import ScatterChartModule
 from mesa.visualization.UserParam import UserSettableParameter
 from myChartModule import MyChartModule
 
-num_agents = 100
+max_num_agents = 200
 poolsChart = MyChartModule([{"Label": "#Pools",
                              "Color": "Blue"}],
                            data_collector_name='datacollector')
 
-# todo investigate why there are missing steps from the charts
 poolDynamicsStackedChart = StackedChartModule([{"Label": "Pool",
-                      "Num_agents": num_agents}],  data_collector_name='datacollector')
+                                                "Num_agents": max_num_agents}],
+                                              data_collector_name='datacollector')
 
 poolScatterChart = ScatterChartModule([{"Label": "StakePairs"}],
                                       data_collector_name='datacollector')
 
 model_params = {
     "n": UserSettableParameter(
-        "slider", "Number of stakeholders", 100, 2, 200,
+        "slider", "Number of stakeholders", 100, 2, max_num_agents,
         description="The number of stakeholders in the system."
     ),
     "k": UserSettableParameter(
@@ -56,29 +56,24 @@ model_params = {
     ),
 
     "pareto_param": UserSettableParameter(
-      "slider", "Pareto shape value", 1.5, 0.1, 5, 0.1,
+        "slider", "Pareto shape value", 1.5, 0.1, 5, 0.1,
         description="The parameter that determines the shape of the distribution that the stake will be sampled from"
     ),
 
-    "pareto_trunc": UserSettableParameter("checkbox", "Pareto truncated", False),
-
-    "activation_order": UserSettableParameter("choice", "Player activation order", value="Random",
-                                              choices=list(Simulation.activation_orders.keys())),
+    "player_activation_order": UserSettableParameter("choice", "Player activation order", value="Random",
+                                              choices=list(Simulation.player_activation_orders.keys())),
 
     "seed": UserSettableParameter(
         "number", "Random seed", 42, description="Seed for reproducibility"
-    ),
-
-    "pool_splitting": UserSettableParameter("checkbox", "Pool Splitting", False)
-
-    # user input options: TYPES = (NUMBER, CHECKBOX, CHOICE, SLIDER, STATIC_TEXT)
+    )
 }
 
-# todo figure out why MyModularServer was not working at some point
+# figure out why MyModularServer was not working at some point
 # figured out: it only works when I use the ModularServer first so it probably caches some necessary files
 server = ModularServer(Simulation,
                        [poolsChart, poolDynamicsStackedChart, poolScatterChart],
                        "PoS Pooling Games",
                        model_params)
-server.port = 8521 # The default
+# todo investigate why there are missing steps from the charts
+server.port = 8521
 server.launch()

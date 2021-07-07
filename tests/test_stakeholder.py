@@ -21,6 +21,7 @@ def test_calculate_utility():
 def test_calculate_operator_utility():
     assert False
 
+
 def test_calculate_delegator_utility():
     assert False
 

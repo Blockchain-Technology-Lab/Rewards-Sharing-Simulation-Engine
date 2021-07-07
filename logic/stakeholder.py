@@ -10,36 +10,25 @@ from mesa import Agent
 
 import logic.helper as hlp
 from logic.pool import Pool
-from logic.strategy import SinglePoolStrategy, MultiPoolStrategy
+from logic.strategy import SinglePoolStrategy
 
 UTILITY_THRESHOLD = 0.00000001  # note: if the threshold is high then many delegation moves are ignored
 IDLE_STEPS_AFTER_OPENING_POOL = 10
 
 
 class Stakeholder(Agent):
-    def __init__(self, unique_id, model, agent_type, stake=0, cost=0, utility=0, strategy=None, can_split_pools=False):
+    def __init__(self, unique_id, model, agent_type, stake=0, cost=0, strategy=None):
         super().__init__(unique_id, model)
-        # the player's cost of running one pool (for now assume that running n pools will cost n times as much)
-        self.cost = cost
+        self.cost = cost  # the player's cost of running one pool
         self.stake = stake
         self.isMyopic = agent_type == 'M'
-        self.canSplitPools = can_split_pools
         self.idle_steps_remaining = 0
         self.new_strategy = None
         # pools field that points to the player's pools?
 
         if strategy is None:
             # initialise strategy to being a delegator with no allocated stake
-            self.initialize_strategy()
-        else:
-            self.strategy = strategy
-
-    def initialize_strategy(self):
-        if self.canSplitPools:
-            strategy = MultiPoolStrategy(stake_allocations=[[0] for i in range(self.model.num_agents)])
-        else:
             strategy = SinglePoolStrategy(stake_allocations=[0 for i in range(self.model.num_agents)])
-
         self.strategy = strategy
 
     # In every step the agent needs to decide what to do
@@ -49,10 +38,8 @@ class Stakeholder(Agent):
             self.idle_steps_remaining -= 1
             return
         self.make_move()
-        if self.model.activation_order != "Simultaneous":
+        if self.model.player_activation_order != "Simultaneous":
             self.advance()
-        # self.get_status()
-        # print('----------------------')
 
     # if we want players to make moves simultaneously, then we need an additional advance method
     # specifically, "step() activates the agent and stages any necessary changes, but does not apply them yet
@@ -64,14 +51,8 @@ class Stakeholder(Agent):
             self.model.current_step_idle = False
 
     def make_move(self):
-        """
-
-        :return: bool (true if strategy was changed and false if it wasn't), allocation changes
-                                                            (or None in case of no changes)
-        """
         self.update_strategy()
 
-    # todo maybe move to helper (with extra arguments)
     def has_potential_for_pool(self):
         """
         Determine whether the player is at a good position to open a pool
@@ -81,11 +62,11 @@ class Stakeholder(Agent):
         saturation_point = self.model.beta
         alpha = self.model.alpha
 
-        current_pool_owners = [pool.owner for pool in self.model.pools if pool is not None]  # assumes no pool splitting
+        current_pool_owners = [pool.owner for pool in self.model.pools if pool is not None]
 
         # Calculate the potential profits of all relevant players (current player + pool owners)
         potential_profits = {agent.unique_id:
-                             hlp.calculate_potential_profit(agent.stake, agent.cost, alpha, saturation_point)
+                                 hlp.calculate_potential_profit(agent.stake, agent.cost, alpha, saturation_point)
                              for agent in self.model.schedule.agents
                              if agent.unique_id in current_pool_owners or agent.unique_id == self.unique_id}
 
@@ -135,8 +116,7 @@ class Stakeholder(Agent):
         allocations = [0 for i in range(len(self.model.schedule.agents))]
         allocations[self.unique_id] = pledge
 
-        new_strategy = SinglePoolStrategy(pledge, margin, allocations,
-                                          is_pool_operator=True)  # todo update for pool splitting
+        new_strategy = SinglePoolStrategy(pledge, margin, allocations, is_pool_operator=True)
         new_utility = self.calculate_utility(new_strategy)
 
         return new_utility, new_strategy
@@ -193,14 +173,14 @@ class Stakeholder(Agent):
         alpha = self.model.alpha
 
         pools = self.model.pools.copy()
-        pool_owners = [pool.owner for pool in pools if pool is not None]  # assumes no pool splitting
+        pool_owners = [pool.owner for pool in pools if pool is not None]
         with suppress(ValueError):
             # remove the current player from the list in case he's an SPO
             pool_owners.remove(self.unique_id)
 
         # Calculate the potential profits of all current pools
         potential_profits = {agent.unique_id:
-                             hlp.calculate_potential_profit(agent.stake, agent.cost, alpha, saturation_point)
+                                 hlp.calculate_potential_profit(agent.stake, agent.cost, alpha, saturation_point)
                              for agent in self.model.schedule.agents
                              if agent.unique_id in pool_owners}
 
@@ -230,7 +210,8 @@ class Stakeholder(Agent):
         # Recalculate utility because pool formation may have changed since last calculation
         current_utility = self.calculate_utility(self.strategy)
 
-        possible_moves = {"current": (current_utility + UTILITY_THRESHOLD, self.strategy)}  # every dict value is a tuple of utility, strategy
+        possible_moves = {"current": (
+        current_utility + UTILITY_THRESHOLD, self.strategy)}  # every dict value is a tuple of utility, strategy
 
         if not self.strategy.is_pool_operator:
             # For players who don't already have pools check if they should open one
@@ -240,15 +221,16 @@ class Stakeholder(Agent):
                 # and calculate the potential utility of operating a pool with these params
                 possible_moves["operator"] = self.find_operator_move()
 
+        # todo also consider option of changing margin and pledge or only consider "perfect strategies"?
 
-        #todo also consider option of changing margin and pledge or only consider "perfect strategies"?
-
-        # For all players (current pool owners, prospective pool owners and players who don't even consider running a pool)
+        # For all players (current pool owners, prospective pool owners
+        # and players who don't even consider running a pool)
         # find a possible delegation strategy and calculate its potential utility
         possible_moves["delegator"] = self.find_delegation_move_desirability()
 
         # compare the above with the utility of the current strategy and pick one of the 3
-        max_utility_option = max(possible_moves, key=lambda key: possible_moves[key][0]) #todo in case of tie choose easiest strategy
+        max_utility_option = max(possible_moves,
+                                 key=lambda key: possible_moves[key][0])  # todo in case of tie choose easiest strategy
 
         self.new_strategy = None if max_utility_option == "current" else possible_moves[max_utility_option][1]
 
@@ -261,7 +243,7 @@ class Stakeholder(Agent):
             for j, a in enumerate(allocation):
                 if a > 0:
                     # player has allocated stake to this pool
-                    pool = self.model.pools[i]  # todo fix for pool splitting
+                    pool = self.model.pools[i]
                     if i == self.unique_id:
                         # calculate pool owner utility
                         if pool is None:
@@ -300,15 +282,14 @@ class Stakeholder(Agent):
 
         return utility
 
-    # todo why is delegator utility (almost) as good as operator utility? make sure that calculations are correct
-    # answer: because we don't count the added stake so his proportion appears to be bigger
     def calculate_delegator_utility(self, pool, stake_allocation):
         # calculate the pool's reward
         alpha = self.model.alpha
         beta = self.model.beta
         pool_stake = pool.stake if self.isMyopic else pool.stake_NM
-        pool_stake += stake_allocation  # todo decide
-        # todo maybe add reward as a pool field?
+        if pool_stake + stake_allocation > beta:
+            pool_stake += stake_allocation
+        # maybe add reward as a pool field?
         r = hlp.calculate_pool_reward(pool_stake, pool.pledge, alpha, beta)
         q = stake_allocation / pool_stake
         m_factor = (1 - pool.margin) * q
@@ -340,23 +321,23 @@ class Stakeholder(Agent):
                             'pledge': self.new_strategy.pledge - self.strategy.pledge}
 
         self.strategy = self.new_strategy
-        self.new_strategy = None #todo maybe redundant?
+        self.new_strategy = None  # maybe redundant?
 
         # first deal with possible margin or pledge changes
-        if self.model.pools[self.unique_id] is not None: #todo replace with current_pools but make sure that it works
+        if current_pools[self.unique_id] is not None:  # replace with current_pools but make sure that it works
             self.model.pools[self.unique_id].margin += own_pool_changes['margin']
             self.model.pools[self.unique_id].margin += own_pool_changes['pledge']
 
         # todo looping through all possible allocations is not efficient, do sth else
         for i, change in enumerate(allocation_changes):
             if change != 0:
-                # there has been one of two possible changes with regards to this pool: the player added to or removed stake from it
+                # there has been one of two possible changes with regards to this pool:
+                # the player added to or removed stake from it
                 if i == self.unique_id:
                     # special case of own pool, where we need to consider moves that open / close pools
                     if allocation_changes[i] == self.strategy.stake_allocations[i]:
                         # means that the pool needs to be created now
-                        self.open_pool(pledge=allocation_changes[self.unique_id],
-                                       margin=self.strategy.margin)  # todo update for pool splitting
+                        self.open_pool(pledge=allocation_changes[self.unique_id], margin=self.strategy.margin)
                         continue
                     elif self.strategy.stake_allocations[i] == 0:
                         # means that the pool needs to be destroyed, since it has been abandoned by its owner
@@ -381,18 +362,14 @@ class Stakeholder(Agent):
 
         # calculate non-myopic stake
         hlp.calculate_pool_stake_NM(pool, self.model.pools, self.unique_id, alpha, beta, k)
-        # todo update for pool splitting and assert that len(self.model.pools[self.unique_id] == self.strategy.number_of_pools)
-        # self.model.pools[self.unique_id].append(pool) #for multipool strategies
         self.model.pools[self.unique_id] = pool
-
         self.idle_steps_remaining = IDLE_STEPS_AFTER_OPENING_POOL
 
     def close_pool(self):
         self.model.pools[self.unique_id] = None
         # Undelegate delegators' stake
         for agent in self.model.schedule.agents:
-            agent.strategy.stake_allocations[self.unique_id] = 0  # todo update to accommodate pool splitting
-        # todo also update aggregate values
+            agent.strategy.stake_allocations[self.unique_id] = 0
 
     def get_status(self):
         print("Agent id: {}, is myopic: {}, stake: {}, cost:{}"
@@ -414,22 +391,6 @@ class Stakeholder(Agent):
         m = (self.utility - (potential_pool_reward - self.cost) * q) / denom if denom else 0
         return m
 
-    def delegate(self):
-        pass
-
-    def calculate_po_utility_multi(self, strategy): 
-            utility = 0
-            pledges = strategy.pledges
-            alpha = strategy.allocations[self.unique_id]
-            for i,pledge in enumerate(pledges):
-                m = strategy.margins[i]
-                pool_stake = 1 #TODO calculate pool stake 
-                r = hlp.calculate_reward(pool_stake, pledge)
-                u_0 = r - self.cost
-                u = u_0 if u_0 <= 0 else u_0*(m + ((1-m)*alpha[i]/pool_stake))
-                utility += u
-            return utility
-            
     def random_walk(self, max_steps=10):  # todo experiment with max_steps values
         """
         Randomly pick a new strategy and if it yields higher utility than the current one, use it else repeat
@@ -461,10 +422,6 @@ class Stakeholder(Agent):
     def get_random_valid_strategy(self, is_pool_operator):
         """
         Creates a random **valid** strategy for the player
-        Valid means:
-            sum(pool_pledges) <= player's stake
-            0 <= margin <= 1 for margin in pool_margins
-            sum(stake_allocations) <= player's stake
 
         :return:
         """
@@ -483,5 +440,4 @@ class Stakeholder(Agent):
         else:
             return self.strategy.create_random_delegator_strategy(sim.pools, self.unique_id, self.stake)
  
-            
     '''

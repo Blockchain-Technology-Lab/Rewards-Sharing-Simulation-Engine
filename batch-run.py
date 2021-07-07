@@ -9,17 +9,18 @@ from sim import Simulation
 from sim import get_number_of_pools
 
 if __name__ == '__main__':
-    freeze_support()
+    freeze_support()  # needed for windows systems
 
     fixed_params = {"n": 100,
                     "k": 10,
                     "total_stake": 1,
                     "max_iterations": 50,
-                    "pool_splitting": False,
-                    "cost_min": 0.001}
+                    "cost_min": 0.001,
+                    "player_activation_order": "Random"}
 
     variable_params = {"alpha": [0.1, 0.3, 0.5],
-                       "cost_max": [0.002, 0.02, 0.1]}
+                       "cost_max": [0.002, 0.02, 0.1],
+                       "pareto_param": [1, 1.5, 2]}
     # todo figure out how to run the model with only certain combinations of the variable params
 
     # Run the models as a single process (takes almost 2 mins on my laptop with current settings)
@@ -69,7 +70,8 @@ if __name__ == '__main__':
     data_collector_agents = batch_run_MP.get_collector_agents()
     data_collector_model = batch_run_MP.get_collector_model()
 
-# to save the state of a model and resume it later on we can pickle it (useful for models that take a lot of time to run)
+# to save the state of a model and resume it later on we can pickle it
+# (useful for models that take a lot of time to run)
 '''
 import pickle
 with open("filename.p", "wb") as f:

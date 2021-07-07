@@ -46,9 +46,8 @@ var StackedChartModule = function(series, canvas_width, canvas_height) {
 
         for (var j=0; j< datasets_number; j++) {
             var color = selectColor(color_indexes[j], datasets_number);
-            var pool_nr = j + 1;
             var new_series = {
-                label: s.Label + pool_nr,
+                label: s.Label + " " + j,
                 borderColor: color,
                 backgroundColor: color,
                 fill: true,
@@ -99,12 +98,31 @@ var StackedChartModule = function(series, canvas_width, canvas_height) {
             }]
         },
         tooltips: {
-            // only show active pools (stake > 0) on hover todo maybe do sth similar for legend
+            displayColors: true,
+            position: 'nearest',
+            mode: 'index',
+            intersect: false,
+            // only show active pools (stake > 0) on hover ( maybe do sth similar for legend? )
             filter: function (tooltipItem) {
                 return tooltipItem.yLabel != 0
             },
-            mode: 'index',
-            intersect: false
+            callbacks: {
+                title: function (tooltipItems, data) {
+                    return "Step " + tooltipItems[0].xLabel;
+                },
+                label: function(tooltipItem, data) {
+                    var datasetLabel = data.datasets[tooltipItem.datasetIndex].label;
+                    return datasetLabel + ": " + tooltipItem.yLabel.toFixed(4);
+                },
+                labelColor: function(tooltipItem, chart) {
+                    var dataset = chart.config.data.datasets[tooltipItem.datasetIndex];
+                    return {
+                        backgroundColor : dataset.backgroundColor,
+                        borderColor: dataset.borderColor,
+                        fill: true
+                    }
+                }
+            }
         },
         elements: {
             point:{
@@ -140,9 +158,6 @@ var StackedChartModule = function(series, canvas_width, canvas_height) {
         chart.data.datasets.forEach(function(dataset) {
             while (dataset.data.length) { dataset.data.pop(); }
         });
-        datasets_number = series[0].Num_agents;
-        console.log(datasets_number)
-
         chart.update();
     };
 };

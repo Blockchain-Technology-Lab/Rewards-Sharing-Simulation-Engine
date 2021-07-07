@@ -8,15 +8,14 @@ Created on Sun Jun 13 08:15:26 2021
 import numpy as np
 from numpy.random import default_rng
 
-from logic.pool import Pool
-
 TOTAL_EPOCH_REWARDS_R = 1
 
 
-def generate_stake_distr(num_agents, total_stake, pareto_param, truncated=False):
+def generate_stake_distr(num_agents, total_stake, pareto_param):
     """
     Generate a distribution for the players' initial stake (wealth),
     sampling from a Pareto distribution
+    :param pareto_param:
     :param num_agents:
     :param total_stake:
     :return:
@@ -107,18 +106,6 @@ def calculate_ranks(desirabilities):
 def calculate_rank(desirabilities, player_id):
     ranks = calculate_ranks(desirabilities)
     return ranks[player_id]
-
-
-def is_list_flat(l):
-    # assume that the list is homogeneous, so only check the first element
-    return not isinstance(l[0], list)
-
-
-def flatten_list(l):
-    if not is_list_flat(l):
-        l = sum(l, [])
-    return l
-
 
 '''
 unused for now but could be useful in the future

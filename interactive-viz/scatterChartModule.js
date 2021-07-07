@@ -11,13 +11,32 @@ var ScatterChartModule  = function(series, canvas_width, canvas_height) {
     var chartData = {
         datasets: [{
         data: [],
-            backgroundColor: '#2196f3'
+        backgroundColor: '#2196f3'
         }]
     };
 
     var chartOptions = {
         responsive: true,
         tooltips: {
+            displayColors: false,
+            /*filter: function (tooltipItem) {
+                return tooltipItem.yLabel != 0
+            },*/
+            callbacks: {
+                title: function(tooltipItems, data) {
+                    var index = tooltipItems[0].index;
+                    var datasetIndex = tooltipItems[0].datasetIndex;
+                    var dataset = data.datasets[datasetIndex];
+                    var datasetItem = dataset.data[index];
+                    return "Pool " + datasetItem.id;
+                    },
+                label: function(tooltipItem, data) {
+                    var output = "";
+                    output += "Owner stake: " + tooltipItem.xLabel.toFixed(4) + "\n | \n";
+                    output += "Pool stake: " + tooltipItem.yLabel.toFixed(4);
+                    return output;
+                }
+            },
             mode: 'index',
             intersect: false
         },
@@ -67,10 +86,11 @@ var ScatterChartModule  = function(series, canvas_width, canvas_height) {
         var pointData = [];
 
         for (i = 0; i < data.length; i+=2) {
-            pointData.push({x: data[i], y: data[i+1]});
+            if (data[i] > 0) {
+                pointData.push({x: data[i], y: data[i+1], id: i/2});
+            }
         }
         chart.data.datasets[0].data = pointData;
-        console.log(chart.options)
         chart.update();
     };
 
@@ -82,3 +102,7 @@ var ScatterChartModule  = function(series, canvas_width, canvas_height) {
         chart.update();
     };
 };
+
+//todo maybe also add players who don't have pools with different colour
+// or make colors for pools same as stacked chart?
+// add pool number on hover

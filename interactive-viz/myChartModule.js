@@ -46,8 +46,17 @@ var MyChartModule = function(series, canvas_width, canvas_height) {
     var chartOptions = {
         responsive: true,
         tooltips: {
+            displayColors: false,
             mode: 'index',
-            intersect: false
+            intersect: false,
+            callbacks: {
+                title: function (tooltipItems, data) {
+                    return "Step " + tooltipItems[0].xLabel;
+                },
+                label: function(tooltipItem, data) {
+                return tooltipItem.yLabel + " pools";
+            }
+            }
         },
         title: {
             display: true,
