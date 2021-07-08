@@ -368,7 +368,7 @@ class Stakeholder(Agent):
         # calculate non-myopic stake
         hlp.calculate_pool_stake_NM(pool, self.model.pools, self.unique_id, alpha, beta, k)
         self.model.pools[self.unique_id] = pool
-        self.idle_steps_remaining = IDLE_STEPS_AFTER_OPENING_POOL
+        self.idle_steps_remaining = self.model.idle_steps_after_pool
 
     def close_pool(self):
         self.model.pools[self.unique_id] = None

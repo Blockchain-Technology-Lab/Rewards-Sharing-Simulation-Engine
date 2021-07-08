@@ -32,7 +32,7 @@ var ScatterChartModule  = function(series, canvas_width, canvas_height) {
                     },
                 label: function(tooltipItem, data) {
                     var output = "";
-                    output += "Owner stake: " + tooltipItem.xLabel.toFixed(4) + "\n | \n";
+                    output += "Pledge: " + tooltipItem.xLabel.toFixed(4) + "\n | \n";
                     output += "Pool stake: " + tooltipItem.yLabel.toFixed(4);
                     return output;
                 }
@@ -42,7 +42,7 @@ var ScatterChartModule  = function(series, canvas_width, canvas_height) {
         },
         title: {
             display: true,
-            text: 'Pool owner stake VS pool stake' //todo make configurable
+            text: 'Relationship between pledge and pool stake' //todo make configurable
         },
         hover: {
             mode: 'nearest',
@@ -55,15 +55,20 @@ var ScatterChartModule  = function(series, canvas_width, canvas_height) {
             display: true,
             scaleLabel: {
                 display: true,
-                labelString: 'Pool owner stake'
+                labelString: 'Pledge'
             }
           }],
           yAxes: [{
               display: true,
               scaleLabel: {
-                display: true,
-                labelString: 'Pool stake'
-              }
+                  display: true,
+                  labelString: 'Pool stake',
+              },
+              ticks: {
+                  beginAtZero: true,
+                  suggestedMax: 0.11
+              },
+              grace: 0.1
             }]
         },
         elements: {
@@ -73,7 +78,12 @@ var ScatterChartModule  = function(series, canvas_width, canvas_height) {
         },
         legend: {
             display: false
+        },
+        layout: {
+        padding: {
+          top: 5
         }
+      }
   }
 
     var chart = new Chart(context, {
@@ -103,6 +113,5 @@ var ScatterChartModule  = function(series, canvas_width, canvas_height) {
     };
 };
 
-//todo maybe also add players who don't have pools with different colour
+//todo maybe also add players who don't have pools with different colour -> check this for that: https://codepen.io/Marek-Fewtrell/pen/aypmGv
 // or make colors for pools same as stacked chart?
-// add pool number on hover

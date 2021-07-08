@@ -5,11 +5,11 @@ from mesa.batchrunner import BatchRunnerMP
 import time
 import matplotlib.pyplot as plt
 
-from sim import Simulation
-from sim import get_number_of_pools
+from logic.sim import Simulation
+from logic.sim import get_number_of_pools
 
 if __name__ == '__main__':
-    freeze_support()  # needed for windows systems
+    freeze_support()  # needed for multiprocessing to work on windows systems (comment out line to run on linux)
 
     fixed_params = {"n": 100,
                     "k": 10,

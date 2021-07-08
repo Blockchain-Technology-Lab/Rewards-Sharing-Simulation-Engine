@@ -14,7 +14,7 @@ from scatterChartModule import ScatterChartModule
 from mesa.visualization.UserParam import UserSettableParameter
 from myChartModule import MyChartModule
 
-max_num_agents = 200
+max_num_agents = 500
 poolsChart = MyChartModule([{"Label": "#Pools",
                              "Color": "Blue"}],
                            data_collector_name='datacollector')
@@ -56,7 +56,7 @@ model_params = {
     ),
 
     "pareto_param": UserSettableParameter(
-        "slider", "Pareto shape value", 1.5, 0.1, 5, 0.1,
+        "slider", "Pareto shape value", 2, 0.1, 5, 0.1,
         description="The parameter that determines the shape of the distribution that the stake will be sampled from"
     ),
 
@@ -65,6 +65,10 @@ model_params = {
 
     "seed": UserSettableParameter(
         "number", "Random seed", 42, description="Seed for reproducibility"
+    ),
+
+    "idle_steps_after_pool": UserSettableParameter(
+        "slider", "Idle steps", 10, 1, 20, 1
     )
 }
 

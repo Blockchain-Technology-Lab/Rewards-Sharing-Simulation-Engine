@@ -43,7 +43,8 @@ class Simulation(Model):
     }
 
     def __init__(self, n=100, k=10, alpha=0.3, total_stake=1, max_iterations=100, seed=None,
-                 cost_min=0.001, cost_max=0.002, pareto_param=1.5, player_activation_order="Random"):
+                 cost_min=0.001, cost_max=0.002, pareto_param=1.5, player_activation_order="Random",
+                 idle_steps_after_pool=10):
         if seed is not None:
             random.seed(seed)
 
@@ -57,6 +58,7 @@ class Simulation(Model):
         self.cost_max = cost_max
         self.pareto_param = pareto_param
         self.player_activation_order = player_activation_order
+        self.idle_steps_after_pool = idle_steps_after_pool
 
         self.running = True  # for batch running and visualisation purposes
         self.schedule = self.player_activation_orders[player_activation_order](self)
