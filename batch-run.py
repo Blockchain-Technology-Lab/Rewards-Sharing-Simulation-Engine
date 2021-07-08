@@ -51,7 +51,7 @@ if __name__ == '__main__':
                                  iterations=1,
                                  max_steps=100,
                                  model_reporters={"#Pools": get_number_of_pools})
-    start_time = time.time()  # or time.time()
+    start_time = time.time()
     batch_run_MP.run_all()
     print("Batch run with multiprocessing:  {:.2f} seconds".format(time.time() - start_time))
 

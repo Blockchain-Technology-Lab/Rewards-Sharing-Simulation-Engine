@@ -5,14 +5,15 @@ Created on Thu Jun 17 13:51:21 2021
 @author: chris
 """
 import mesa.visualization.ModularVisualization
+from mesa.visualization.UserParam import UserSettableParameter
+from mesa.visualization.ModularVisualization import ModularServer
 
 from logic.sim import Simulation
+
 # from myModularVisualization import MyModularServer
-from mesa.visualization.ModularVisualization import ModularServer
-from stackedChartModule import StackedChartModule
-from scatterChartModule import ScatterChartModule
-from mesa.visualization.UserParam import UserSettableParameter
-from myChartModule import MyChartModule
+from interactiveViz.stackedChartModule import StackedChartModule
+from interactiveViz.scatterChartModule import ScatterChartModule
+from interactiveViz.myChartModule import MyChartModule
 
 max_num_agents = 500
 poolsChart = MyChartModule([{"Label": "#Pools",

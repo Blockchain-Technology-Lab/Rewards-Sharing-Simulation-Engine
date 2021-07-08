@@ -1,4 +1,9 @@
 # PoS-Pooling-Games-Simulation
 Tool to simulate staking behaviour in Proof-of-Stake Blockchains.
 
-Run file logic/main.py to execute the simulation with predefined values and generate figures from the results or alternatively interactive-viz/runViz.py for an interactive execution of the simulation in the browser.
+Run file main.py (python main.py) to execute the simulation with predefined values and generate figures from the results.
+Alternatively, run interactive-viz/runViz.py (python -m interactiveViz.runViz) for an interactive execution of the simulation in the browser.
+To execute multiple simulations at once, run batch-run.py (python batch-run.py).
+
+Dependencies: 
+- mesa (pip install mesa)
