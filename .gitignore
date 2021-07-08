@@ -2,6 +2,7 @@
 venv
 .idea/
 node_modules
+figures
 
 # Compiled source #
 ###################

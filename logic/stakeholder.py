@@ -12,7 +12,7 @@ import logic.helper as hlp
 from logic.pool import Pool
 from logic.strategy import SinglePoolStrategy
 
-UTILITY_THRESHOLD = 0.00000001  # note: if the threshold is high then many delegation moves are ignored
+UTILITY_THRESHOLD = 1e-8  # note: if the threshold is high then many delegation moves are ignored
 IDLE_STEPS_AFTER_OPENING_POOL = 10
 
 
@@ -85,9 +85,11 @@ class Stakeholder(Agent):
     def calculate_pledge(self):
         """
         Based on "perfect strategies", the players choose to allocate their entire stake as the pledge of their pool
+        However, if their stake is larger than the saturation point, they don't allocate all of it,
+        as a pool with such a pledge would yield suboptimal rewards
         :return:
         """
-        return self.stake
+        return min(self.stake, self.model.beta)
 
     def calculate_margin(self):
         """
@@ -116,10 +118,14 @@ class Stakeholder(Agent):
         allocations = [0 for i in range(len(self.model.schedule.agents))]
         allocations[self.unique_id] = pledge
 
-        new_strategy = SinglePoolStrategy(pledge, margin, allocations, is_pool_operator=True)
-        new_utility = self.calculate_utility(new_strategy)
+        remaining_stake = self.stake - pledge
+        if remaining_stake > 0:
+            # in some cases players may not want to allocate their entire stake to their pool (e.g. when stake > β)
+            delegation_strategy = self.find_delegation_move_desirability(stake_to_delegate=remaining_stake)
+            for i, allocation in enumerate(delegation_strategy.stake_allocations):
+                allocations[i] += allocation
 
-        return new_utility, new_strategy
+        return SinglePoolStrategy(pledge, margin, allocations, is_pool_operator=True)
 
     def find_delegation_move_random(self, current_utility, max_steps=100):
         """
@@ -135,22 +141,23 @@ class Stakeholder(Agent):
 
             if utility - current_utility > UTILITY_THRESHOLD:
                 break
-        return utility, strategy
+        return strategy
 
-    def find_delegation_move_desirability(self):
+    def find_delegation_move_desirability(self, stake_to_delegate=None):
         """
         Choose a delegation move based on the desirability of the existing pools
         :return:
         """
         saturation_point = self.model.beta
-        stake_to_delegate = self.stake
+        if stake_to_delegate is None:
+            stake_to_delegate = self.stake
 
         pools = self.model.pools.copy()
         desirabilities = {pool.owner: pool.desirability for pool in pools
                           if pool is not None and pool.owner != self.unique_id}
         allocations = [0 for _ in range(len(pools))]
 
-        # Delegate the stake to the most pools with the highest desirability, as long as they're not oversaturated
+        # Delegate the stake to the pools with the highest desirability, as long as they're not oversaturated
         for pool_index in sorted(desirabilities, reverse=True):
             if stake_to_delegate == 0:
                 break
@@ -159,10 +166,7 @@ class Stakeholder(Agent):
                 allocations[pool_index] = min(stake_to_delegate, stake_to_saturation)
                 stake_to_delegate -= allocations[pool_index]
 
-        strategy = SinglePoolStrategy(stake_allocations=allocations, is_pool_operator=False)
-        utility = self.calculate_utility(strategy)
-
-        return utility, strategy
+        return SinglePoolStrategy(stake_allocations=allocations, is_pool_operator=False)
 
     def find_delegation_move_potential_profit(self):
         """
@@ -195,10 +199,7 @@ class Stakeholder(Agent):
                 allocations[pool_index] = min(stake_to_delegate, saturation_point - pools[pool_index].stake)
                 stake_to_delegate -= allocations[pool_index]
 
-        strategy = SinglePoolStrategy(stake_allocations=allocations, is_pool_operator=False)
-        utility = self.calculate_utility(strategy)
-
-        return utility, strategy
+        return SinglePoolStrategy(stake_allocations=allocations, is_pool_operator=False)
 
     def update_strategy(self):
         """
@@ -219,14 +220,18 @@ class Stakeholder(Agent):
             if self.has_potential_for_pool():
                 # Player is considering opening a pool, so he has to find the most suitable pool params
                 # and calculate the potential utility of operating a pool with these params
-                possible_moves["operator"] = self.find_operator_move()
+                operator_strategy = self.find_operator_move()
+                operator_utility = self.calculate_utility(operator_strategy)
+                possible_moves["operator"] = operator_utility, operator_strategy
 
         # todo also consider option of changing margin and pledge or only consider "perfect strategies"?
 
         # For all players (current pool owners, prospective pool owners
         # and players who don't even consider running a pool)
         # find a possible delegation strategy and calculate its potential utility
-        possible_moves["delegator"] = self.find_delegation_move_desirability()
+        delegator_strategy = self.find_delegation_move_desirability()
+        delegator_utility = self.calculate_utility(delegator_strategy)
+        possible_moves["delegator"] = delegator_utility, delegator_strategy
 
         # compare the above with the utility of the current strategy and pick one of the 3
         max_utility_option = max(possible_moves,
@@ -323,7 +328,7 @@ class Stakeholder(Agent):
         self.strategy = self.new_strategy
         self.new_strategy = None  # maybe redundant?
 
-        # first deal with possible margin or pledge changes
+        # first deal with possible margin or pledge changes todo currently it also does that for pools that are going to close
         if current_pools[self.unique_id] is not None:  # replace with current_pools but make sure that it works
             self.model.pools[self.unique_id].margin += own_pool_changes['margin']
             self.model.pools[self.unique_id].margin += own_pool_changes['pledge']
