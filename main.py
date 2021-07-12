@@ -2,10 +2,36 @@ from logic.sim import Simulation
 
 import matplotlib.pyplot as plt
 import numpy as np
+import argparse
 
 def main():
     print("Hello Blockchain World!")
-    sim = Simulation(n=100, k=10)
+    parser = argparse.ArgumentParser(description='Pooling Games')
+    parser.add_argument('--n', type=int, default=100,
+                        help='The number of players.')
+
+    parser.add_argument('--k', type=int, default=10,
+                        help='The k value of the system.')
+    parser.add_argument('--alpha', type=float, default=0.3,
+                        help='The alpha value of the system.')
+    parser.add_argument('--max_iterations', type=int, default=100,
+                        help='The maximum number of iterations of the system.')
+    parser.add_argument('--cost_min', type=float, default=0.001,
+                        help='The minimum possible cost for operating a stake pool.')
+    parser.add_argument('--cost_max', type=float, default=0.002,
+                        help='The maximum possible cost for operating a stake pool.')
+    parser.add_argument('--pareto_param', type=float, default=2.0,
+                        help='The parameter that determines the shape of the distribution that the stake will be sampled from.')
+    parser.add_argument('--player_activation_order', type=str, default='Random',
+                        help='Player activation order.')
+    parser.add_argument('--seed', type=int, default=42,
+                        help='Seed for reproducibility.')
+
+    args = parser.parse_args()
+
+    sim = Simulation(n=args.n, k=args.k, alpha=args.alpha, max_iterations=args.max_iterations,
+                     cost_min=args.cost_min, cost_max=args.cost_max, pareto_param=args.pareto_param,
+                     player_activation_order=args.player_activation_order, seed=args.seed)
     sim.run_model(156)
 
     sim_df = sim.datacollector.get_model_vars_dataframe()
