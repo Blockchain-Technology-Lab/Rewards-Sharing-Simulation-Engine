@@ -70,7 +70,11 @@ model_params = {
 
     "idle_steps_after_pool": UserSettableParameter(
         "slider", "Idle steps", 10, 1, 20, 1
-    )
+    ),
+    "myopic_fraction": UserSettableParameter(
+            "slider", "Myopic fraction", 0.0, 0.0, 1.0, 0.01,
+            description="The fraction of myopic players in the simulation."
+        ),
 }
 
 # figure out why MyModularServer was not working at some point

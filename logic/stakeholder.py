@@ -12,16 +12,18 @@ import logic.helper as hlp
 from logic.pool import Pool
 from logic.strategy import SinglePoolStrategy
 
-UTILITY_THRESHOLD = 1e-8  # note: if the threshold is high then many delegation moves are ignored
+UTILITY_THRESHOLD = 1e-9  # note: if the threshold is high then many delegation moves are ignored
 IDLE_STEPS_AFTER_OPENING_POOL = 10
-
+MAX_MARGIN = 0.2
+MARGIN_INCREMENT = 0.01
 
 class Stakeholder(Agent):
-    def __init__(self, unique_id, model, agent_type, stake=0, cost=0, strategy=None):
+    def __init__(self, unique_id, model, stake=0, is_myopic=False,
+                 cost=0, strategy=None):
         super().__init__(unique_id, model)
         self.cost = cost  # the player's cost of running one pool
         self.stake = stake
-        self.isMyopic = agent_type == 'M'
+        self.isMyopic = is_myopic
         self.idle_steps_remaining = 0
         self.new_strategy = None
         # pools field that points to the player's pools?
@@ -91,6 +93,12 @@ class Stakeholder(Agent):
         """
         return min(self.stake, self.model.beta)
 
+    def calculate_margin_simple(self, current_margin):
+        if current_margin < 0:
+            # player doesn't have a pool yet so he sets the max margin
+            return MAX_MARGIN
+        return current_margin - MARGIN_INCREMENT
+
     def calculate_margin(self):
         """
         Based on "perfect strategies", the player ranks all pools (existing and hypothetical) based on their potential
@@ -111,9 +119,9 @@ class Stakeholder(Agent):
             if potential_profit_ranks[self.unique_id] < k else 0
         return margin
 
-    def find_operator_move(self):
+    def find_operator_move(self, current_margin):
         pledge = self.calculate_pledge()
-        margin = self.calculate_margin()
+        margin = self.calculate_margin_simple(current_margin)
 
         allocations = [0 for i in range(len(self.model.schedule.agents))]
         allocations[self.unique_id] = pledge
@@ -214,15 +222,13 @@ class Stakeholder(Agent):
         possible_moves = {"current": (
         current_utility + UTILITY_THRESHOLD, self.strategy)}  # every dict value is a tuple of utility, strategy
 
-        if not self.strategy.is_pool_operator:
-            # For players who don't already have pools check if they should open one
 
-            if self.has_potential_for_pool():
-                # Player is considering opening a pool, so he has to find the most suitable pool params
-                # and calculate the potential utility of operating a pool with these params
-                operator_strategy = self.find_operator_move()
-                operator_utility = self.calculate_utility(operator_strategy)
-                possible_moves["operator"] = operator_utility, operator_strategy
+        if self.strategy.is_pool_operator or self.has_potential_for_pool():
+            # Player is considering opening a pool, so he has to find the most suitable pool params
+            # and calculate the potential utility of operating a pool with these params
+            operator_strategy = self.find_operator_move(self.strategy.margin)
+            operator_utility = self.calculate_utility(operator_strategy)
+            possible_moves["operator"] = operator_utility, operator_strategy
 
         # todo also consider option of changing margin and pledge or only consider "perfect strategies"?
 

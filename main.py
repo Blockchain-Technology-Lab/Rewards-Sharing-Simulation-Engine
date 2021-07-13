@@ -9,7 +9,6 @@ def main():
     parser = argparse.ArgumentParser(description='Pooling Games')
     parser.add_argument('--n', type=int, default=100,
                         help='The number of players.')
-
     parser.add_argument('--k', type=int, default=10,
                         help='The k value of the system.')
     parser.add_argument('--alpha', type=float, default=0.3,
@@ -26,12 +25,14 @@ def main():
                         help='Player activation order.')
     parser.add_argument('--seed', type=int, default=42,
                         help='Seed for reproducibility.')
+    parser.add_argument('--myopic_fraction', type=float, default=0.0,
+                        help='The fraction of myopic players in the simulation.')
 
     args = parser.parse_args()
 
     sim = Simulation(n=args.n, k=args.k, alpha=args.alpha, max_iterations=args.max_iterations,
                      cost_min=args.cost_min, cost_max=args.cost_max, pareto_param=args.pareto_param,
-                     player_activation_order=args.player_activation_order, seed=args.seed)
+                     player_activation_order=args.player_activation_order, seed=args.seed, myopic_fraction=args.myopic_fraction)
     sim.run_model(156)
 
     sim_df = sim.datacollector.get_model_vars_dataframe()

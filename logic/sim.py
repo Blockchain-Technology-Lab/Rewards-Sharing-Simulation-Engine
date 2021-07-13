@@ -44,7 +44,7 @@ class Simulation(Model):
 
     def __init__(self, n=100, k=10, alpha=0.3, total_stake=1, max_iterations=100, seed=None,
                  cost_min=0.001, cost_max=0.002, pareto_param=1.5, player_activation_order="Random",
-                 idle_steps_after_pool=10):
+                 idle_steps_after_pool=10, myopic_fraction=0):
         if seed is not None:
             random.seed(seed)
 
@@ -59,6 +59,7 @@ class Simulation(Model):
         self.pareto_param = pareto_param
         self.player_activation_order = player_activation_order
         self.idle_steps_after_pool = idle_steps_after_pool
+        self.myopic_fraction = myopic_fraction
 
         self.running = True  # for batch running and visualisation purposes
         self.schedule = self.player_activation_orders[player_activation_order](self)
@@ -76,7 +77,6 @@ class Simulation(Model):
                              "StakePairs": get_stake_pairs})
 
     def initialize_players(self):
-        agent_types = ['M', 'NM']  # myopic, non-myopic
 
         # Allocate stake to the players, sampling from a Pareto distribution
         stake_distribution = hlp.generate_stake_distr(self.num_agents, self.total_stake, self.pareto_param)
@@ -84,11 +84,10 @@ class Simulation(Model):
         # Allocate cost to the players, sampling from a uniform distribution
         cost_distribution = hlp.generate_cost_distr(num_agents=self.num_agents, low=self.cost_min, high=self.cost_max)
 
+        num_myopic_agents = int(self.myopic_fraction * self.num_agents)
         # Create agents
         for i in range(self.num_agents):
-            # for now only non-myopic agents, in the future we can mix them
-            agent_type = 'NM'  # random.choice(agent_types)
-            agent = Stakeholder(i, self, agent_type, cost=cost_distribution[i], stake=stake_distribution[i])
+            agent = Stakeholder(i, self, is_myopic=(i < num_myopic_agents), cost=cost_distribution[i], stake=stake_distribution[i])
             self.schedule.add(agent)
 
     # One step of the model
