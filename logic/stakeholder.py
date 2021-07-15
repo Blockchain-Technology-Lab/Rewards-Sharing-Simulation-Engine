@@ -17,6 +17,7 @@ IDLE_STEPS_AFTER_OPENING_POOL = 10
 MAX_MARGIN = 0.2
 MARGIN_INCREMENT = 0.01
 
+
 class Stakeholder(Agent):
     def __init__(self, unique_id, model, stake=0, is_myopic=False,
                  cost=0, strategy=None):
@@ -121,10 +122,11 @@ class Stakeholder(Agent):
 
     def find_operator_move(self, current_margin):
         pledge = self.calculate_pledge()
-        margin = self.calculate_margin_simple(current_margin)
-
         allocations = [0 for i in range(len(self.model.schedule.agents))]
         allocations[self.unique_id] = pledge
+
+        margin = self.calculate_margin_simple(current_margin)
+        # margin = self.calculate_margin()
 
         remaining_stake = self.stake - pledge
         if remaining_stake > 0:
@@ -161,12 +163,12 @@ class Stakeholder(Agent):
             stake_to_delegate = self.stake
 
         pools = self.model.pools.copy()
-        desirabilities = {pool.owner: pool.desirability for pool in pools
+        desirabilities = {pool.owner: pool.calculate_desirability() for pool in pools
                           if pool is not None and pool.owner != self.unique_id}
         allocations = [0 for _ in range(len(pools))]
 
         # Delegate the stake to the pools with the highest desirability, as long as they're not oversaturated
-        for pool_index in sorted(desirabilities, reverse=True):
+        for pool_index, desirability in sorted(desirabilities.items(), key=lambda item: item[1], reverse=True):
             if stake_to_delegate == 0:
                 break
             if pools[pool_index].stake < saturation_point:
@@ -220,8 +222,7 @@ class Stakeholder(Agent):
         current_utility = self.calculate_utility(self.strategy)
 
         possible_moves = {"current": (
-        current_utility + UTILITY_THRESHOLD, self.strategy)}  # every dict value is a tuple of utility, strategy
-
+            current_utility + UTILITY_THRESHOLD, self.strategy)}  # every dict value is a tuple of utility, strategy
 
         if self.strategy.is_pool_operator or self.has_potential_for_pool():
             # Player is considering opening a pool, so he has to find the most suitable pool params
@@ -257,18 +258,10 @@ class Stakeholder(Agent):
                     pool = self.model.pools[i]
                     if i == self.unique_id:
                         # calculate pool owner utility
-                        if pool is None:
-                            # player hasn't created their pool yet, so we calculate the utility of a hypothetical pool
+                        if strategy.is_pool_operator:
+                            # we calculate the utility of a hypothetical pool
                             pool = Pool(margin=strategy.margin, cost=self.cost, pledge=strategy.pledge,
-                                        owner=self.unique_id)
-                            # calculate non-myopic stake for hypothetical pool
-                            hlp.calculate_pool_stake_NM(pool,
-                                                        self.model.pools,
-                                                        self.unique_id,
-                                                        self.model.alpha,
-                                                        self.model.beta,
-                                                        self.model.k
-                                                        )
+                                        owner=self.unique_id, alpha=self.model.alpha, beta=self.model.beta)
                         utility += self.calculate_operator_utility(pool, a)
                     else:
                         # calculate delegator utility
@@ -282,7 +275,13 @@ class Stakeholder(Agent):
     def calculate_operator_utility(self, pool, stake_allocation):
         pledge = pool.pledge
         m = pool.margin
-        pool_stake = pool.stake if self.isMyopic else pool.stake_NM
+        pool_stake = pool.stake if self.isMyopic else hlp.calculate_pool_stake_NM(pool,
+                                                                                  self.model.pools,
+                                                                                  self.unique_id,
+                                                                                  self.model.alpha,
+                                                                                  self.model.beta,
+                                                                                  self.model.k
+                                                                                  )
         alpha = self.model.alpha
         beta = self.model.beta
         r = hlp.calculate_pool_reward(pool_stake, pledge, alpha, beta)
@@ -297,7 +296,13 @@ class Stakeholder(Agent):
         # calculate the pool's reward
         alpha = self.model.alpha
         beta = self.model.beta
-        pool_stake = pool.stake if self.isMyopic else pool.stake_NM
+        pool_stake = pool.stake if self.isMyopic else hlp.calculate_pool_stake_NM(pool,
+                                                                                  self.model.pools,
+                                                                                  self.unique_id,
+                                                                                  self.model.alpha,
+                                                                                  self.model.beta,
+                                                                                  self.model.k
+                                                                                  )
         if pool_stake + stake_allocation > beta:
             pool_stake += stake_allocation
         # maybe add reward as a pool field?
@@ -346,7 +351,7 @@ class Stakeholder(Agent):
                 # the player added to or removed stake from it
                 if i == self.unique_id:
                     # special case of own pool, where we need to consider moves that open / close pools
-                    if allocation_changes[i] == self.strategy.stake_allocations[i]:
+                    if change == self.strategy.stake_allocations[i]:
                         # means that the pool needs to be created now
                         self.open_pool(pledge=allocation_changes[self.unique_id], margin=self.strategy.margin)
                         continue
@@ -355,24 +360,16 @@ class Stakeholder(Agent):
                         self.close_pool()
                         continue
                 self.model.pools[i].update_stake(change)  # add or subtract the relevant stake from the pool
-                # Recalculate the pool's non-myopic stake after every stake update todo maybe it's not efficient
-                hlp.calculate_pool_stake_NM(None,
-                                            self.model.pools,
-                                            i,
-                                            self.model.alpha,
-                                            self.model.beta,
-                                            self.model.k
-                                            )
 
     def open_pool(self, pledge, margin):
-        pool = Pool(owner=self.unique_id, cost=self.cost, pledge=pledge, margin=margin)
+        pool = Pool(owner=self.unique_id, cost=self.cost, pledge=pledge, margin=margin,
+                    alpha=self.model.alpha, beta=self.model.beta)
 
         alpha = self.model.alpha
         beta = self.model.beta
         k = self.model.k
 
         # calculate non-myopic stake
-        hlp.calculate_pool_stake_NM(pool, self.model.pools, self.unique_id, alpha, beta, k)
         self.model.pools[self.unique_id] = pool
         self.idle_steps_remaining = self.model.idle_steps_after_pool
 

@@ -81,13 +81,12 @@ def calculate_pool_stake_NM(pool, pools, pool_index, alpha, beta, k):
     :param k:
     :return:
     """
-    desirabilities = [pool.desirability if pool is not None else 0 for pool in pools]
-    # add desirability of current pool
+    desirabilities = [pool.calculate_desirability() if pool is not None else 0 for pool in pools]
     if pool is None:
         pool = pools[pool_index]
-    potential_pool_profit = calculate_potential_profit(pool.pledge, pool.cost, alpha, beta)
-    desirability = pool.calculate_desirability(potential_pool_profit)
-    desirabilities[pool_index] = desirability
+    else:
+        desirability = pool.calculate_desirability()
+        desirabilities[pool_index] = desirability
     # todo maybe cache?
     rank = calculate_rank(desirabilities,
                           pool_index)  # the rank can be defined as the index of the sorted desirabilities, in descending order
