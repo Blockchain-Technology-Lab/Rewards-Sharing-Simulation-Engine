@@ -227,13 +227,6 @@ class Stakeholder(Agent):
         possible_moves = {"current": (
             current_utility + UTILITY_THRESHOLD, self.strategy)}  # every dict value is a tuple of utility, strategy
 
-        if self.strategy.is_pool_operator or self.has_potential_for_pool():
-            # Player is considering opening a pool, so he has to find the most suitable pool params
-            # and calculate the potential utility of operating a pool with these params
-            operator_strategy = self.find_operator_move(self.strategy.margin)
-            operator_utility = self.calculate_utility(operator_strategy)
-            possible_moves["operator"] = operator_utility, operator_strategy
-
         # For all players (current pool owners, prospective pool owners
         # and players who don't even consider running a pool)
         # find a possible delegation strategy and calculate its potential utility
@@ -241,9 +234,18 @@ class Stakeholder(Agent):
         delegator_utility = self.calculate_utility(delegator_strategy)
         possible_moves["delegator"] = delegator_utility, delegator_strategy
 
+        if self.strategy.is_pool_operator or self.has_potential_for_pool():
+            # Player is considering opening a pool, so he has to find the most suitable pool params
+            # and calculate the potential utility of operating a pool with these params
+            operator_strategy = self.find_operator_move(self.strategy.margin)
+            operator_utility = self.calculate_utility(operator_strategy)
+            possible_moves["operator"] = operator_utility, operator_strategy
+
         # compare the above with the utility of the current strategy and pick one of the 3
+        # in case of a tie, the max function picks the element with the lowest index, so we have strategically ordered
+        # them earlier so that the "easiest" move is preferred ( current -> delegator -> operator)
         max_utility_option = max(possible_moves,
-                                 key=lambda key: possible_moves[key][0])  # todo in case of tie choose "easiest" strategy
+                                 key=lambda key: possible_moves[key][0])
 
         self.new_strategy = None if max_utility_option == "current" else possible_moves[max_utility_option][1]
 

@@ -32,7 +32,7 @@ var ScatterChartModule  = function(series, canvas_width, canvas_height) {
                     },
                 label: function(tooltipItem, data) {
                     var output = "";
-                    output += "Pledge: " + tooltipItem.xLabel.toFixed(4) + "\n | \n";
+                    output += "Owner stake: " + tooltipItem.xLabel.toFixed(4) + "\n | \n";
                     output += "Pool stake: " + tooltipItem.yLabel.toFixed(4);
                     return output;
                 }
@@ -42,7 +42,7 @@ var ScatterChartModule  = function(series, canvas_width, canvas_height) {
         },
         title: {
             display: true,
-            text: 'Relationship between pledge and pool stake' //todo make configurable
+            text: 'Pool owner stake VS pool stake' //todo make configurable
         },
         hover: {
             mode: 'nearest',
@@ -55,7 +55,7 @@ var ScatterChartModule  = function(series, canvas_width, canvas_height) {
             display: true,
             scaleLabel: {
                 display: true,
-                labelString: 'Pledge'
+                labelString: 'Owner stake'
             }
           }],
           yAxes: [{
