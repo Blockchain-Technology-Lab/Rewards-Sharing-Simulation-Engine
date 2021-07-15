@@ -5,6 +5,7 @@ Created on Fri Jun 11 17:14:45 2021
 @author: chris
 """
 from contextlib import suppress
+from copy import deepcopy
 
 from mesa import Agent
 
@@ -125,7 +126,7 @@ class Stakeholder(Agent):
         allocations = [0 for i in range(len(self.model.schedule.agents))]
         allocations[self.unique_id] = pledge
 
-        margin = self.calculate_margin_simple(current_margin)
+        margin = self.calculate_margin_simple(current_margin) #todo what if player wouldn't open pool with this margin but would open pool with lower margin?
         # margin = self.calculate_margin()
 
         remaining_stake = self.stake - pledge
@@ -162,9 +163,13 @@ class Stakeholder(Agent):
         if stake_to_delegate is None:
             stake_to_delegate = self.stake
 
-        pools = self.model.pools.copy()
+        pools = deepcopy(self.model.pools)
         desirabilities = {pool.owner: pool.calculate_desirability() for pool in pools
                           if pool is not None and pool.owner != self.unique_id}
+        # remove the player's stake from the pools in case it's being delegated
+        for i, allocation in enumerate(self.strategy.stake_allocations):
+            if allocation > 0:
+                pools[i].update_stake(-allocation)
         allocations = [0 for _ in range(len(pools))]
 
         # Delegate the stake to the pools with the highest desirability, as long as they're not oversaturated
@@ -186,7 +191,7 @@ class Stakeholder(Agent):
         saturation_point = self.model.beta
         alpha = self.model.alpha
 
-        pools = self.model.pools.copy()
+        pools = deepcopy(self.model.pools)
         pool_owners = [pool.owner for pool in pools if pool is not None]
         with suppress(ValueError):
             # remove the current player from the list in case he's an SPO
@@ -218,9 +223,7 @@ class Stakeholder(Agent):
         and the potential utility from the new strategy
         """
 
-        # Recalculate utility because pool formation may have changed since last calculation
         current_utility = self.calculate_utility(self.strategy)
-
         possible_moves = {"current": (
             current_utility + UTILITY_THRESHOLD, self.strategy)}  # every dict value is a tuple of utility, strategy
 
@@ -231,8 +234,6 @@ class Stakeholder(Agent):
             operator_utility = self.calculate_utility(operator_strategy)
             possible_moves["operator"] = operator_utility, operator_strategy
 
-        # todo also consider option of changing margin and pledge or only consider "perfect strategies"?
-
         # For all players (current pool owners, prospective pool owners
         # and players who don't even consider running a pool)
         # find a possible delegation strategy and calculate its potential utility
@@ -242,7 +243,7 @@ class Stakeholder(Agent):
 
         # compare the above with the utility of the current strategy and pick one of the 3
         max_utility_option = max(possible_moves,
-                                 key=lambda key: possible_moves[key][0])  # todo in case of tie choose easiest strategy
+                                 key=lambda key: possible_moves[key][0])  # todo in case of tie choose "easiest" strategy
 
         self.new_strategy = None if max_utility_option == "current" else possible_moves[max_utility_option][1]
 
@@ -278,7 +279,6 @@ class Stakeholder(Agent):
         pool_stake = pool.stake if self.isMyopic else hlp.calculate_pool_stake_NM(pool,
                                                                                   self.model.pools,
                                                                                   self.unique_id,
-                                                                                  self.model.alpha,
                                                                                   self.model.beta,
                                                                                   self.model.k
                                                                                   )
@@ -299,7 +299,6 @@ class Stakeholder(Agent):
         pool_stake = pool.stake if self.isMyopic else hlp.calculate_pool_stake_NM(pool,
                                                                                   self.model.pools,
                                                                                   self.unique_id,
-                                                                                  self.model.alpha,
                                                                                   self.model.beta,
                                                                                   self.model.k
                                                                                   )
@@ -365,11 +364,6 @@ class Stakeholder(Agent):
         pool = Pool(owner=self.unique_id, cost=self.cost, pledge=pledge, margin=margin,
                     alpha=self.model.alpha, beta=self.model.beta)
 
-        alpha = self.model.alpha
-        beta = self.model.beta
-        k = self.model.k
-
-        # calculate non-myopic stake
         self.model.pools[self.unique_id] = pool
         self.idle_steps_remaining = self.model.idle_steps_after_pool
 

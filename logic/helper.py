@@ -70,7 +70,7 @@ def calculate_pool_reward(stake, pledge, alpha, beta):
     return reward
 
 
-def calculate_pool_stake_NM(pool, pools, pool_index, alpha, beta, k):
+def calculate_pool_stake_NM(pool, pools, pool_index, beta, k):
     """
     Calculate the non-myopic stake of a pool, given the pool and the state of the system
     :param pool:
@@ -81,13 +81,12 @@ def calculate_pool_stake_NM(pool, pools, pool_index, alpha, beta, k):
     :param k:
     :return:
     """
-    desirabilities = [pool.calculate_desirability() if pool is not None else 0 for pool in pools]
+    desirabilities = [p.calculate_desirability() if p is not None else 0 for p in pools]
     if pool is None:
         pool = pools[pool_index]
     else:
         desirability = pool.calculate_desirability()
         desirabilities[pool_index] = desirability
-    # todo maybe cache?
     rank = calculate_rank(desirabilities,
                           pool_index)  # the rank can be defined as the index of the sorted desirabilities, in descending order
     return pool.calculate_stake_NM(k, beta, rank)
@@ -117,7 +116,7 @@ def check_pool_potential(strategy, model, player_id):
 
     # to check if the pool's margin is competitive we look at all other players
     players = model.schedule.agents
-    pools = model.pools.copy()
+    pools = deepcopy(model.pools)
 
     pool = Pool(players[player_id].cost, strategy.pledge, player_id,
                 strategy.margin)  # todo create pool constructor that takes strategy as argument

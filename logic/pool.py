@@ -8,7 +8,7 @@ import helper as hlp
 
 
 class Pool:
-    
+
     def __init__(self, cost, pledge, owner, margin, alpha, beta):
         self.margin = margin
         self.cost = cost
@@ -17,7 +17,6 @@ class Pool:
         self.owner = owner
         self.potential_profit = hlp.calculate_potential_profit(pledge, cost, alpha, beta)
 
-        
     def update_stake(self, stake):
         self.stake += stake
 
@@ -38,12 +37,8 @@ class Pool:
         self.desirability = (1 - self.margin) * potential_profit
         return self.desirability
 
-
     def calculate_stake_NM_myWay(self, beta, sat_prob):
-        self.stake_NM = sat_prob * beta + (1 - sat_prob) * self.pledge
-        return self.stake_NM
+        return sat_prob * beta + (1 - sat_prob) * self.pledge
 
     def calculate_stake_NM(self, k, beta, rank):
-        self.stake_NM = self.pledge if rank > k else max(beta, self.stake)
-        return self.stake_NM
-
+        return self.pledge if rank >= k else max(beta, self.stake)

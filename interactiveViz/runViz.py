@@ -42,7 +42,7 @@ model_params = {
     ),
 
     "max_iterations": UserSettableParameter(
-        "slider", "Max iterations", 100, 1, 300, 2,
+        "slider", "Max iterations", 200, 1, 300, 2,
         description="The maximum number of iterations of the system."
     ),
 
