@@ -30,9 +30,12 @@ var MyChartModule = function(series, canvas_width, canvas_height) {
     for (var i in series) {
         var s = series[i];
         var new_series = {
-            label: s.Label,
-            borderColor: s.Color,
-            backgroundColor: convertColorOpacity(s.Color),
+            label: s.title,
+            xLabel: s.xLabel,
+            yLabel: s.yLabel,
+            tooltipText: s.tooltipText,
+            borderColor: s.color,
+            backgroundColor: convertColorOpacity(s.color),
             data: []
         };
         datasets.push(new_series);
@@ -54,13 +57,13 @@ var MyChartModule = function(series, canvas_width, canvas_height) {
                     return "Step " + tooltipItems[0].xLabel;
                 },
                 label: function(tooltipItem, data) {
-                return tooltipItem.yLabel + " pools";
-            }
+                return tooltipItem.yLabel.toFixed(4).replace(".0000", "") + datasets[0].tooltipText;
+                }
             }
         },
         title: {
             display: true,
-            text: 'Number of Pools'
+            text: datasets[0].label
         },
         hover: {
             mode: 'nearest',
@@ -71,7 +74,7 @@ var MyChartModule = function(series, canvas_width, canvas_height) {
                 display: true,
                 scaleLabel: {
                     display: true,
-                    labelString: 'Iteration'
+                    labelString: datasets[0].xLabel
                 },
                 ticks: {
                     maxTicksLimit: 11
@@ -81,7 +84,7 @@ var MyChartModule = function(series, canvas_width, canvas_height) {
                 display: true,
                 scaleLabel: {
                     display: true,
-                    labelString: '#Pools'
+                    labelString: datasets[0].yLabel
                 }
             }]
         },

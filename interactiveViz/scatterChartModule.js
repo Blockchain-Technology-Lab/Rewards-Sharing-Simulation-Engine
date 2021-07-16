@@ -19,9 +19,6 @@ var ScatterChartModule  = function(series, canvas_width, canvas_height) {
         responsive: true,
         tooltips: {
             displayColors: false,
-            /*filter: function (tooltipItem) {
-                return tooltipItem.yLabel != 0
-            },*/
             callbacks: {
                 title: function(tooltipItems, data) {
                     var index = tooltipItems[0].index;

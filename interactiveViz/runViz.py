@@ -16,16 +16,16 @@ from interactiveViz.scatterChartModule import ScatterChartModule
 from interactiveViz.myChartModule import MyChartModule
 
 max_num_agents = 500
-poolsChart = MyChartModule([{"Label": "#Pools",
-                             "Color": "Blue"}],
-                           data_collector_name='datacollector')
+poolsChart = MyChartModule([{"label": "#Pools","title": "Number of pools over time", "xLabel": "Iteration",
+                             "yLabel": "#Pools", "tooltipText": " pools", "color": "Blue"}])
 
 poolDynamicsStackedChart = StackedChartModule([{"Label": "Pool",
-                                                "Num_agents": max_num_agents}],
-                                              data_collector_name='datacollector')
+                                                "Num_agents": max_num_agents}])
 
-poolScatterChart = ScatterChartModule([{"Label": "StakePairs"}],
-                                      data_collector_name='datacollector')
+poolScatterChart = ScatterChartModule([{"Label": "StakePairs"}])
+
+pledgeChart = MyChartModule([{"label": "AvgPledge", "title": "Average pledge over time", "xLabel": "Iteration",
+                              "yLabel": "Average pledge", "tooltipText": "", "color": "Red"}])
 
 model_params = {
     "n": UserSettableParameter(
@@ -80,7 +80,7 @@ model_params = {
 # figure out why MyModularServer was not working at some point
 # figured out: it only works when I use the ModularServer first so it probably caches some necessary files
 server = ModularServer(Simulation,
-                       [poolsChart, poolDynamicsStackedChart, poolScatterChart],
+                       [poolsChart, poolDynamicsStackedChart, poolScatterChart, pledgeChart],
                        "PoS Pooling Games",
                        model_params)
 # todo investigate why there are missing steps from the charts

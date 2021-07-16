@@ -24,6 +24,11 @@ def get_pool_sizes(model):
     return [pool.stake if pool is not None else 0 for pool in model.pools]
 
 
+def get_avg_pledge(model):
+    current_pool_pledges = [pool.pledge for pool in model.pools if pool is not None]
+    return sum(current_pool_pledges)/len(current_pool_pledges) if len(current_pool_pledges) > 0 else 0
+
+
 def get_stake_pairs(model):
     players = model.schedule.agents
     pools = model.pools
@@ -40,6 +45,7 @@ class Simulation(Model):
         "Sequential": BaseScheduler,
         "Random": RandomActivation,
         "Simultaneous": SimultaneousActivation
+        #todo check if during simultaneous activation players apply their moves sequentially or randomly (sequential may not be fair)
     }
 
     def __init__(self, n=100, k=10, alpha=0.3, total_stake=1, max_iterations=100, seed=None,
@@ -74,7 +80,7 @@ class Simulation(Model):
 
         self.datacollector = DataCollector(
             model_reporters={"#Pools": get_number_of_pools, "Pool": get_pool_sizes,  # change "Pool" label?
-                             "StakePairs": get_stake_pairs})
+                             "StakePairs": get_stake_pairs, "AvgPledge": get_avg_pledge})
 
     def initialize_players(self):
 

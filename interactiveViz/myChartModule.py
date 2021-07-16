@@ -40,7 +40,7 @@ class MyChartModule(VisualizationElement):
         data_collector = getattr(model, self.data_collector_name)
 
         for s in self.series:
-            name = s["Label"]
+            name = s["label"]
             try:
                 val = data_collector.model_vars[name][-1]  # Latest value
             except (IndexError, KeyError):
