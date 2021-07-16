@@ -8,6 +8,9 @@ from abc import ABC, abstractmethod
 import random
 import logic.helper as hlp
 
+MAX_MARGIN = 0.2
+MARGIN_INCREMENT = 0.01
+
 
 class Strategy(ABC):
 

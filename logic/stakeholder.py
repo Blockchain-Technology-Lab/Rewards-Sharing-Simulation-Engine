@@ -4,19 +4,18 @@ Created on Fri Jun 11 17:14:45 2021
 
 @author: chris
 """
-from contextlib import suppress
-from copy import deepcopy
-
 from mesa import Agent
+from copy import deepcopy
+import operator
 
 import logic.helper as hlp
 from logic.pool import Pool
 from logic.strategy import SinglePoolStrategy
+from logic.strategy import MAX_MARGIN
+from logic.strategy import MARGIN_INCREMENT
 
-UTILITY_THRESHOLD = 1e-9  # note: if the threshold is high then many delegation moves are ignored
+UTILITY_THRESHOLD = 1e-9
 IDLE_STEPS_AFTER_OPENING_POOL = 10
-MAX_MARGIN = 0.2
-MARGIN_INCREMENT = 0.01
 
 
 class Stakeholder(Agent):
@@ -45,7 +44,7 @@ class Stakeholder(Agent):
         if self.model.player_activation_order != "Simultaneous":
             self.advance()
 
-    # if we want players to make moves simultaneously, then we need an additional advance method
+    # Ιf we want players to make moves simultaneously, then we need an additional advance method
     # specifically, "step() activates the agent and stages any necessary changes, but does not apply them yet
     #                advance() then applies the changes"
     def advance(self):
@@ -126,8 +125,8 @@ class Stakeholder(Agent):
         allocations = [0 for i in range(len(self.model.schedule.agents))]
         allocations[self.unique_id] = pledge
 
-        margin = self.calculate_margin_simple(current_margin) #todo what if player wouldn't open pool with this margin but would open pool with lower margin?
-        # margin = self.calculate_margin()
+        margin = self.calculate_margin_simple(current_margin)  # todo what if player wouldn't open pool with this margin but would open pool with lower margin?
+        #margin = self.calculate_margin()
 
         remaining_stake = self.stake - pledge
         if remaining_stake > 0:
@@ -138,25 +137,10 @@ class Stakeholder(Agent):
 
         return SinglePoolStrategy(pledge, margin, allocations, is_pool_operator=True)
 
-    def find_delegation_move_random(self, current_utility, max_steps=100):
-        """
-        Choose a delegation move using a random walk
-        :param current_utility:
-        :param max_steps:
-        :return: a delegation strategy that yields higher utility than the current one
-        OR the last strategy that was examined (if none of the examined strategies had higher utility than the current)
-        """
-        for i in range(max_steps):
-            strategy = self.strategy.create_random_delegator_strategy(self.model.pools, self.unique_id, self.stake)
-            utility = self.calculate_utility(strategy)
-
-            if utility - current_utility > UTILITY_THRESHOLD:
-                break
-        return strategy
-
     def find_delegation_move_desirability(self, stake_to_delegate=None):
         """
-        Choose a delegation move based on the desirability of the existing pools
+        Choose a delegation move based on the desirability of the existing pools. If two or more pools are tied,
+        choose the one with the highest (current) stake, as it offers higher short-term rewards.
         :return:
         """
         saturation_point = self.model.beta
@@ -164,54 +148,24 @@ class Stakeholder(Agent):
             stake_to_delegate = self.stake
 
         pools = deepcopy(self.model.pools)
-        desirabilities = {pool.owner: pool.calculate_desirability() for pool in pools
-                          if pool is not None and pool.owner != self.unique_id}
         # remove the player's stake from the pools in case it's being delegated
         for i, allocation in enumerate(self.strategy.stake_allocations):
             if allocation > 0:
                 pools[i].update_stake(-allocation)
         allocations = [0 for _ in range(len(pools))]
 
-        # Delegate the stake to the pools with the highest desirability, as long as they're not oversaturated
-        for pool_index, desirability in sorted(desirabilities.items(), key=lambda item: item[1], reverse=True):
+        desirabilities_n_stakes = {pool.owner: (pool.calculate_desirability(), pool.stake) for pool in pools
+                                   if pool is not None and pool.owner != self.unique_id}
+
+        # Order the pools based on desirability and stake (to break ties in desirability) and delegate the stake to
+        # the first non-saturated pool(s).
+        for pool_index, (desirability, stake) in sorted(desirabilities_n_stakes.items(),
+                                                        key=operator.itemgetter(1), reverse=True):
             if stake_to_delegate == 0:
                 break
-            if pools[pool_index].stake < saturation_point:
-                stake_to_saturation = saturation_point - pools[pool_index].stake
+            if stake < saturation_point:
+                stake_to_saturation = saturation_point - stake
                 allocations[pool_index] = min(stake_to_delegate, stake_to_saturation)
-                stake_to_delegate -= allocations[pool_index]
-
-        return SinglePoolStrategy(stake_allocations=allocations, is_pool_operator=False)
-
-    def find_delegation_move_potential_profit(self):
-        """
-        Choose a delegation move based on the potential profit of the existing pools
-        :return:
-        """
-        saturation_point = self.model.beta
-        alpha = self.model.alpha
-
-        pools = deepcopy(self.model.pools)
-        pool_owners = [pool.owner for pool in pools if pool is not None]
-        with suppress(ValueError):
-            # remove the current player from the list in case he's an SPO
-            pool_owners.remove(self.unique_id)
-
-        # Calculate the potential profits of all current pools
-        potential_profits = {agent.unique_id:
-                                 hlp.calculate_potential_profit(agent.stake, agent.cost, alpha, saturation_point)
-                             for agent in self.model.schedule.agents
-                             if agent.unique_id in pool_owners}
-
-        stake_to_delegate = self.stake
-        allocations = [0 for pool in range(len(pools))]
-
-        # Delegate the stake to the most (potentially) profitable pools as long as they're not oversaturated
-        for pool_index in sorted(potential_profits, reverse=True):
-            if stake_to_delegate == 0:
-                break
-            if pools[pool_index].stake < saturation_point:
-                allocations[pool_index] = min(stake_to_delegate, saturation_point - pools[pool_index].stake)
                 stake_to_delegate -= allocations[pool_index]
 
         return SinglePoolStrategy(stake_allocations=allocations, is_pool_operator=False)
@@ -443,5 +397,54 @@ class Stakeholder(Agent):
             return self.strategy.create_random_operator_strategy(sim.pools, self.unique_id, self.stake)
         else:
             return self.strategy.create_random_delegator_strategy(sim.pools, self.unique_id, self.stake)
+            
+    def find_delegation_move_potential_profit(self):
+        """
+        Choose a delegation move based on the potential profit of the existing pools
+        :return:
+        """
+        saturation_point = self.model.beta
+        alpha = self.model.alpha
+
+        pools = deepcopy(self.model.pools)
+        pool_owners = [pool.owner for pool in pools if pool is not None]
+        with suppress(ValueError):
+            # remove the current player from the list in case he's an SPO
+            pool_owners.remove(self.unique_id)
+
+        # Calculate the potential profits of all current pools
+        potential_profits = {agent.unique_id:
+                                 hlp.calculate_potential_profit(agent.stake, agent.cost, alpha, saturation_point)
+                             for agent in self.model.schedule.agents
+                             if agent.unique_id in pool_owners}
+
+        stake_to_delegate = self.stake
+        allocations = [0 for pool in range(len(pools))]
+
+        # Delegate the stake to the most (potentially) profitable pools as long as they're not oversaturated
+        for pool_index in sorted(potential_profits, reverse=True):
+            if stake_to_delegate == 0:
+                break
+            if pools[pool_index].stake < saturation_point:
+                allocations[pool_index] = min(stake_to_delegate, saturation_point - pools[pool_index].stake)
+                stake_to_delegate -= allocations[pool_index]
+
+        return SinglePoolStrategy(stake_allocations=allocations, is_pool_operator=False)
+        
+        def find_delegation_move_random(self, current_utility, max_steps=100):
+        """
+        Choose a delegation move using a random walk
+        :param current_utility:
+        :param max_steps:
+        :return: a delegation strategy that yields higher utility than the current one
+        OR the last strategy that was examined (if none of the examined strategies had higher utility than the current)
+        """
+        for i in range(max_steps):
+            strategy = self.strategy.create_random_delegator_strategy(self.model.pools, self.unique_id, self.stake)
+            utility = self.calculate_utility(strategy)
+
+            if utility - current_utility > UTILITY_THRESHOLD:
+                break
+        return strategy
  
     '''
