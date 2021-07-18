@@ -5,6 +5,9 @@ Created on Thu Jun 10 12:59:49 2021
 @author: chris
 """
 import random
+import csv
+import time
+from pathlib import Path
 
 from mesa import Model
 from mesa.datacollection import DataCollector
@@ -26,14 +29,15 @@ def get_pool_sizes(model):
 
 def get_avg_pledge(model):
     current_pool_pledges = [pool.pledge for pool in model.pools if pool is not None]
-    return sum(current_pool_pledges)/len(current_pool_pledges) if len(current_pool_pledges) > 0 else 0
+    return sum(current_pool_pledges) / len(current_pool_pledges) if len(current_pool_pledges) > 0 else 0
 
 
-def get_stake_pairs(model):
+def get_stakes_n_margins(model):
     players = model.schedule.agents
     pools = model.pools
     return {'x': [players[pool.owner].stake if pool is not None else 0 for pool in pools],
-            'y': [pool.stake if pool is not None else 0 for pool in pools]}
+            'y': [pool.stake if pool is not None else 0 for pool in pools],
+            'r': [pool.margin if pool is not None else 0 for pool in pools]}
 
 
 class Simulation(Model):
@@ -45,7 +49,7 @@ class Simulation(Model):
         "Sequential": BaseScheduler,
         "Random": RandomActivation,
         "Simultaneous": SimultaneousActivation
-        #todo check if during simultaneous activation players apply their moves sequentially or randomly (sequential may not be fair)
+        # todo check if during simultaneous activation players apply their moves sequentially or randomly (sequential may not be fair)
     }
 
     def __init__(self, n=100, k=10, alpha=0.3, total_stake=1, max_iterations=100, seed=None,
@@ -80,7 +84,7 @@ class Simulation(Model):
 
         self.datacollector = DataCollector(
             model_reporters={"#Pools": get_number_of_pools, "Pool": get_pool_sizes,  # change "Pool" label?
-                             "StakePairs": get_stake_pairs, "AvgPledge": get_avg_pledge})
+                             "StakePairs": get_stakes_n_margins, "AvgPledge": get_avg_pledge})
 
     def initialize_players(self):
 
@@ -93,7 +97,8 @@ class Simulation(Model):
         num_myopic_agents = int(self.myopic_fraction * self.num_agents)
         # Create agents
         for i in range(self.num_agents):
-            agent = Stakeholder(i, self, is_myopic=(i < num_myopic_agents), cost=cost_distribution[i], stake=stake_distribution[i])
+            agent = Stakeholder(i, self, is_myopic=(i < num_myopic_agents), cost=cost_distribution[i],
+                                stake=stake_distribution[i])
             self.schedule.add(agent)
 
     # One step of the model
@@ -109,6 +114,7 @@ class Simulation(Model):
             self.idle_steps += 1
             if self.has_converged():
                 self.running = False
+                self.dump_state_to_csv()
         else:
             self.idle_steps = 0
         self.current_step += 1
@@ -128,6 +134,22 @@ class Simulation(Model):
             where no player wants to change their strategy
         """
         return self.idle_steps >= MIN_CONSECUTIVE_IDLE_STEPS_FOR_CONVERGENCE
+
+    def dump_state_to_csv(self):
+        # todo add potential profit rank column
+        row_list = [["Pool owner id", "Pool owner stake", "Pool stake", "Pool cost", "Pool pledge", "Pool margin",
+                     "Perfect margin", "Pool potential profit", "Pool desirability"]]
+        players = self.schedule.agents
+        row_list.extend([[pool.owner, players[pool.owner].stake, pool.stake, pool.cost, pool.pledge, pool.margin,
+                          players[pool.owner].calculate_margin_perfect_strategy(), pool.potential_profit, pool.calculate_desirability()]
+                         for pool in self.pools if pool is not None])
+        current_datetime = time.strftime("%Y%m%d_%H%M%S")
+        path = Path.cwd() / "output"
+        Path(path).mkdir(parents=True, exist_ok=True)
+        filename = path / ('final_configuration' + current_datetime + '.csv')
+        with open(filename, 'w', newline='') as file:
+            writer = csv.writer(file)
+            writer.writerows(row_list)
 
     def get_status(self):
         print("Step {}".format(self.current_step))

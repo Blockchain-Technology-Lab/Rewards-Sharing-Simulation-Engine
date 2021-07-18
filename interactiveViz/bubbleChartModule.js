@@ -1,4 +1,4 @@
-var ScatterChartModule  = function(series, canvas_width, canvas_height) {
+var BubbleChartModule  = function(series, canvas_width, canvas_height) {
     // Create the tag:
     var canvas_tag = "<canvas width='" + canvas_width + "' height='" + canvas_height + "' ";
     canvas_tag += "style='border:1px dotted'></canvas>";
@@ -30,7 +30,10 @@ var ScatterChartModule  = function(series, canvas_width, canvas_height) {
                 label: function(tooltipItem, data) {
                     var output = "";
                     output += "Owner stake: " + tooltipItem.xLabel.toFixed(4) + "\n | \n";
-                    output += "Pool stake: " + tooltipItem.yLabel.toFixed(4);
+                    output += "Pool stake: " + tooltipItem.yLabel.toFixed(4) + "\n | \n";
+                    var rLabel = data.datasets[tooltipItem.datasetIndex].data[tooltipItem.index].r;
+                    var margin = (rLabel- 3)/20;
+                    output += "Pool margin: " + margin.toFixed(4);
                     return output;
                 }
             },
@@ -84,7 +87,7 @@ var ScatterChartModule  = function(series, canvas_width, canvas_height) {
   }
 
     var chart = new Chart(context, {
-        type: 'scatter', //alternative bubble chart if I have 3 dimensions instead of 2: https://www.chartjs.org/docs/latest/charts/bubble.html
+        type: 'bubble',
         data: chartData,
         options: chartOptions
     });
@@ -92,9 +95,9 @@ var ScatterChartModule  = function(series, canvas_width, canvas_height) {
     this.render = function(data) {
         var pointData = [];
 
-        for (i = 0; i < data.length; i+=2) {
+        for (i = 0; i < data.length; i+=3) {
             if (data[i] > 0) {
-                pointData.push({x: data[i], y: data[i+1], id: i/2});
+                pointData.push({x: data[i], y: data[i+1], r: 3 + 20*data[i+2], id: i/3});
             }
         }
         chart.data.datasets[0].data = pointData;

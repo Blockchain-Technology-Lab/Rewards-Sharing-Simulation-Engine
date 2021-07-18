@@ -8,7 +8,7 @@ from abc import ABC, abstractmethod
 import random
 import logic.helper as hlp
 
-MAX_MARGIN = 0.2
+MAX_MARGIN = 0.5
 MARGIN_INCREMENT = 0.01
 
 

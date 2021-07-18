@@ -4,6 +4,7 @@ Created on Sun Jun 13 08:15:26 2021
 
 @author: chris
 """
+import random
 
 import numpy as np
 from numpy.random import default_rng
@@ -21,8 +22,10 @@ def generate_stake_distr(num_agents, total_stake, pareto_param):
     :return:
     """
     rng = default_rng(seed=156)
-    distr = rng.pareto(pareto_param, num_agents)
-    return normalize_distr(distr, normal_sum=total_stake)
+    pareto_distr = rng.pareto(pareto_param, num_agents)
+    stakes = normalize_distr(pareto_distr, normal_sum=total_stake)
+    random.shuffle(stakes)
+    return stakes
 
 
 def generate_cost_distr(num_agents, low, high):
@@ -35,7 +38,9 @@ def generate_cost_distr(num_agents, low, high):
     :return:
     """
     rng = default_rng(seed=156)
-    return rng.uniform(low=low, high=high, size=num_agents)
+    costs = rng.uniform(low=low, high=high, size=num_agents)
+    random.shuffle(costs)
+    return costs
 
 
 def normalize_distr(distr, normal_sum=1):
@@ -155,20 +160,19 @@ def calculate_pool_saturation_prob(desirabilities, pool_index):
     return probs[pool_index]
 
 
-def calculate_pool_stake_NM_myWay(pool, pools, pool_index, alpha, beta):
-    desirabilities = [pool.desirability if pool is not None else 0 for pool in pools]
-    # add desirability of current pool
-    if (pool is None):
+def calculate_pool_stake_NM_myWay(pool, pools, pool_index, beta):
+    desirabilities = [p.calculate_desirability() if p is not None else 0 for p in pools]
+    if pool is None:
         pool = pools[pool_index]
-    potential_pool_profit = calculate_potential_profit(pool.pledge, pool.cost, alpha, beta)
-    desirability = pool.calculate_desirability(potential_pool_profit)
-    desirabilities[pool_index] = desirability
+    else:
+        desirability = pool.calculate_desirability()
+        desirabilities[pool_index] = desirability
     sat_prob = calculate_pool_saturation_prob(desirabilities, pool_index)
-    return pool.calculate_stake_NM(beta, sat_prob)
+    return pool.calculate_stake_NM_myWay(beta, sat_prob)
     
 def softmax(vector):
     np_vector = np.array(vector)
     e = np.exp(np_vector)
-    return e / np.sum(e)
+    return e / np.sum(e)'''
 
-'''
+

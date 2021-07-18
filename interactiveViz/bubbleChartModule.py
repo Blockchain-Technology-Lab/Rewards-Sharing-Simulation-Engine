@@ -8,7 +8,7 @@ Module for drawing live-updating scatter charts using Charts.js
 import json
 from mesa.visualization.ModularVisualization import VisualizationElement
 
-class ScatterChartModule(VisualizationElement):
+class BubbleChartModule(VisualizationElement):
     """
     Attributes:
         series: A list of dictionaries containing information on series to
@@ -25,7 +25,7 @@ class ScatterChartModule(VisualizationElement):
     """
 
     package_includes = ["Chart.min.js"]
-    local_includes = ["ScatterChartModule.js"]
+    local_includes = ["BubbleChartModule.js"]
 
     def __init__(
         self,
@@ -51,7 +51,7 @@ class ScatterChartModule(VisualizationElement):
         self.data_collector_name = data_collector_name
 
         series_json = json.dumps(self.series)
-        new_element = "new ScatterChartModule({}, {},  {})"
+        new_element = "new BubbleChartModule({}, {},  {})"
         new_element = new_element.format(series_json, canvas_width, canvas_height)
         self.js_code = "elements.push(" + new_element + ");"
 
@@ -67,7 +67,9 @@ class ScatterChartModule(VisualizationElement):
                 continue
             x = data_dict['x']
             y = data_dict['y']
+            r = data_dict['r']
             for i in range(len(x)):
                 current_values.append(x[i])
                 current_values.append(y[i])
+                current_values.append(r[i])
         return current_values

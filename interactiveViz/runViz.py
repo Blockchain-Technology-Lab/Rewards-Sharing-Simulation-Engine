@@ -12,7 +12,7 @@ from logic.sim import Simulation
 
 # from myModularVisualization import MyModularServer
 from interactiveViz.stackedChartModule import StackedChartModule
-from interactiveViz.scatterChartModule import ScatterChartModule
+from interactiveViz.bubbleChartModule import BubbleChartModule
 from interactiveViz.myChartModule import MyChartModule
 
 max_num_agents = 500
@@ -22,7 +22,7 @@ poolsChart = MyChartModule([{"label": "#Pools","title": "Number of pools over ti
 poolDynamicsStackedChart = StackedChartModule([{"Label": "Pool",
                                                 "Num_agents": max_num_agents}])
 
-poolScatterChart = ScatterChartModule([{"Label": "StakePairs"}])
+poolScatterChart = BubbleChartModule([{"Label": "StakePairs"}])
 
 pledgeChart = MyChartModule([{"label": "AvgPledge", "title": "Average pledge over time", "xLabel": "Iteration",
                               "yLabel": "Average pledge", "tooltipText": "", "color": "Red"}])

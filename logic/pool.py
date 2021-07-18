@@ -34,8 +34,7 @@ class Pool:
         :param potential_profit:
         :return:
         """
-        self.desirability = (1 - self.margin) * potential_profit
-        return self.desirability
+        return (1 - self.margin) * potential_profit
 
     def calculate_stake_NM_myWay(self, beta, sat_prob):
         return sat_prob * beta + (1 - sat_prob) * self.pledge

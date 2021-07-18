@@ -1,4 +1,5 @@
 **.pyc
+**/output
 venv
 .idea/
 node_modules

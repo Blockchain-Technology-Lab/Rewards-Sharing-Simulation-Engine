@@ -95,12 +95,32 @@ class Stakeholder(Agent):
         return min(self.stake, self.model.beta)
 
     def calculate_margin_simple(self, current_margin):
+        if self.strategy.stake_allocations[self.unique_id] >= self.model.beta:
+            return 0  # single-man pool, so margin is irrelevant
         if current_margin < 0:
             # player doesn't have a pool yet so he sets the max margin
             return MAX_MARGIN
-        return current_margin - MARGIN_INCREMENT
+        # player already has a pool
+        return max(current_margin - MARGIN_INCREMENT, 0)
 
-    def calculate_margin(self):
+        # alternative way to try out margins until a suitable one is found
+        current_pool = self.model.pools[self.unique_id]
+        current_operator_utility = self.calculate_operator_utility(current_pool,
+                                                                   self.strategy.stake_allocations[self.unique_id])
+        new_margin = max(current_margin - MARGIN_INCREMENT, 0)
+        new_pool = deepcopy(current_pool)
+        while True:
+            new_pool.margin = new_margin
+            new_operator_utility = self.calculate_operator_utility(new_pool,
+                                                                   self.strategy.stake_allocations[self.unique_id])
+            if new_operator_utility > current_operator_utility:
+                return new_margin
+            if new_margin == 0:
+                break
+            new_margin = max(new_margin - MARGIN_INCREMENT, 0)
+        return current_margin
+
+    def calculate_margin_perfect_strategy(self):
         """
         Based on "perfect strategies", the player ranks all pools (existing and hypothetical) based on their potential
         profit and chooses a margin that can keep his pool competitive
@@ -114,7 +134,8 @@ class Stakeholder(Agent):
         potential_profit_ranks = hlp.calculate_ranks(potential_profits)
         k = self.model.k
         # fails if n < k -> todo make sure that n > k always
-        k_rank_index = potential_profit_ranks.index(k)  # find the player who is ranked at the kth position
+        # find the player who is ranked at the kth position (k+1 if we start from 1)
+        k_rank_index = potential_profit_ranks.index(k)
 
         margin = 1 - (potential_profits[k_rank_index] / potential_profits[self.unique_id]) \
             if potential_profit_ranks[self.unique_id] < k else 0
@@ -125,8 +146,9 @@ class Stakeholder(Agent):
         allocations = [0 for i in range(len(self.model.schedule.agents))]
         allocations[self.unique_id] = pledge
 
-        margin = self.calculate_margin_simple(current_margin)  # todo what if player wouldn't open pool with this margin but would open pool with lower margin?
-        #margin = self.calculate_margin()
+        margin = self.calculate_margin_simple(
+            current_margin)
+        # margin = self.calculate_margin()
 
         remaining_stake = self.stake - pledge
         if remaining_stake > 0:
@@ -252,22 +274,17 @@ class Stakeholder(Agent):
         # calculate the pool's reward
         alpha = self.model.alpha
         beta = self.model.beta
-        pool_stake = pool.stake if self.isMyopic else hlp.calculate_pool_stake_NM(pool,
-                                                                                  self.model.pools,
-                                                                                  self.unique_id,
-                                                                                  self.model.beta,
-                                                                                  self.model.k
-                                                                                  )
-        if pool_stake + stake_allocation > beta:
-            pool_stake += stake_allocation
-        # maybe add reward as a pool field?
+        previous_allocation_to_pool = self.strategy.stake_allocations[pool.owner]
+        current_stake = pool.stake - previous_allocation_to_pool + stake_allocation
+        non_myopic_stake = max(hlp.calculate_pool_stake_NM(pool, self.model.pools, self.unique_id,
+                                                           self.model.beta, self.model.k), current_stake)
+        pool_stake = current_stake if self.isMyopic else non_myopic_stake
         r = hlp.calculate_pool_reward(pool_stake, pool.pledge, alpha, beta)
         q = stake_allocation / pool_stake
         m_factor = (1 - pool.margin) * q
         u_0 = (r - pool.cost)
         u = m_factor * u_0
         utility = max(0, u)
-
         return utility
 
     def execute_strategy(self):
