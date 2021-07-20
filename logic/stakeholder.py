@@ -56,6 +56,7 @@ class Stakeholder(Agent):
     def make_move(self):
         self.update_strategy()
 
+    # todo how does a myopic player decide whether to open a pool or not?
     def has_potential_for_pool(self):
         """
         Determine whether the player is at a good position to open a pool
@@ -95,7 +96,7 @@ class Stakeholder(Agent):
         return min(self.stake, self.model.beta)
 
     def calculate_margin_simple(self, current_margin):
-        if self.strategy.stake_allocations[self.unique_id] >= self.model.beta:
+        if self.stake >= self.model.beta:
             return 0  # single-man pool, so margin is irrelevant
         if current_margin < 0:
             # player doesn't have a pool yet so he sets the max margin
@@ -165,7 +166,6 @@ class Stakeholder(Agent):
         choose the one with the highest (current) stake, as it offers higher short-term rewards.
         :return:
         """
-        saturation_point = self.model.beta
         if stake_to_delegate is None:
             stake_to_delegate = self.stake
 
@@ -175,9 +175,15 @@ class Stakeholder(Agent):
             if allocation > 0:
                 pools[i].update_stake(-allocation)
         allocations = [0 for _ in range(len(pools))]
+        saturation_point = self.model.beta
 
-        desirabilities_n_stakes = {pool.owner: (pool.calculate_desirability(), pool.stake) for pool in pools
-                                   if pool is not None and pool.owner != self.unique_id}
+        if self.isMyopic:
+            desirabilities_n_stakes = {pool.owner: (pool.calculate_myopic_desirability(self.model.alpha,
+                                                                                       saturation_point), pool.stake)
+                                       for pool in pools if pool is not None and pool.owner != self.unique_id}
+        else:
+            desirabilities_n_stakes = {pool.owner: (pool.calculate_desirability(), pool.stake)
+                                       for pool in pools if pool is not None and pool.owner != self.unique_id}
 
         # Order the pools based on desirability and stake (to break ties in desirability) and delegate the stake to
         # the first non-saturated pool(s).
