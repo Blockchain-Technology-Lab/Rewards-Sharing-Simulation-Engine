@@ -61,16 +61,18 @@ def main():
     plt.ylabel("Utility")
     plt.savefig(figures_dir + "utilityAgent3.png", bbox_inches='tight')'''
 
-    pool_sizes_by_step = sim_df["Pool"]
-    pool_sizes_by_pool = np.array(list(pool_sizes_by_step)).T
+    pool_sizes_by_step = sim_df["PoolSizes"] #todo fix
+    print(pool_sizes_by_step)
+    '''pool_sizes_by_pool = np.array(list(pool_sizes_by_step)).T
+    print(pool_sizes_by_pool)
     plt.figure()
     plt.stackplot(range(len(pool_sizes_by_step)), pool_sizes_by_pool)
     plt.title("Pool dynamics")
     plt.xlabel("Iteration")
     plt.ylabel("Stake")
-    plt.savefig(figures_dir + "poolDynamics.png", bbox_inches='tight')
+    plt.savefig(figures_dir + "poolDynamics.png", bbox_inches='tight')'''
 
-    last_stakes = sim_df["StakePairs"].iloc[-1]
+    '''last_stakes = sim_df["StakePairs"].iloc[-1]
     x = last_stakes['x']
     y = last_stakes['y']
     plt.figure()
@@ -78,7 +80,7 @@ def main():
     plt.title("Owner stake vs pool stake")
     plt.xlabel("Pool owner stake")
     plt.ylabel("Pool stake")
-    plt.savefig(figures_dir + "stakePairs.png", bbox_inches='tight')
+    plt.savefig(figures_dir + "stakePairs.png", bbox_inches='tight')'''
 
     plt.show()
 

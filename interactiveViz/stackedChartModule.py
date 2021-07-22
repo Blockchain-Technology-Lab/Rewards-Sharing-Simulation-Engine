@@ -61,6 +61,7 @@ class StackedChartModule(VisualizationElement):
         self.js_code = "elements.push(" + new_element + ");"
 
     def render(self, model):
+        keys = []
         current_values = []
         data_collector = getattr(model, self.data_collector_name)
 
@@ -70,6 +71,6 @@ class StackedChartModule(VisualizationElement):
                 values = data_collector.model_vars[name][-1]  # Latest values collected
             except (IndexError, KeyError):
                 continue
-            for val in values:
-                current_values.append(val)
-        return current_values
+            keys = list(values.keys())
+            current_values = list(values.values())
+        return keys, current_values

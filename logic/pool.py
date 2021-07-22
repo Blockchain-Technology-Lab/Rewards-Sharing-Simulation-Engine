@@ -6,16 +6,30 @@ Created on Fri Jun 11 17:14:16 2021
 """
 import helper as hlp
 
+id_seq = 0
+
+# todo maybe do that at Simulation level
+def initialise_id_seq():
+    global id_seq
+    id_seq = 1
+
 
 class Pool:
 
-    def __init__(self, cost, pledge, owner, margin, alpha, beta):
+    def __init__(self, cost, pledge, owner, margin, alpha, beta, pool_id=None):
         self.margin = margin
         self.cost = cost
         self.pledge = pledge
         self.stake = pledge
         self.owner = owner
         self.potential_profit = hlp.calculate_potential_profit(pledge, cost, alpha, beta)
+
+        if pool_id is None:
+            global id_seq
+            # todo problem with hypothetical pools taking up ids?
+            pool_id = id_seq
+            id_seq += 1
+        self.id = pool_id
 
     def update_stake(self, stake):
         self.stake += stake

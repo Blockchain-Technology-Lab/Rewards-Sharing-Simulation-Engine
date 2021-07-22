@@ -54,6 +54,7 @@ def normalize_distr(distr, normal_sum=1):
     return [normal_sum * float(i) / s for i in distr] if s != 0 else distr
 
 
+# todo how do we define potential profit in the era of pool splitting??
 def calculate_potential_profit(pledge, cost, alpha, beta):
     """
 
@@ -75,40 +76,38 @@ def calculate_pool_reward(stake, pledge, alpha, beta):
     return reward
 
 
-def calculate_pool_stake_NM(pool, pools, pool_index, beta, k):
+def calculate_pool_stake_NM(pool, pools, beta, k):
     """
     Calculate the non-myopic stake of a pool, given the pool and the state of the system
     :param pool:
     :param pools:
-    :param pool_index:
-    :param alpha:
     :param beta:
     :param k:
     :return:
     """
-    desirabilities = [p.calculate_desirability() if p is not None else 0 for p in pools]
-    if pool is None:
-        pool = pools[pool_index]
-    else:
-        desirability = pool.calculate_desirability()
-        desirabilities[pool_index] = desirability
-    rank = calculate_rank(desirabilities,
-                          pool_index)  # the rank can be defined as the index of the sorted desirabilities, in descending order
+    desirabilities = {p.id: p.calculate_desirability() for p in pools if p.owner != pool.owner} #todo remove condition?
+    # todo should I take hypothetical pools into consideration to determine the rank?
+    desirabilities[pool.id] = pool.calculate_desirability()
+    rank = calculate_rank(desirabilities, pool.id)
     return pool.calculate_stake_NM(k, beta, rank)
 
 
-def calculate_ranks(desirabilities):
-    ranks = [0 for i in range(len(desirabilities))]
+# todo break desirability ties with current stake? maybe better to do it here than there
+def calculate_ranks(ranking_factor):
+    ranks = [0 for _ in range(len(ranking_factor))]
     indices = np.argsort(
-        -np.array(desirabilities))  # the rank is the index of the sorted desirabilities (in descending order)
+        -np.array(ranking_factor))  # the rank is the index of the sorted desirabilities (in descending order)
     for rank, index in enumerate(indices):
         ranks[index] = rank
     return ranks
 
 
-def calculate_rank(desirabilities, player_id):
-    ranks = calculate_ranks(desirabilities)
-    return ranks[player_id]
+def calculate_rank(ranking_factor, index):
+    keys = list(ranking_factor.keys())
+    values = list(ranking_factor.values())
+    ranks = calculate_ranks(values)
+    return ranks[keys.index(index)]
+
 
 '''
 unused for now but could be useful in the future
@@ -173,6 +172,17 @@ def calculate_pool_stake_NM_myWay(pool, pools, pool_index, beta):
 def softmax(vector):
     np_vector = np.array(vector)
     e = np.exp(np_vector)
-    return e / np.sum(e)'''
+    return e / np.sum(e)
 
 
+def list_is_flat(l):
+    # assume that the list is homogeneous, so only check the first element
+    return not isinstance(l[0], list)
+
+
+def flatten_list(l):
+    if len(l) == 0:
+        return l
+    if list_is_flat(l):
+        return l
+    return sum(l, [])'''

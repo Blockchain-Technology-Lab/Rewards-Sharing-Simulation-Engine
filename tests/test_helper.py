@@ -66,10 +66,10 @@ def test_calculate_pool_stake_nm():
     assert True
 
 def test_calculate_rank():
-    desirabilities = [0.2, 0.3, 0.1, 0.9, 0.8]
+    desirabilities = {5: 0.2, 3: 0.3, 1: 0.1, 12: 0.9, 8: 0.8}
     ranks = [3, 2, 4, 0, 1]
-    for i, rank in enumerate(ranks):
-        assert hlp.calculate_rank(desirabilities, i) == ranks[i]
+    for i, key in enumerate(desirabilities):
+        assert hlp.calculate_rank(desirabilities, key) == ranks[i]
 
 '''def test_is_list_flat():
     assert hlp.isListFlat([1, 2, 3]) is True
