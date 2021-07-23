@@ -17,10 +17,10 @@ MARGIN_INCREMENT = 0.01
 class Strategy(ABC):
 
     @abstractmethod
-    def __init__(self, stake_allocations, is_pool_operator, owned_pools):
+    def __init__(self, stake_allocations, is_pool_operator, num_pools):
         self.stake_allocations = stake_allocations
         self.is_pool_operator = is_pool_operator
-        self.owned_pools = owned_pools
+        self.num_pools = num_pools
 
     @abstractmethod
     def create_random_operator_strategy(self, pools, player_id, player_stake):
@@ -32,8 +32,8 @@ class Strategy(ABC):
 
 
 class SinglePoolStrategy(Strategy):
-    def __init__(self, pledge=-1, margin=-1, stake_allocations=[], is_pool_operator=False, owned_pools=[]):
-        super().__init__(stake_allocations, is_pool_operator, owned_pools)
+    def __init__(self, pledge=-1, margin=-1, stake_allocations=[], is_pool_operator=False, num_pools=0):
+        super().__init__(stake_allocations, is_pool_operator, num_pools)
         self.pledge = pledge
         self.margin = margin
 
@@ -56,7 +56,8 @@ class SinglePoolStrategy(Strategy):
 
 
 class MultiPoolStrategy(Strategy):
-    def __init__(self, pledges=None, margins=None, stake_allocations=None, is_pool_operator=False, owned_pools=None, num_pools=0):
+    def __init__(self, pledges=None, margins=None, stake_allocations=None, is_pool_operator=False, owned_pools=None,
+                 num_pools=0):
         if pledges is None:
             pledges = []
         if margins is None:
@@ -65,10 +66,10 @@ class MultiPoolStrategy(Strategy):
             owned_pools = defaultdict(lambda: None)
         if stake_allocations is None:
             stake_allocations = defaultdict(lambda: 0)
-        super().__init__(stake_allocations, is_pool_operator, owned_pools)
+        super().__init__(stake_allocations, is_pool_operator, num_pools)
         self.pledges = pledges
         self.margins = margins
-        self.num_pools = num_pools
+        self.owned_pools = owned_pools
 
     def create_random_operator_strategy(self, pools, player_id, player_stake):
         pass

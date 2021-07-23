@@ -56,7 +56,10 @@ var BubbleChartModule  = function(series, canvas_width, canvas_height) {
             scaleLabel: {
                 display: true,
                 labelString: 'Owner stake'
-            }
+            },
+            ticks: {
+                beginAtZero: true
+            },
           }],
           yAxes: [{
               display: true,

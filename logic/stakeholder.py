@@ -12,6 +12,7 @@ import operator
 
 import logic.helper as hlp
 from logic.pool import Pool
+import logic.pool as pl
 from logic.strategy import MultiPoolStrategy
 from logic.strategy import MAX_MARGIN
 from logic.strategy import MARGIN_INCREMENT
@@ -71,7 +72,7 @@ class Stakeholder(Agent):
         if self.strategy.is_pool_operator or self.has_potential_for_pool():
             # Player is considering opening a pool, so he has to find the most suitable pool params
             # and calculate the potential utility of operating a pool with these params
-            operator_strategy = self.find_operator_move(self.strategy.margins)
+            operator_strategy = self.find_operator_move()
             operator_utility = self.calculate_utility(operator_strategy)
             possible_moves["operator"] = operator_utility, operator_strategy
 
@@ -81,6 +82,14 @@ class Stakeholder(Agent):
         max_utility_option = max(possible_moves,
                                  key=lambda key: possible_moves[key][0])
 
+        if "operator" in possible_moves.keys() and max_utility_option != "operator":
+            # discard the pool ids that were used for the potential operator move
+            old_owned_pools = set(self.strategy.owned_pools.keys())
+            potential_owned_pools = set(operator_strategy.owned_pools.keys())
+            for _ in range(len(potential_owned_pools - old_owned_pools)):
+                # the last pool id was used for this hypothetical pool, so rewind the counter to be able to reuse it for an actual pool
+                pl.rewind_id_seq()
+
         self.new_strategy = None if max_utility_option == "current" else possible_moves[max_utility_option][1]
 
     def calculate_utility(self, strategy):
@@ -88,17 +97,21 @@ class Stakeholder(Agent):
         pools = self.model.pools
 
         if strategy.is_pool_operator:
+            cost_per_pool = pl.standard_cost + self.cost / strategy.num_pools
             for index, pool_id in enumerate(strategy.owned_pools):
                 # for pools that already exist
-                pool = pools[pool_id]
+                pool = deepcopy(pools[pool_id])
                 pool.margin = strategy.margins[index]
+                pool.stake -= pool.pledge - strategy.pledges[index]  # BAD TODO don't change pool during utility calculation because what if the player doesn't go forward with this strategy?
                 pool.pledge = strategy.pledges[index]
+                pool.cost = cost_per_pool
+                strategy.owned_pools[pool.id] = pool
                 utility += self.calculate_operator_utility(pool)
 
             for i in range(len(strategy.owned_pools), strategy.num_pools): #todo make sure that index carries on from before
                 # for pools under consideration of opening
                 # we calculate the utility of operating a hypothetical pool
-                pool = Pool(margin=strategy.margins[i], cost=self.cost, pledge=strategy.pledges[i],
+                pool = Pool(margin=strategy.margins[i], cost=cost_per_pool, pledge=strategy.pledges[i],
                             owner=self.unique_id, alpha=self.model.alpha, beta=self.model.beta)
                 strategy.owned_pools[pool.id] = pool
                 utility += self.calculate_operator_utility(pool)
@@ -245,8 +258,9 @@ class Stakeholder(Agent):
     # todo add logic to determine the number of pools for the operator move
     def determine_num_pools(self):
         return 1
+        return self.strategy.num_pools + 1  # increase possible number of pools by 1 each time
 
-    def find_operator_move(self, current_margins):
+    def find_operator_move(self):
         num_pools = self.determine_num_pools()
 
         previous_pools = self.strategy.owned_pools
@@ -257,16 +271,20 @@ class Stakeholder(Agent):
 
         pledges = self.calculate_pledges(num_pools)
 
-        margins = []
-        for i in range(num_pools):
-            '''if pledges[i] >= self.model.beta: # special case for one-man pools
-                margins.append(0)'''
+        current_margins = self.strategy.margins
+        new_margins = []
+        '''if pledges[i] >= self.model.beta: # special case for one-man pools
+                        margins.append(0)'''
+        for i, current_margin in enumerate(current_margins):
+            new_margin = self.calculate_margin_simple(current_margin)
+            new_margins.append(new_margin)
+        for i in range(len(current_margins), num_pools):
             try:
-                current_margin = current_margins[i]
+                current_margin = current_margins[i-1]
             except IndexError:
                 current_margin = -1
-            margin = self.calculate_margin_simple(current_margin)
-            margins.append(margin)
+            new_margin = self.calculate_margin_simple(current_margin)
+            new_margins.append(new_margin)
 
         allocations = defaultdict(lambda: 0)
         remaining_stake = self.stake - sum(pledges)
@@ -276,8 +294,8 @@ class Stakeholder(Agent):
             for pool_id in delegation_strategy.stake_allocations: #todo shorten
                 allocations[pool_id] = delegation_strategy.stake_allocations[pool_id]
 
-        return MultiPoolStrategy(pledges=pledges, margins=margins, stake_allocations=allocations, is_pool_operator=True,
-                                 num_pools=num_pools, owned_pools=owned_pools)
+        return MultiPoolStrategy(pledges=pledges, margins=new_margins, stake_allocations=allocations,
+                                 is_pool_operator=True, num_pools=num_pools, owned_pools=owned_pools)
 
     def find_delegation_move_desirability(self, stake_to_delegate=None):
         """
@@ -336,29 +354,19 @@ class Stakeholder(Agent):
         allocation_changes = {pool_id: new_allocations[pool_id] - old_allocations[pool_id] for pool_id in
                               relevant_pools}
 
-        old_margins = self.strategy.margins
-        new_margins = self.new_strategy.margins
-        old_pledges = self.strategy.pledges
-        new_pledges = self.new_strategy.pledges
-
-
         old_owned_pools = set(self.strategy.owned_pools.keys())
         new_owned_pools = set(self.new_strategy.owned_pools.keys())
-        old_num_pools = self.strategy.num_pools
-        new_num_pools = self.new_strategy.num_pools
-
-        # first deal with possible margin or pledge changes
-        if self.new_strategy.is_pool_operator:
-            for i, pool_id in enumerate(old_owned_pools & new_owned_pools):
-                current_pools[pool_id].margin = new_margins[i]
-                current_pools[pool_id].pledge = new_pledges[i]
-
-        self.strategy = self.new_strategy
-        self.new_strategy = None  # maybe redundant?
 
         for pool_id in old_owned_pools - new_owned_pools:
             # pools have closed
             self.close_pool(pool_id)
+        for pool_id in new_owned_pools & old_owned_pools:
+            current_pools[pool_id] = self.new_strategy.owned_pools[pool_id]
+            if current_pools[pool_id] is None:
+                current_pools.pop(pool_id)
+
+        self.strategy = self.new_strategy
+        self.new_strategy = None
         for pool_id in new_owned_pools - old_owned_pools:
             self.open_pool(pool_id)
 
@@ -366,6 +374,7 @@ class Stakeholder(Agent):
             if current_pools[pool_id] is not None:
                 # add or subtract the relevant stake from the pool if it hasn't closed
                 current_pools[pool_id].update_stake(allocation_changes[pool_id])
+
 
     def open_pool(self, pool_id):
         #pool = Pool(owner=self.unique_id, cost=self.cost, pledge=pledge, margin=margin,

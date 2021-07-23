@@ -57,6 +57,7 @@ def normalize_distr(distr, normal_sum=1):
 # todo how do we define potential profit in the era of pool splitting??
 def calculate_potential_profit(pledge, cost, alpha, beta):
     """
+    Calculate a pool's potential profit, which can be defined as the profit it would get at saturation level
 
     :param pledge:
     :param cost:

@@ -16,14 +16,14 @@ from mesa.time import BaseScheduler, SimultaneousActivation, RandomActivation
 
 from logic.stakeholder import Stakeholder
 import logic.helper as hlp
-import logic.pool as pool
+import logic.pool as pl
 
 
 def get_number_of_pools(model):
     return len(model.get_pools_list())
 
 
-def get_pool_sizes(model):
+'''def get_pool_sizes(model):
     pool_sizes = {}
     current_pools = model.pools
     past_pools_ids = model.past_pool_ids
@@ -31,10 +31,19 @@ def get_pool_sizes(model):
         pool_sizes[pool_id] = current_pools[pool_id].stake
     for pool_id in past_pools_ids:
         pool_sizes[pool_id] = 0
+    return dict(sorted(pool_sizes.items()))'''
+
+
+def get_pool_sizes(model):
+    max_pools = 450  # must be < max defined for the chart
+    pool_sizes = {i: 0 for i in range(max_pools)}
+    current_pools = model.pools
+    for pool_id in current_pools:
+        pool_sizes[pool_id] = current_pools[pool_id].stake
     return dict(sorted(pool_sizes.items()))
 
 
-def get_pool_sizes_by_agent(model): # !! attention: only works when one pool per agent!
+def get_pool_sizes_by_agent(model):  # !! attention: only works when one pool per agent!
     return {pool.owner: pool.stake for pool in model.get_pools_list()}
 
 
@@ -101,12 +110,13 @@ class Simulation(Model):
         # self.initial_states = {"inactive":0, "maximally_decentralised":1, "nicely_decentralised":2} todo support different initial states
         # todo add aggregate values as fields? (e.g. total delegated stake)
 
-        pool.initialise_id_seq()  # initialise pool id sequence for the new model run
+        pl.initialise_id_seq()  # initialise pool id sequence for the new model run
         self.initialize_players()
 
         self.datacollector = DataCollector(
             model_reporters={"#Pools": get_number_of_pools, "PoolSizes": get_pool_sizes,
-                             "PoolSizesByAgent": get_pool_sizes_by_agent, "DesirabilitiesByAgent": get_desirabilities_by_agent,
+                             "PoolSizesByAgent": get_pool_sizes_by_agent,
+                             "DesirabilitiesByAgent": get_desirabilities_by_agent,
                              "StakePairs": get_stakes_n_margins, "AvgPledge": get_avg_pledge})
 
     def initialize_players(self):
@@ -147,7 +157,7 @@ class Simulation(Model):
     # Run multiple steps
     def run_model(self, max_steps=300):
         i = 0
-        pool.initialise_id_seq()  # initialise pool id sequence for the new model run
+        pl.initialise_id_seq()  # initialise pool id sequence for the new model run
         while i < max_steps and self.running:
             self.step()
             i += 1
@@ -160,14 +170,18 @@ class Simulation(Model):
         return self.idle_steps >= self.min_consecutive_idle_steps_for_convergence
 
     def dump_state_to_csv(self):
-        row_list = [["Pool owner id", "Pool id", "Pool owner stake", "Pool stake", "Pool cost", "Pool pledge", "Pool margin",
-                     "Perfect margin", "Pool potential profit", "Pool desirability", "Potential profit rank"]]
+        row_list = [
+            ["Pool owner id", "Pool id", "Pool owner stake", "Pool stake", "Pool cost", "Pool pledge", "Pool margin",
+             "Perfect margin", "Pool potential profit", "Pool desirability", "Potential profit rank"]]
         players = self.schedule.agents
-        potential_profits = {player.unique_id: hlp.calculate_potential_profit(player.stake, player.cost, self.alpha, self.beta) for player in players}
-        row_list.extend([[pool.owner, pool.id, players[pool.owner].stake, pool.stake, pool.cost, pool.pledge, pool.margin,
-                          players[pool.owner].calculate_margin_perfect_strategy(), pool.potential_profit,
-                          pool.calculate_desirability(), hlp.calculate_rank(potential_profits, pool.owner)]
-                         for pool in self.get_pools_list()])
+        potential_profits = {
+            player.unique_id: hlp.calculate_potential_profit(player.stake, player.cost, self.alpha, self.beta) for
+            player in players}
+        row_list.extend(
+            [[pool.owner, pool.id, players[pool.owner].stake, pool.stake, pool.cost, pool.pledge, pool.margin,
+              players[pool.owner].calculate_margin_perfect_strategy(), pool.potential_profit,
+              pool.calculate_desirability(), hlp.calculate_rank(potential_profits, pool.owner)]
+             for pool in self.get_pools_list()])
         current_datetime = time.strftime("%Y%m%d_%H%M%S")
         path = Path.cwd() / "output"
         Path(path).mkdir(parents=True, exist_ok=True)

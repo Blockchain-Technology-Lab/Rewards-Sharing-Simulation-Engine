@@ -6,12 +6,18 @@ Created on Fri Jun 11 17:14:16 2021
 """
 import helper as hlp
 
+standard_cost = 0 #0.0001
+
 id_seq = 0
 
 # todo maybe do that at Simulation level
 def initialise_id_seq():
     global id_seq
     id_seq = 1
+
+def rewind_id_seq():
+    global id_seq
+    id_seq -= 1
 
 
 class Pool:
