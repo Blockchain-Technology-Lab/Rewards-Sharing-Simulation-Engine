@@ -340,7 +340,8 @@ class Stakeholder(Agent):
         allocations = defaultdict(lambda: 0)        
 
         if self.isMyopic:
-            desirabilities_n_stakes = {pool.id: (pool.calculate_myopic_desirability(), pool.stake)
+            desirabilities_n_stakes = {pool.id: (pool.calculate_myopic_desirability(self.model.alpha, saturation_point),
+                                                 pool.stake)
                                    for pool in pools_list if pool.owner != self.unique_id}
         else:
             desirabilities_n_stakes = {pool.id: (pool.calculate_desirability(), pool.stake)
