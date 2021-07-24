@@ -19,7 +19,7 @@ max_num_agents = 500
 poolsChart = MyChartModule([{"label": "#Pools","title": "Number of pools over time", "xLabel": "Iteration",
                              "yLabel": "#Pools", "tooltipText": " pools", "color": "Blue"}])
 
-poolDynamicsStackedChart = StackedChartModule([{"Label": "Pool",
+poolDynamicsStackedChart = StackedChartModule([{"Label": "PoolSizes", "tooltipText": " Pool",
                                                 "Num_agents": max_num_agents}])
 
 poolScatterChart = BubbleChartModule([{"Label": "StakePairs"}])
@@ -75,6 +75,13 @@ model_params = {
             "slider", "Myopic fraction", 0.0, 0.0, 1.0, 0.01,
             description="The fraction of myopic players in the simulation."
         ),
+    "pool_splitting": UserSettableParameter(
+        "checkbox", "Allow pool splitting", True
+    ),
+
+    "common_cost": UserSettableParameter(
+        "slider", "Common cost per pool", 0.0, 0.0, 0.001, 0.0001
+    )
 }
 
 # figure out why MyModularServer was not working at some point

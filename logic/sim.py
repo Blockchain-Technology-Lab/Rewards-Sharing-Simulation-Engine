@@ -7,6 +7,7 @@ Created on Thu Jun 10 12:59:49 2021
 import random
 import csv
 import time
+from collections import defaultdict
 from pathlib import Path
 
 from mesa import Model
@@ -16,28 +17,54 @@ from mesa.time import BaseScheduler, SimultaneousActivation, RandomActivation
 from logic.stakeholder import Stakeholder
 import logic.helper as hlp
 
-MIN_CONSECUTIVE_IDLE_STEPS_FOR_CONVERGENCE = 11
-
 
 def get_number_of_pools(model):
-    return len([1 for pool in model.pools if pool is not None and pool != []])
+    return len(model.get_pools_list())
+
+
+'''def get_pool_sizes(model):
+    pool_sizes = {}
+    current_pools = model.pools
+    past_pools_ids = model.past_pool_ids
+    for pool_id in current_pools:
+        pool_sizes[pool_id] = current_pools[pool_id].stake
+    for pool_id in past_pools_ids:
+        pool_sizes[pool_id] = 0
+    return dict(sorted(pool_sizes.items()))'''
 
 
 def get_pool_sizes(model):
-    return [pool.stake if pool is not None else 0 for pool in model.pools]
+    max_pools = 450  # must be < max defined for the chart
+    pool_sizes = {i: 0 for i in range(max_pools)}
+    current_pools = model.pools
+    for pool_id in current_pools:
+        pool_sizes[pool_id] = current_pools[pool_id].stake
+    return dict(sorted(pool_sizes.items()))
+
+
+def get_pool_sizes_by_agent(model):  # !! attention: only works when one pool per agent!
+    return {pool.owner: pool.stake for pool in model.get_pools_list()}
+
+
+def get_desirabilities_by_agent(model):
+    desirabilities = defaultdict(lambda: 0)
+    for pool in model.get_pools_list():
+        desirabilities[pool.owner] = pool.calculate_desirability()
+    return [desirabilities[i] for i in range(model.num_agents)]
 
 
 def get_avg_pledge(model):
-    current_pool_pledges = [pool.pledge for pool in model.pools if pool is not None]
+    current_pool_pledges = [pool.pledge for pool in model.get_pools_list()]
     return sum(current_pool_pledges) / len(current_pool_pledges) if len(current_pool_pledges) > 0 else 0
 
 
 def get_stakes_n_margins(model):
     players = model.schedule.agents
-    pools = model.pools
-    return {'x': [players[pool.owner].stake if pool is not None else 0 for pool in pools],
-            'y': [pool.stake if pool is not None else 0 for pool in pools],
-            'r': [pool.margin if pool is not None else 0 for pool in pools]}
+    pools = model.get_pools_list()
+    return {'x': [players[pool.owner].stake for pool in pools],
+            'y': [pool.stake for pool in pools],
+            'r': [pool.margin for pool in pools],
+            'id': [pool.id for pool in pools]}
 
 
 class Simulation(Model):
@@ -52,9 +79,9 @@ class Simulation(Model):
         # todo check if during simultaneous activation players apply their moves sequentially or randomly (sequential may not be fair)
     }
 
-    def __init__(self, n=100, k=10, alpha=0.3, total_stake=1, max_iterations=100, seed=None,
-                 cost_min=0.001, cost_max=0.002, pareto_param=1.5, player_activation_order="Random",
-                 idle_steps_after_pool=10, myopic_fraction=0):
+    def __init__(self, n=100, k=10, alpha=0.3, total_stake=1, max_iterations=100, seed=42,
+                 cost_min=0.001, cost_max=0.002, pareto_param=2.0, player_activation_order="Random",
+                 idle_steps_after_pool=10, myopic_fraction=0, pool_splitting=True, common_cost=0.0):
         if seed is not None:
             random.seed(seed)
 
@@ -64,35 +91,38 @@ class Simulation(Model):
         self.alpha = alpha
         self.total_stake = total_stake
         self.max_iterations = max_iterations
-        self.cost_min = cost_min
-        self.cost_max = cost_max
-        self.pareto_param = pareto_param
         self.player_activation_order = player_activation_order
         self.idle_steps_after_pool = idle_steps_after_pool
         self.myopic_fraction = myopic_fraction
+        self.pool_splitting = pool_splitting
+        self.common_cost = common_cost
 
         self.running = True  # for batch running and visualisation purposes
         self.schedule = self.player_activation_orders[player_activation_order](self)
         self.current_step = 0
         self.idle_steps = 0  # steps towards convergence
         self.current_step_idle = True
-        self.pools = [None] * self.num_agents
+        self.min_consecutive_idle_steps_for_convergence = idle_steps_after_pool + 1
+        self.pools = defaultdict(lambda: None)
+        self.past_pool_ids = []
         # self.initial_states = {"inactive":0, "maximally_decentralised":1, "nicely_decentralised":2} todo support different initial states
-        # todo add aggregate values as fields? (e.g. total delegated stake)
 
-        self.initialize_players()
+        self.initialise_pool_id_seq()  # initialise pool id sequence for the new model run
+        self.initialize_players(cost_min, cost_max, pareto_param)
 
         self.datacollector = DataCollector(
-            model_reporters={"#Pools": get_number_of_pools, "Pool": get_pool_sizes,  # change "Pool" label?
+            model_reporters={"#Pools": get_number_of_pools, "PoolSizes": get_pool_sizes,
+                             "PoolSizesByAgent": get_pool_sizes_by_agent,
+                             "DesirabilitiesByAgent": get_desirabilities_by_agent,
                              "StakePairs": get_stakes_n_margins, "AvgPledge": get_avg_pledge})
 
-    def initialize_players(self):
+    def initialize_players(self, cost_min, cost_max, pareto_param):
 
         # Allocate stake to the players, sampling from a Pareto distribution
-        stake_distribution = hlp.generate_stake_distr(self.num_agents, self.total_stake, self.pareto_param)
+        stake_distribution = hlp.generate_stake_distr(self.num_agents, self.total_stake, pareto_param)
 
         # Allocate cost to the players, sampling from a uniform distribution
-        cost_distribution = hlp.generate_cost_distr(num_agents=self.num_agents, low=self.cost_min, high=self.cost_max)
+        cost_distribution = hlp.generate_cost_distr(num_agents=self.num_agents, low=cost_min, high=cost_max)
 
         num_myopic_agents = int(self.myopic_fraction * self.num_agents)
         # Create agents
@@ -100,6 +130,16 @@ class Simulation(Model):
             agent = Stakeholder(i, self, is_myopic=(i < num_myopic_agents), cost=cost_distribution[i],
                                 stake=stake_distribution[i])
             self.schedule.add(agent)
+
+    def initialise_pool_id_seq(self):
+        self.id_seq = 0
+
+    def get_next_pool_id(self):
+        self.id_seq += 1
+        return self.id_seq
+
+    def rewind_pool_id_seq(self, step=1):
+        self.id_seq -= step
 
     # One step of the model
     def step(self):
@@ -122,8 +162,9 @@ class Simulation(Model):
         # self.get_status()
 
     # Run multiple steps
-    def run_model(self, max_steps=1):
+    def run_model(self, max_steps=300):
         i = 0
+        self.initialise_pool_id_seq()  # initialise pool id sequence for the new model run
         while i < max_steps and self.running:
             self.step()
             i += 1
@@ -133,16 +174,21 @@ class Simulation(Model):
             Check whether the system has reached a state of equilibrium,
             where no player wants to change their strategy
         """
-        return self.idle_steps >= MIN_CONSECUTIVE_IDLE_STEPS_FOR_CONVERGENCE
+        return self.idle_steps >= self.min_consecutive_idle_steps_for_convergence
 
     def dump_state_to_csv(self):
-        # todo add potential profit rank column
-        row_list = [["Pool owner id", "Pool owner stake", "Pool stake", "Pool cost", "Pool pledge", "Pool margin",
-                     "Perfect margin", "Pool potential profit", "Pool desirability"]]
+        row_list = [
+            ["Pool owner id", "Pool id", "Pool owner stake", "Pool stake", "Pool cost", "Pool pledge", "Pool margin",
+             "Perfect margin", "Pool potential profit", "Pool desirability", "Potential profit rank"]]
         players = self.schedule.agents
-        row_list.extend([[pool.owner, players[pool.owner].stake, pool.stake, pool.cost, pool.pledge, pool.margin,
-                          players[pool.owner].calculate_margin_perfect_strategy(), pool.potential_profit, pool.calculate_desirability()]
-                         for pool in self.pools if pool is not None])
+        potential_profits = {
+            player.unique_id: hlp.calculate_potential_profit(player.stake, player.cost, self.alpha, self.beta) for
+            player in players}
+        row_list.extend(
+            [[pool.owner, pool.id, players[pool.owner].stake, pool.stake, pool.cost, pool.pledge, pool.margin,
+              players[pool.owner].calculate_margin_perfect_strategy(), pool.potential_profit,
+              pool.calculate_desirability(), hlp.calculate_rank(potential_profits, pool.owner)]
+             for pool in self.get_pools_list()])
         current_datetime = time.strftime("%Y%m%d_%H%M%S")
         path = Path.cwd() / "output"
         Path(path).mkdir(parents=True, exist_ok=True)
@@ -150,6 +196,36 @@ class Simulation(Model):
         with open(filename, 'w', newline='') as file:
             writer = csv.writer(file)
             writer.writerows(row_list)
+
+        pool_owners = [p.owner for p in self.get_pools_list()]
+        sim_df = self.datacollector.get_model_vars_dataframe()
+        pool_sizes_by_step = sim_df["PoolSizesByAgent"]
+        filename = path / ('pool_sizes_by_step' + current_datetime + '.csv')
+        with open(filename, 'w', newline='') as file:
+            writer = csv.writer(file)
+            header_row =[i for i in range(self.num_agents)]
+            header_row.append("sum")
+            writer.writerow(header_row)
+            for row in pool_sizes_by_step:
+                new_row = []
+                for i in range(self.num_agents):
+                    if i in row.keys():
+                        new_row.append(row[i])
+                    else:
+                        new_row.append(0)
+                new_row.append(sum(row.values()))
+
+                writer.writerow(new_row)
+
+        desirabilities = sim_df["DesirabilitiesByAgent"]
+        filename = path / ('desirabilities_by_step' + current_datetime + '.csv')
+        with open(filename, 'w', newline='') as file:
+            writer = csv.writer(file)
+            writer.writerow([i for i in range(self.num_agents)])
+            writer.writerows(desirabilities)
+
+    def get_pools_list(self):
+        return list(self.pools.values())
 
     def get_status(self):
         print("Step {}".format(self.current_step))

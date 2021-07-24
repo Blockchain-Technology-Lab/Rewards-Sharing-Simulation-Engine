@@ -57,7 +57,8 @@ var MyChartModule = function(series, canvas_width, canvas_height) {
                     return "Step " + tooltipItems[0].xLabel;
                 },
                 label: function(tooltipItem, data) {
-                return tooltipItem.yLabel.toFixed(4).replace(".0000", "") + datasets[0].tooltipText;
+                    var tooltipText = data.datasets[tooltipItem.datasetIndex].tooltipText;
+                    return tooltipItem.yLabel.toFixed(4).replace(".0000", "") + tooltipText;
                 }
             }
         },

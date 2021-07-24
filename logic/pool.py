@@ -4,21 +4,26 @@ Created on Fri Jun 11 17:14:16 2021
 
 @author: chris
 """
+from collections import defaultdict
+
 import helper as hlp
 
 
 class Pool:
 
-    def __init__(self, cost, pledge, owner, margin, alpha, beta):
+    def __init__(self, pool_id, cost, pledge, owner, margin, alpha, beta):
+        self.id = pool_id
         self.margin = margin
         self.cost = cost
         self.pledge = pledge
         self.stake = pledge
         self.owner = owner
+        self.delegators = defaultdict(lambda: 0)
         self.potential_profit = hlp.calculate_potential_profit(pledge, cost, alpha, beta)
 
-    def update_stake(self, stake):
+    def update_delegation(self, stake, delegator_id):
         self.stake += stake
+        self.delegators[delegator_id] += stake
 
     def calculate_desirability(self):
         """

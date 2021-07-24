@@ -56,7 +56,10 @@ var BubbleChartModule  = function(series, canvas_width, canvas_height) {
             scaleLabel: {
                 display: true,
                 labelString: 'Owner stake'
-            }
+            },
+            ticks: {
+                beginAtZero: true
+            },
           }],
           yAxes: [{
               display: true,
@@ -95,9 +98,9 @@ var BubbleChartModule  = function(series, canvas_width, canvas_height) {
     this.render = function(data) {
         var pointData = [];
 
-        for (i = 0; i < data.length; i+=3) {
+        for (i = 0; i < data.length; i+=4) {
             if (data[i] > 0) {
-                pointData.push({x: data[i], y: data[i+1], r: 3 + 20*data[i+2], id: i/3});
+                pointData.push({x: data[i], y: data[i+1], r: 3 + 20*data[i+2], id: data[i+3]});
             }
         }
         chart.data.datasets[0].data = pointData;

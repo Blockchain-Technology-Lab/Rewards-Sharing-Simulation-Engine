@@ -47,11 +47,13 @@ var StackedChartModule = function(series, canvas_width, canvas_height) {
         for (var j=0; j< datasets_number; j++) {
             var color = selectColor(color_indexes[j], datasets_number);
             var new_series = {
-                label: s.Label + " " + j,
+                label: s.Label,
+                tooltipText: s.tooltipText,
                 borderColor: color,
                 backgroundColor: color,
                 fill: true,
-                data: []
+                data: [],
+                keys: []
             };
             datasets.push(new_series);
         }
@@ -104,15 +106,16 @@ var StackedChartModule = function(series, canvas_width, canvas_height) {
             intersect: false,
             // only show active pools (stake > 0) on hover ( maybe do sth similar for legend? )
             filter: function (tooltipItem) {
-                return tooltipItem.yLabel != 0
+                return tooltipItem.yLabel !== 0
             },
             callbacks: {
                 title: function (tooltipItems, data) {
                     return "Step " + tooltipItems[0].xLabel;
                 },
                 label: function(tooltipItem, data) {
-                    var datasetLabel = data.datasets[tooltipItem.datasetIndex].label;
-                    return datasetLabel + ": " + tooltipItem.yLabel.toFixed(4);
+                    var tooltipText = data.datasets[tooltipItem.datasetIndex].tooltipText;
+                    var key = data.datasets[tooltipItem.datasetIndex].keys[tooltipItem.index];
+                    return tooltipText + " " + key + ": " + tooltipItem.yLabel.toFixed(4);
                 },
                 labelColor: function(tooltipItem, chart) {
                     var dataset = chart.config.data.datasets[tooltipItem.datasetIndex];
@@ -146,9 +149,12 @@ var StackedChartModule = function(series, canvas_width, canvas_height) {
     });
 
     this.render = function(data) {
+        var keys = data[0]
+        var values = data[1]
         chart.data.labels.push(control.tick);
-        for (i = 0; i < data.length; i++) {
-            chart.data.datasets[i].data.push(data[i]);
+        for (i = 0; i < values.length; i++) {
+            chart.data.datasets[i].data.push(values[i]);
+            chart.data.datasets[i].keys.push(keys[i]);
         }
         chart.update();
     };
