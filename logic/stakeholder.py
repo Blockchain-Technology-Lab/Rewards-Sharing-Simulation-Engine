@@ -173,6 +173,7 @@ class Stakeholder(Agent):
         utility = max(0, u)
         return utility
 
+    # todo how does a myopic player decide whether to open a pool or not?
     def has_potential_for_pool(self):
         """
         Determine whether the player is at a good position to open a pool, using the following rules:
@@ -336,9 +337,13 @@ class Stakeholder(Agent):
             if allocation > 0:
                 pools[pool_id].update_delegation(stake=-allocation, delegator_id=self.unique_id)
         pools_list = list(pools.values())
-        allocations = defaultdict(lambda: 0)
+        allocations = defaultdict(lambda: 0)        
 
-        desirabilities_n_stakes = {pool.id: (pool.calculate_desirability(), pool.stake)
+        if self.isMyopic:
+            desirabilities_n_stakes = {pool.id: (pool.calculate_myopic_desirability(), pool.stake)
+                                   for pool in pools_list if pool.owner != self.unique_id}
+        else:
+            desirabilities_n_stakes = {pool.id: (pool.calculate_desirability(), pool.stake)
                                    for pool in pools_list if pool.owner != self.unique_id}
         # Order the pools based on desirability and stake (to break ties in desirability) and delegate the stake to
         # the first non-saturated pool(s).

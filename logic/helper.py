@@ -68,6 +68,11 @@ def calculate_potential_profit(pledge, cost, alpha, beta):
     return potential_reward - cost
 
 
+def calculate_current_profit(stake, pledge, cost, alpha, beta):
+    reward = calculate_pool_reward(stake, pledge, alpha, beta)
+    return reward - cost
+
+
 def calculate_pool_reward(stake, pledge, alpha, beta):
     # use current formula but keep in mind that it may change (e.g. also depend on aggregate values)
     l = min(pledge, beta)

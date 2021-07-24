@@ -33,6 +33,10 @@ class Pool:
         """
         return (1 - self.margin) * self.potential_profit if self.potential_profit > 0 else 0
 
+    def calculate_myopic_desirability(self, alpha, beta):
+        current_profit = hlp.calculate_current_profit(self.stake, self.pledge, self.cost, alpha, beta)
+        return (1 - self.margin) * current_profit if current_profit > 0 else 0
+
     def calculate_desirability_myWay(self, potential_profit):
         """
         Note: the desirability can be negative (if the pool's potential reward does not suffice to cover its cost)
