@@ -81,7 +81,7 @@ class Simulation(Model):
 
     def __init__(self, n=100, k=10, alpha=0.3, total_stake=1, max_iterations=100, seed=42,
                  cost_min=0.001, cost_max=0.002, pareto_param=2.0, player_activation_order="Random",
-                 idle_steps_after_pool=10, myopic_fraction=0):
+                 idle_steps_after_pool=10, myopic_fraction=0, pool_splitting=True, common_cost=0.0):
         if seed is not None:
             random.seed(seed)
 
@@ -91,12 +91,11 @@ class Simulation(Model):
         self.alpha = alpha
         self.total_stake = total_stake
         self.max_iterations = max_iterations
-        self.cost_min = cost_min
-        self.cost_max = cost_max
-        self.pareto_param = pareto_param
         self.player_activation_order = player_activation_order
         self.idle_steps_after_pool = idle_steps_after_pool
         self.myopic_fraction = myopic_fraction
+        self.pool_splitting = pool_splitting
+        self.common_cost = common_cost
 
         self.running = True  # for batch running and visualisation purposes
         self.schedule = self.player_activation_orders[player_activation_order](self)
@@ -109,7 +108,7 @@ class Simulation(Model):
         # self.initial_states = {"inactive":0, "maximally_decentralised":1, "nicely_decentralised":2} todo support different initial states
 
         self.initialise_pool_id_seq()  # initialise pool id sequence for the new model run
-        self.initialize_players()
+        self.initialize_players(cost_min, cost_max, pareto_param)
 
         self.datacollector = DataCollector(
             model_reporters={"#Pools": get_number_of_pools, "PoolSizes": get_pool_sizes,
@@ -117,13 +116,13 @@ class Simulation(Model):
                              "DesirabilitiesByAgent": get_desirabilities_by_agent,
                              "StakePairs": get_stakes_n_margins, "AvgPledge": get_avg_pledge})
 
-    def initialize_players(self):
+    def initialize_players(self, cost_min, cost_max, pareto_param):
 
         # Allocate stake to the players, sampling from a Pareto distribution
-        stake_distribution = hlp.generate_stake_distr(self.num_agents, self.total_stake, self.pareto_param)
+        stake_distribution = hlp.generate_stake_distr(self.num_agents, self.total_stake, pareto_param)
 
         # Allocate cost to the players, sampling from a uniform distribution
-        cost_distribution = hlp.generate_cost_distr(num_agents=self.num_agents, low=self.cost_min, high=self.cost_max)
+        cost_distribution = hlp.generate_cost_distr(num_agents=self.num_agents, low=cost_min, high=cost_max)
 
         num_myopic_agents = int(self.myopic_fraction * self.num_agents)
         # Create agents

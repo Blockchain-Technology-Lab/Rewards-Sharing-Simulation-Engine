@@ -27,12 +27,17 @@ def main():
                         help='Seed for reproducibility.')
     parser.add_argument('--myopic_fraction', type=float, default=0.0,
                         help='The fraction of myopic players in the simulation.')
+    parser.add_argument('--pool_splitting', type=bool, default=True,
+                        help='Are individual players allowed to create multiple pools?')
+    parser.add_argument('--common_cost', type=float, default=0.0,
+                        help='The additional cost that applies to all players for each pool they operate.')
 
     args = parser.parse_args()
 
     sim = Simulation(n=args.n, k=args.k, alpha=args.alpha, max_iterations=args.max_iterations,
-                     cost_min=args.cost_min, cost_max=args.cost_max, pareto_param=args.pareto_param,
-                     player_activation_order=args.player_activation_order, seed=args.seed, myopic_fraction=args.myopic_fraction)
+                     cost_min=args.cost_min, cost_max=args.cost_max, common_cost=args.common_cost,
+                     pareto_param=args.pareto_param, player_activation_order=args.player_activation_order,
+                     seed=args.seed, myopic_fraction=args.myopic_fraction)
     sim.run_model(156)
 
     sim_df = sim.datacollector.get_model_vars_dataframe()

@@ -12,8 +12,7 @@ import operator
 
 import logic.helper as hlp
 from logic.pool import Pool
-import logic.pool as pl
-from logic.strategy import MultiPoolStrategy
+from logic.strategy import Strategy
 from logic.strategy import MAX_MARGIN
 from logic.strategy import MARGIN_INCREMENT
 from logic.custom_exceptions import PoolNotFoundError, NonPositiveAllocationError
@@ -33,7 +32,7 @@ class Stakeholder(Agent):
 
         if strategy is None:
             # initialise strategy to being a delegator with no allocated stake
-            strategy = MultiPoolStrategy()
+            strategy = Strategy()
         self.strategy = strategy
 
     # In every step the agent needs to decide what to do
@@ -100,7 +99,7 @@ class Stakeholder(Agent):
         pools = self.model.pools
 
         if strategy.is_pool_operator:
-            cost_per_pool = pl.standard_cost + self.cost / strategy.num_pools
+            cost_per_pool = self.model.common_cost + self.cost / strategy.num_pools
             for index, pool_id in enumerate(strategy.owned_pools):
                 # for pools that already exist
                 pool = deepcopy(pools[pool_id])
@@ -268,7 +267,10 @@ class Stakeholder(Agent):
         return self.strategy.num_pools + 1  # increase possible number of pools by 1 each time
 
     def find_operator_move(self):
-        num_pools = self.determine_num_pools()
+        if self.model.pool_splitting:
+            num_pools = self.determine_num_pools()
+        else:
+            num_pools = 1
 
         previous_pools = self.strategy.owned_pools
         owned_pools = defaultdict(lambda: None)
@@ -295,7 +297,7 @@ class Stakeholder(Agent):
 
         allocations = self.find_delegation_move_for_operator(pledges)
 
-        return MultiPoolStrategy(pledges=pledges, margins=new_margins, stake_allocations=allocations,
+        return Strategy(pledges=pledges, margins=new_margins, stake_allocations=allocations,
                                  is_pool_operator=True, num_pools=num_pools, owned_pools=owned_pools)
 
     def find_current_plus_move(self):
@@ -306,7 +308,7 @@ class Stakeholder(Agent):
 
         allocations = self.find_delegation_move_for_operator(pledges)
 
-        return MultiPoolStrategy(pledges=pledges, margins=margins, stake_allocations=allocations,
+        return Strategy(pledges=pledges, margins=margins, stake_allocations=allocations,
                                  is_pool_operator=True, num_pools=num_pools, owned_pools=owned_pools)
 
     def find_delegation_move_for_operator(self, pledges):
@@ -350,7 +352,7 @@ class Stakeholder(Agent):
                 stake_to_delegate -= allocation
                 allocations[pool_id] = allocation
 
-        return MultiPoolStrategy(stake_allocations=allocations, is_pool_operator=False)
+        return Strategy(stake_allocations=allocations, is_pool_operator=False)
 
     def execute_strategy(self):
         """

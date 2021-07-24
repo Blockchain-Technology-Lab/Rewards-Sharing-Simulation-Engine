@@ -8,8 +8,6 @@ from collections import defaultdict
 
 import helper as hlp
 
-standard_cost = 0  # 0.0001
-
 
 class Pool:
 
