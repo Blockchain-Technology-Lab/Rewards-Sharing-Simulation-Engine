@@ -4,41 +4,28 @@ Created on Fri Jun 11 17:14:16 2021
 
 @author: chris
 """
+from collections import defaultdict
+
 import helper as hlp
 
-standard_cost = 0 #0.0001
-
-id_seq = 0
-
-# todo maybe do that at Simulation level
-def initialise_id_seq():
-    global id_seq
-    id_seq = 1
-
-def rewind_id_seq():
-    global id_seq
-    id_seq -= 1
+standard_cost = 0  # 0.0001
 
 
 class Pool:
 
-    def __init__(self, cost, pledge, owner, margin, alpha, beta, pool_id=None):
+    def __init__(self, pool_id, cost, pledge, owner, margin, alpha, beta):
+        self.id = pool_id
         self.margin = margin
         self.cost = cost
         self.pledge = pledge
         self.stake = pledge
         self.owner = owner
+        self.delegators = defaultdict(lambda: 0)
         self.potential_profit = hlp.calculate_potential_profit(pledge, cost, alpha, beta)
 
-        if pool_id is None:
-            global id_seq
-            # todo problem with hypothetical pools taking up ids?
-            pool_id = id_seq
-            id_seq += 1
-        self.id = pool_id
-
-    def update_stake(self, stake):
+    def update_delegation(self, stake, delegator_id):
         self.stake += stake
+        self.delegators[delegator_id] += stake
 
     def calculate_desirability(self):
         """

@@ -54,7 +54,6 @@ def normalize_distr(distr, normal_sum=1):
     return [normal_sum * float(i) / s for i in distr] if s != 0 else distr
 
 
-# todo how do we define potential profit in the era of pool splitting??
 def calculate_potential_profit(pledge, cost, alpha, beta):
     """
     Calculate a pool's potential profit, which can be defined as the profit it would get at saturation level
@@ -79,21 +78,19 @@ def calculate_pool_reward(stake, pledge, alpha, beta):
 
 def calculate_pool_stake_NM(pool, pools, beta, k):
     """
-    Calculate the non-myopic stake of a pool, given the pool and the state of the system
+    Calculate the non-myopic stake of a pool, given the pool and the state of the system (current pools)
     :param pool:
     :param pools:
     :param beta:
     :param k:
     :return:
     """
-    desirabilities = {p.id: p.calculate_desirability() for p in pools if p.owner != pool.owner} #todo remove condition?
-    # todo should I take hypothetical pools into consideration to determine the rank?
+    desirabilities = {p.id: p.calculate_desirability() for p in pools}
     desirabilities[pool.id] = pool.calculate_desirability()
     rank = calculate_rank(desirabilities, pool.id)
     return pool.calculate_stake_NM(k, beta, rank)
 
 
-# todo break desirability ties with current stake? maybe better to do it here than there
 def calculate_ranks(ranking_factor):
     ranks = [0 for _ in range(len(ranking_factor))]
     indices = np.argsort(

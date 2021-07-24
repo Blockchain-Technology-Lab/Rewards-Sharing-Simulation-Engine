@@ -16,7 +16,6 @@ from mesa.time import BaseScheduler, SimultaneousActivation, RandomActivation
 
 from logic.stakeholder import Stakeholder
 import logic.helper as hlp
-import logic.pool as pl
 
 
 def get_number_of_pools(model):
@@ -108,9 +107,8 @@ class Simulation(Model):
         self.pools = defaultdict(lambda: None)
         self.past_pool_ids = []
         # self.initial_states = {"inactive":0, "maximally_decentralised":1, "nicely_decentralised":2} todo support different initial states
-        # todo add aggregate values as fields? (e.g. total delegated stake)
 
-        pl.initialise_id_seq()  # initialise pool id sequence for the new model run
+        self.initialise_pool_id_seq()  # initialise pool id sequence for the new model run
         self.initialize_players()
 
         self.datacollector = DataCollector(
@@ -133,6 +131,16 @@ class Simulation(Model):
             agent = Stakeholder(i, self, is_myopic=(i < num_myopic_agents), cost=cost_distribution[i],
                                 stake=stake_distribution[i])
             self.schedule.add(agent)
+
+    def initialise_pool_id_seq(self):
+        self.id_seq = 0
+
+    def get_next_pool_id(self):
+        self.id_seq += 1
+        return self.id_seq
+
+    def rewind_pool_id_seq(self, step=1):
+        self.id_seq -= step
 
     # One step of the model
     def step(self):
@@ -157,7 +165,7 @@ class Simulation(Model):
     # Run multiple steps
     def run_model(self, max_steps=300):
         i = 0
-        pl.initialise_id_seq()  # initialise pool id sequence for the new model run
+        self.initialise_pool_id_seq()  # initialise pool id sequence for the new model run
         while i < max_steps and self.running:
             self.step()
             i += 1
@@ -196,7 +204,9 @@ class Simulation(Model):
         filename = path / ('pool_sizes_by_step' + current_datetime + '.csv')
         with open(filename, 'w', newline='') as file:
             writer = csv.writer(file)
-            writer.writerow([i for i in range(self.num_agents)])
+            header_row =[i for i in range(self.num_agents)]
+            header_row.append("sum")
+            writer.writerow(header_row)
             for row in pool_sizes_by_step:
                 new_row = []
                 for i in range(self.num_agents):
@@ -204,6 +214,7 @@ class Simulation(Model):
                         new_row.append(row[i])
                     else:
                         new_row.append(0)
+                new_row.append(sum(row.values()))
 
                 writer.writerow(new_row)
 
