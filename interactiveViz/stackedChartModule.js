@@ -8,17 +8,8 @@ var StackedChartModule = function(series, canvas_width, canvas_height) {
     // Create the context and the drawing controller:
     var context = canvas.getContext("2d");
 
-    var convertColorOpacity = function(hex) {
-
-        if (hex.indexOf('#') != 0) {
-            return 'rgba(0,0,0,0.1)';
-        }
-
-        hex = hex.replace('#', '');
-        r = parseInt(hex.substring(0, 2), 16);
-        g = parseInt(hex.substring(2, 4), 16);
-        b = parseInt(hex.substring(4, 6), 16);
-        return 'rgba(' + r + ',' + g + ',' + b + ',0.1)';
+    var convertColorLightness = function(hslColor) {
+        return hslColor.replace(',50%', ',35%');
     };
 
     function shuffleArray(array) {
@@ -32,7 +23,7 @@ var StackedChartModule = function(series, canvas_width, canvas_height) {
     // For generating random (distinguishable) colours
     function selectColor(colorNum, colors){
         if (colors < 1) colors = 1; // defaults to one color - avoid divide by zero
-        return "hsl(" + (colorNum * (360 / colors) % 360) + ",100%,50%)";
+        return "hsl(" + ((colorNum * (360 / colors) % 360).toFixed(0)) + ",100%,50%)";
     }
 
     // Prep the chart properties and series:
@@ -48,9 +39,12 @@ var StackedChartModule = function(series, canvas_width, canvas_height) {
             var color = selectColor(color_indexes[j], datasets_number);
             var new_series = {
                 label: s.Label,
+                xLabel: s.xLabel,
+                yLabel: s.yLabel,
                 tooltipText: s.tooltipText,
-                borderColor: color,
                 backgroundColor: color,
+                borderColor: convertColorLightness(color),
+                borderWidth: 0.5,
                 fill: true,
                 data: [],
                 keys: []
@@ -78,12 +72,11 @@ var StackedChartModule = function(series, canvas_width, canvas_height) {
         scales: {
             // note: using lists for the axes to accommodate stacking
             xAxes: [{
-                //type: 'time',
                 stacked: true,
                 display: true,
                 scaleLabel: {
                     display: true,
-                    labelString: 'Iteration'
+                    labelString: datasets[0].xLabel
                 },
                 ticks: {
                   autoSkip: true,
@@ -95,7 +88,7 @@ var StackedChartModule = function(series, canvas_width, canvas_height) {
                 display: true,
                 scaleLabel: {
                     display: true,
-                    labelString: 'Pool size (stake)'
+                    labelString: datasets[0].yLabel
                 },
             }]
         },

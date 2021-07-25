@@ -19,8 +19,8 @@ max_num_agents = 500
 poolsChart = MyChartModule([{"label": "#Pools","title": "Number of pools over time", "xLabel": "Iteration",
                              "yLabel": "#Pools", "tooltipText": " pools", "color": "Blue"}])
 
-poolDynamicsStackedChart = StackedChartModule([{"Label": "PoolSizes", "tooltipText": " Pool",
-                                                "Num_agents": max_num_agents}])
+poolDynamicsStackedChart = StackedChartModule([{"Label": "PoolSizes", "tooltipText": " Pool", "xLabel": "Iteration",
+                                                "yLabel": "Pool size (stake)", "Num_agents": max_num_agents}])
 
 poolScatterChart = BubbleChartModule([{"Label": "StakePairs"}])
 
