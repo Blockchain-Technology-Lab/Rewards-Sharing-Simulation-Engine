@@ -22,17 +22,6 @@ def get_number_of_pools(model):
     return len(model.get_pools_list())
 
 
-'''def get_pool_sizes(model):
-    pool_sizes = {}
-    current_pools = model.pools
-    past_pools_ids = model.past_pool_ids
-    for pool_id in current_pools:
-        pool_sizes[pool_id] = current_pools[pool_id].stake
-    for pool_id in past_pools_ids:
-        pool_sizes[pool_id] = 0
-    return dict(sorted(pool_sizes.items()))'''
-
-
 def get_pool_sizes(model):
     max_pools = 450  # must be < max defined for the chart
     pool_sizes = {i: 0 for i in range(max_pools)}
@@ -67,6 +56,15 @@ def get_stakes_n_margins(model):
             'id': [pool.id for pool in pools]}
 
 
+def get_total_delegated_stake(model):
+    stake_from_pools = sum([pool.stake for pool in model.get_pools_list()])
+    stake_from_players = sum([sum([a for a in player.strategy.stake_allocations.values()])
+                              for player in model.schedule.agents]) + \
+                         sum([sum([pledge for pledge in player.strategy.pledges])
+                               for player in model.schedule.agents])
+    return stake_from_pools, stake_from_players
+
+
 class Simulation(Model):
     """
     Simulation of staking behaviour in Proof-of-Stake Blockchains.
@@ -99,12 +97,10 @@ class Simulation(Model):
 
         self.running = True  # for batch running and visualisation purposes
         self.schedule = self.player_activation_orders[player_activation_order](self)
-        self.current_step = 0
         self.idle_steps = 0  # steps towards convergence
         self.current_step_idle = True
         self.min_consecutive_idle_steps_for_convergence = idle_steps_after_pool + 1
         self.pools = defaultdict(lambda: None)
-        self.past_pool_ids = []
         # self.initial_states = {"inactive":0, "maximally_decentralised":1, "nicely_decentralised":2} todo support different initial states
 
         self.initialise_pool_id_seq()  # initialise pool id sequence for the new model run
@@ -145,8 +141,9 @@ class Simulation(Model):
     def step(self):
         self.datacollector.collect(self)
 
-        if self.current_step >= self.max_iterations:
+        if self.schedule.steps >= self.max_iterations:
             self.running = False
+            self.dump_state_to_csv()
 
         # Activate all agents (in the order specified by self.schedule) to perform all their actions for one time step
         self.schedule.step()
@@ -157,7 +154,6 @@ class Simulation(Model):
                 self.dump_state_to_csv()
         else:
             self.idle_steps = 0
-        self.current_step += 1
         self.current_step_idle = True
         # self.get_status()
 
@@ -197,13 +193,12 @@ class Simulation(Model):
             writer = csv.writer(file)
             writer.writerows(row_list)
 
-        pool_owners = [p.owner for p in self.get_pools_list()]
         sim_df = self.datacollector.get_model_vars_dataframe()
         pool_sizes_by_step = sim_df["PoolSizesByAgent"]
         filename = path / ('pool_sizes_by_step' + current_datetime + '.csv')
         with open(filename, 'w', newline='') as file:
             writer = csv.writer(file)
-            header_row =[i for i in range(self.num_agents)]
+            header_row = [i for i in range(self.num_agents)]
             header_row.append("sum")
             writer.writerow(header_row)
             for row in pool_sizes_by_step:
@@ -228,6 +223,6 @@ class Simulation(Model):
         return list(self.pools.values())
 
     def get_status(self):
-        print("Step {}".format(self.current_step))
+        print("Step {}".format(self.schedule.steps))
         print("Number of agents: {} \n Number of pools: {} \n"
               .format(self.num_agents, len([1 for p in self.pools if p is not None])))

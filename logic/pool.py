@@ -19,7 +19,10 @@ class Pool:
         self.stake = pledge
         self.owner = owner
         self.delegators = defaultdict(lambda: 0)
-        self.potential_profit = hlp.calculate_potential_profit(pledge, cost, alpha, beta)
+        self.set_potential_profit(alpha, beta)
+
+    def set_potential_profit(self, alpha, beta):
+        self.potential_profit = hlp.calculate_potential_profit(self.pledge, self.cost, alpha, beta)
 
     def update_delegation(self, stake, delegator_id):
         self.stake += stake

@@ -76,7 +76,7 @@ model_params = {
             description="The fraction of myopic players in the simulation."
         ),
     "pool_splitting": UserSettableParameter(
-        "checkbox", "Allow pool splitting", True
+        "checkbox", "Allow pool splitting", False
     ),
 
     "common_cost": UserSettableParameter(
