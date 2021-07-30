@@ -1,4 +1,7 @@
 **.pyc
+**.spec
+**/dist
+**/build
 **/output
 venv
 .idea/

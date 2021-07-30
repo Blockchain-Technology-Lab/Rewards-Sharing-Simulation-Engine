@@ -17,13 +17,15 @@ from mesa.time import BaseScheduler, SimultaneousActivation, RandomActivation
 from logic.stakeholder import Stakeholder
 import logic.helper as hlp
 
+MAX_NUM_POOLS = 1000
+
 
 def get_number_of_pools(model):
     return len(model.get_pools_list())
 
 
 def get_pool_sizes(model):
-    max_pools = 450  # must be < max defined for the chart
+    max_pools = MAX_NUM_POOLS - 1  # must be < max defined for the chart
     pool_sizes = {i: 0 for i in range(max_pools)}
     current_pools = model.pools
     for pool_id in current_pools:
@@ -35,11 +37,24 @@ def get_pool_sizes_by_agent(model):  # !! attention: only works when one pool pe
     return {pool.owner: pool.stake for pool in model.get_pools_list()}
 
 
+def get_pool_sizes_by_pool(model):
+    pools = defaultdict(lambda: 0)
+    pools.update({pool_id: pool.stake for pool_id, pool in model.pools.items()})
+    return [pools[i] for i in range(MAX_NUM_POOLS)] if len(pools) > 0 else [0]*MAX_NUM_POOLS
+
+
 def get_desirabilities_by_agent(model):
     desirabilities = defaultdict(lambda: 0)
     for pool in model.get_pools_list():
         desirabilities[pool.owner] = pool.calculate_desirability()
     return [desirabilities[i] for i in range(model.num_agents)]
+
+
+def get_desirabilities_by_pool(model):
+    desirabilities = defaultdict(lambda: 0)
+    for id, pool in model.pools.items():
+        desirabilities[id] = pool.calculate_desirability()
+    return [desirabilities[i] for i in range(MAX_NUM_POOLS)] if len(desirabilities) > 0 else [0]*MAX_NUM_POOLS
 
 
 def get_avg_pledge(model):
@@ -78,8 +93,8 @@ class Simulation(Model):
     }
 
     def __init__(self, n=100, k=10, alpha=0.3, total_stake=1, max_iterations=100, seed=42,
-                 cost_min=0.001, cost_max=0.002, pareto_param=2.0, player_activation_order="Random",
-                 idle_steps_after_pool=10, myopic_fraction=0, pool_splitting=True, common_cost=0.0):
+                 cost_min=0.001, cost_max=0.002, utility_threshold=1e-9, pareto_param=2.0, player_activation_order="Random",
+                 idle_steps_after_pool=10, myopic_fraction=0, pool_splitting=True, common_cost=1e-5):
         if seed is not None:
             random.seed(seed)
 
@@ -94,6 +109,7 @@ class Simulation(Model):
         self.myopic_fraction = myopic_fraction
         self.pool_splitting = pool_splitting
         self.common_cost = common_cost
+        self.utility_threshold = utility_threshold
 
         self.running = True  # for batch running and visualisation purposes
         self.schedule = self.player_activation_orders[player_activation_order](self)
@@ -109,7 +125,9 @@ class Simulation(Model):
         self.datacollector = DataCollector(
             model_reporters={"#Pools": get_number_of_pools, "PoolSizes": get_pool_sizes,
                              "PoolSizesByAgent": get_pool_sizes_by_agent,
+                             "PoolSizesByPool": get_pool_sizes_by_pool,
                              "DesirabilitiesByAgent": get_desirabilities_by_agent,
+                             "DesirabilitiesByPool": get_desirabilities_by_pool,
                              "StakePairs": get_stakes_n_margins, "AvgPledge": get_avg_pledge})
 
     def initialize_players(self, cost_min, cost_max, pareto_param):
@@ -174,16 +192,17 @@ class Simulation(Model):
 
     def dump_state_to_csv(self):
         row_list = [
-            ["Pool owner id", "Pool id", "Pool owner stake", "Pool stake", "Pool cost", "Pool pledge", "Pool margin",
-             "Perfect margin", "Pool potential profit", "Pool desirability", "Potential profit rank"]]
+            ["Owner id", "Pool id", "Owner stake", "Pool stake", "Pool pledge", "Pool cost", "Pool margin",
+             "Perfect margin", "Pool potential profit", "Pool desirability", "Owner potential profit rank",
+             "Private pool"]]
         players = self.schedule.agents
         potential_profits = {
             player.unique_id: hlp.calculate_potential_profit(player.stake, player.cost, self.alpha, self.beta) for
             player in players}
         row_list.extend(
-            [[pool.owner, pool.id, players[pool.owner].stake, pool.stake, pool.cost, pool.pledge, pool.margin,
+            [[pool.owner, pool.id, players[pool.owner].stake, pool.stake, pool.pledge, pool.cost, pool.margin,
               players[pool.owner].calculate_margin_perfect_strategy(), pool.potential_profit,
-              pool.calculate_desirability(), hlp.calculate_rank(potential_profits, pool.owner)]
+              pool.calculate_desirability(), hlp.calculate_rank(potential_profits, pool.owner), pool.is_private]
              for pool in self.get_pools_list()])
         current_datetime = time.strftime("%Y%m%d_%H%M%S")
         path = Path.cwd() / "output"
@@ -194,29 +213,22 @@ class Simulation(Model):
             writer.writerows(row_list)
 
         sim_df = self.datacollector.get_model_vars_dataframe()
-        pool_sizes_by_step = sim_df["PoolSizesByAgent"]
+        pool_sizes_by_step = sim_df["PoolSizesByPool"]
         filename = path / ('pool_sizes_by_step' + current_datetime + '.csv')
         with open(filename, 'w', newline='') as file:
             writer = csv.writer(file)
-            header_row = [i for i in range(self.num_agents)]
+            header_row = [i for i in range(MAX_NUM_POOLS)]
             header_row.append("sum")
             writer.writerow(header_row)
             for row in pool_sizes_by_step:
-                new_row = []
-                for i in range(self.num_agents):
-                    if i in row.keys():
-                        new_row.append(row[i])
-                    else:
-                        new_row.append(0)
-                new_row.append(sum(row.values()))
+                row.append(sum(row))
+                writer.writerow(row)
 
-                writer.writerow(new_row)
-
-        desirabilities = sim_df["DesirabilitiesByAgent"]
+        desirabilities = sim_df["DesirabilitiesByPool"]
         filename = path / ('desirabilities_by_step' + current_datetime + '.csv')
         with open(filename, 'w', newline='') as file:
             writer = csv.writer(file)
-            writer.writerow([i for i in range(self.num_agents)])
+            writer.writerow([i for i in range(MAX_NUM_POOLS)])
             writer.writerows(desirabilities)
 
     def get_pools_list(self):

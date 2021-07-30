@@ -81,18 +81,18 @@ def calculate_pool_reward(stake, pledge, alpha, beta):
     return reward
 
 
-def calculate_pool_stake_NM(pool, pools, beta, k):
+def calculate_pool_stake_NM(pool_id, pools, beta, k):
     """
     Calculate the non-myopic stake of a pool, given the pool and the state of the system (current pools)
-    :param pool:
+    :param pool_id:
     :param pools:
     :param beta:
     :param k:
     :return:
     """
-    desirabilities = {p.id: p.calculate_desirability() for p in pools}
-    desirabilities[pool.id] = pool.calculate_desirability()
-    rank = calculate_rank(desirabilities, pool.id)
+    desirabilities = {id: pool.calculate_desirability() for id, pool in pools.items()}
+    rank = calculate_rank(desirabilities, pool_id)
+    pool = pools[pool_id]
     return pool.calculate_stake_NM(k, beta, rank)
 
 
@@ -100,6 +100,7 @@ def calculate_ranks(ranking_factor):
     ranks = [0 for _ in range(len(ranking_factor))]
     indices = np.argsort(
         -np.array(ranking_factor))  # the rank is the index of the sorted desirabilities (in descending order)
+    # todo deal with tie breaking
     for rank, index in enumerate(indices):
         ranks[index] = rank
     return ranks

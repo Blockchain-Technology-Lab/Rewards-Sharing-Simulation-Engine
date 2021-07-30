@@ -4,7 +4,6 @@ Created on Thu Jun 17 13:51:21 2021
 
 @author: chris
 """
-import mesa.visualization.ModularVisualization
 from mesa.visualization.UserParam import UserSettableParameter
 from mesa.visualization.ModularVisualization import ModularServer
 
@@ -15,12 +14,13 @@ from interactiveViz.stackedChartModule import StackedChartModule
 from interactiveViz.bubbleChartModule import BubbleChartModule
 from interactiveViz.myChartModule import MyChartModule
 
-max_num_agents = 500
+from sim import MAX_NUM_POOLS
+
 poolsChart = MyChartModule([{"label": "#Pools","title": "Number of pools over time", "xLabel": "Iteration",
                              "yLabel": "#Pools", "tooltipText": " pools", "color": "Blue"}])
 
 poolDynamicsStackedChart = StackedChartModule([{"Label": "PoolSizes", "tooltipText": " Pool", "xLabel": "Iteration",
-                                                "yLabel": "Pool size (stake)", "Num_agents": max_num_agents}])
+                                                "yLabel": "Pool size (stake)", "Num_pools": MAX_NUM_POOLS}])
 
 poolScatterChart = BubbleChartModule([{"Label": "StakePairs"}])
 
@@ -29,7 +29,7 @@ pledgeChart = MyChartModule([{"label": "AvgPledge", "title": "Average pledge ove
 
 model_params = {
     "n": UserSettableParameter(
-        "slider", "Number of stakeholders", 100, 2, max_num_agents,
+        "slider", "Number of stakeholders", 100, 2, 500,
         description="The number of stakeholders in the system."
     ),
     "k": UserSettableParameter(
@@ -39,11 +39,6 @@ model_params = {
     "alpha": UserSettableParameter(
         "slider", "α", 0.3, 0, 1, 0.01,
         description="The alpha value of the system."
-    ),
-
-    "max_iterations": UserSettableParameter(
-        "slider", "Max iterations", 200, 1, 300, 2,
-        description="The maximum number of iterations of the system."
     ),
 
     "cost_min": UserSettableParameter(
@@ -61,6 +56,11 @@ model_params = {
         description="The parameter that determines the shape of the distribution that the stake will be sampled from"
     ),
 
+    "utility_threshold": UserSettableParameter(
+        "slider", "Utility threshold", 1e-9, 0.0, 00.1, 0.0000001,
+        description="The utility threshold under which moves are disregarded."
+    ),
+
     "player_activation_order": UserSettableParameter("choice", "Player activation order", value="Random",
                                               choices=list(Simulation.player_activation_orders.keys())),
 
@@ -76,12 +76,18 @@ model_params = {
             description="The fraction of myopic players in the simulation."
         ),
     "pool_splitting": UserSettableParameter(
-        "checkbox", "Allow pool splitting", False
+        "checkbox", "Allow pool splitting", True
     ),
 
     "common_cost": UserSettableParameter(
-        "slider", "Common cost per pool", 0.0, 0.0, 0.001, 0.0001
+        "slider", "Common cost per pool", 0.0001, 0.0, 0.001, 0.0001
+    ),
+
+    "max_iterations": UserSettableParameter(
+        "slider", "Max iterations", 300, 1, 500, 1,
+        description="The maximum number of iterations of the system."
     )
+
 }
 
 # figure out why MyModularServer was not working at some point
@@ -90,6 +96,6 @@ server = ModularServer(Simulation,
                        [poolsChart, poolDynamicsStackedChart, poolScatterChart, pledgeChart],
                        "PoS Pooling Games",
                        model_params)
-# todo investigate why there are missing steps from the charts
+
 server.port = 8521
 server.launch()

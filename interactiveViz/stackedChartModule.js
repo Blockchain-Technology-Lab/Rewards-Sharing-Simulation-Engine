@@ -30,7 +30,7 @@ var StackedChartModule = function(series, canvas_width, canvas_height) {
     var datasets = []
     for (var i in series) {
         var s = series[i];
-        var datasets_number = s.Num_agents;
+        var datasets_number = s.Num_pools;
 
         for (var color_indexes=[],i=0;i<datasets_number;++i) color_indexes[i]=i;
         color_indexes = shuffleArray(color_indexes)

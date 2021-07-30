@@ -5,5 +5,7 @@ Run file main.py (python main.py) to execute the simulation with predefined valu
 Alternatively, run interactive-viz/runViz.py (python -m interactiveViz.runViz) for an interactive execution of the simulation in the browser.
 To execute multiple simulations at once, run batch-run.py (python batch-run.py).
 
-Dependencies: 
+Python 3.9+ required
+
+Other dependencies: 
 - mesa (pip install mesa)

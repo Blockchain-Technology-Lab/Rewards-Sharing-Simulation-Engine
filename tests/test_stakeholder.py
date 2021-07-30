@@ -3,6 +3,7 @@ import pytest
 from pool import Pool
 from sim import Simulation
 from stakeholder import Stakeholder
+from strategy import Strategy
 
 
 def test_step():
@@ -31,7 +32,8 @@ def test_calculate_operator_utility():
     pool = Pool(cost=0.001, pledge=0.01, owner=156, margin=0.1, alpha=0.3, beta=0.1, pool_id=555)
     model.pools[555] = pool
     player = Stakeholder(unique_id=156, model=model, cost=0.001)
-    utility = player.calculate_operator_utility(pool)
+    strategy = Strategy(pledges=[0.1], margins=[0.1], is_pool_operator=True, num_pools=1, owned_pools={555: pool})
+    utility = player.calculate_operator_utility_by_strategy(strategy)
     assert utility == 0.0148638461538461537
 
 
@@ -55,7 +57,7 @@ def test_calculate_margin_simple():
 def test_calculate_margin_perfect_strategy():
     assert False
 
-
+# todo test going from 2 pools to 1 pool, 2 pools to 3 pools, 1 pool to 1 pool
 def test_find_operator_move():
     assert False
 

@@ -11,13 +11,14 @@ import helper as hlp
 
 class Pool:
 
-    def __init__(self, pool_id, cost, pledge, owner, margin, alpha, beta):
+    def __init__(self, pool_id, cost, pledge, owner, alpha, beta, margin=-1, is_private=False):
         self.id = pool_id
         self.margin = margin
         self.cost = cost
         self.pledge = pledge
         self.stake = pledge
         self.owner = owner
+        self.is_private = is_private
         self.delegators = defaultdict(lambda: 0)
         self.set_potential_profit(alpha, beta)
 

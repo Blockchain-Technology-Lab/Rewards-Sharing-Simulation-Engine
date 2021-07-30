@@ -19,6 +19,8 @@ def main():
                         help='The minimum possible cost for operating a stake pool.')
     parser.add_argument('--cost_max', type=float, default=0.002,
                         help='The maximum possible cost for operating a stake pool.')
+    parser.add_argument('--utility_threshold', type=float, default=1e-9,
+                        help='The utility threshold under which moves are disregarded.')
     parser.add_argument('--pareto_param', type=float, default=2.0,
                         help='The parameter that determines the shape of the distribution that the stake will be sampled from.')
     parser.add_argument('--player_activation_order', type=str, default='Random',
@@ -37,8 +39,8 @@ def main():
     sim = Simulation(n=args.n, k=args.k, alpha=args.alpha, max_iterations=args.max_iterations,
                      cost_min=args.cost_min, cost_max=args.cost_max, common_cost=args.common_cost,
                      pareto_param=args.pareto_param, player_activation_order=args.player_activation_order,
-                     seed=args.seed, myopic_fraction=args.myopic_fraction)
-    sim.run_model(156)
+                     seed=args.seed, myopic_fraction=args.myopic_fraction, pool_splitting=args.pool_splitting)
+    sim.run_model()
 
     sim_df = sim.datacollector.get_model_vars_dataframe()
 
