@@ -58,8 +58,24 @@ var StackedChartModule = function(series, canvas_width, canvas_height) {
         datasets: datasets
     };
 
+    var animationComplete = false // used to skip downloading empty canvas at the beginning
+
     var chartOptions = {
         responsive: true,
+        animation: {
+            onComplete: function() {
+                if (animationComplete) {
+                    var a = document.createElement('a');
+                    a.href = chart.toBase64Image();
+                    a.download = 'stacked-line-chart.png';
+                    a.click()
+                    this.options.animation.onComplete = null; //disable after first render so that image is not downloaded upon hovering
+                }
+                else {
+                    animationComplete = true
+                }
+            }
+        },
         title: {
             display: true,
             text: 'Pool dynamics' //todo make configurable
