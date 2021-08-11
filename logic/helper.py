@@ -5,8 +5,6 @@ Created on Sun Jun 13 08:15:26 2021
 @author: chris
 """
 import random
-
-import numpy as np
 from numpy.random import default_rng
 
 TOTAL_EPOCH_REWARDS_R = 1
@@ -91,26 +89,19 @@ def calculate_pool_stake_NM(pool_id, pools, beta, k):
     :return:
     """
     desirabilities = {id: pool.calculate_desirability() for id, pool in pools.items()}
-    rank = calculate_rank(desirabilities, pool_id)
+    rank = calculate_ranks(desirabilities)[pool_id] # todo use potential profit to break ties between desirability ranks
     pool = pools[pool_id]
     return pool.calculate_stake_NM(k, beta, rank)
 
 
-def calculate_ranks(ranking_factor):
-    ranks = [0 for _ in range(len(ranking_factor))]
-    indices = np.argsort(
-        -np.array(ranking_factor))  # the rank is the index of the sorted desirabilities (in descending order)
-    # todo deal with tie breaking
-    for rank, index in enumerate(indices):
-        ranks[index] = rank
+def calculate_ranks(ranking_dict, secondary_ranking_dict=None):
+    if secondary_ranking_dict is None:
+        total_ranking_dict = ranking_dict
+    else:
+        total_ranking_dict = {key: (ranking_dict[key], secondary_ranking_dict[key]) for key in ranking_dict}
+    ranks = {sorted_item[0]: i + 1 for i, sorted_item in
+             enumerate(sorted(total_ranking_dict.items(), key=lambda item: item[1], reverse=True))}
     return ranks
-
-
-def calculate_rank(ranking_factor, index):
-    keys = list(ranking_factor.keys())
-    values = list(ranking_factor.values())
-    ranks = calculate_ranks(values)
-    return ranks[keys.index(index)]
 
 
 '''

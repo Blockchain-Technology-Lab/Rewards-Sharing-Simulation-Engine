@@ -6,10 +6,11 @@ Created on Fri Jun 11 17:14:16 2021
 """
 from collections import defaultdict
 
-import helper as hlp
+import logic.helper as hlp
 
 
 class Pool:
+    __slots__ = ['id', 'margin', 'cost', 'pledge', 'stake', 'owner', 'is_private', 'delegators', 'potential_profit']
 
     def __init__(self, pool_id, cost, pledge, owner, alpha, beta, margin=-1, is_private=False):
         self.id = pool_id
@@ -29,17 +30,18 @@ class Pool:
         self.stake += stake
         self.delegators[delegator_id] += stake
 
+    # todo shouldn't a pool's desirability decrease in the case that it gets oversaturated??
     def calculate_desirability(self):
         """
         Note: this follows the paper's approach, where the desirability is always non-negative
         :param potential_profit:
         :return:
         """
-        return (1 - self.margin) * self.potential_profit if self.potential_profit > 0 else 0
+        return max((1 - self.margin) * self.potential_profit, 0)
 
     def calculate_myopic_desirability(self, alpha, beta):
         current_profit = hlp.calculate_current_profit(self.stake, self.pledge, self.cost, alpha, beta)
-        return (1 - self.margin) * current_profit if current_profit > 0 else 0
+        return max((1 - self.margin) * current_profit, 0)
 
     def calculate_desirability_myWay(self, potential_profit):
         """
@@ -53,4 +55,4 @@ class Pool:
         return sat_prob * beta + (1 - sat_prob) * self.pledge
 
     def calculate_stake_NM(self, k, beta, rank):
-        return self.pledge if rank >= k else max(beta, self.stake)
+        return self.pledge if rank > k else max(beta, self.stake)

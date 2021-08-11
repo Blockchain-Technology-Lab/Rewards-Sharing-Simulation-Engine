@@ -1,41 +1,51 @@
+
+
 from logic.sim import Simulation
 
 import matplotlib.pyplot as plt
 import numpy as np
 import argparse
 
+
 def main():
-    print("Hello Blockchain World!")
+    print("Let the Pooling Games begin!")
+
     parser = argparse.ArgumentParser(description='Pooling Games')
     parser.add_argument('--n', type=int, default=100,
-                        help='The number of players.')
+                        help='The number of players (natural number). Default is 100.')
     parser.add_argument('--k', type=int, default=10,
-                        help='The k value of the system.')
+                        help='The k value of the system (natural number). Default is 10.')
     parser.add_argument('--alpha', type=float, default=0.3,
-                        help='The alpha value of the system.')
-    parser.add_argument('--max_iterations', type=int, default=100,
-                        help='The maximum number of iterations of the system.')
+                        help='The alpha value of the system (decimal number between 0 and 1). Default is 0.3')
     parser.add_argument('--cost_min', type=float, default=0.001,
-                        help='The minimum possible cost for operating a stake pool.')
+                        help='The minimum possible cost for operating a stake pool. Default is 0.001.')
     parser.add_argument('--cost_max', type=float, default=0.002,
-                        help='The maximum possible cost for operating a stake pool.')
-    parser.add_argument('--utility_threshold', type=float, default=1e-9,
-                        help='The utility threshold under which moves are disregarded.')
+                        help='The maximum possible cost for operating a stake pool. Default is 0.002.')
     parser.add_argument('--pareto_param', type=float, default=2.0,
-                        help='The parameter that determines the shape of the distribution that the stake will be sampled from.')
+                        help='The parameter that determines the shape of the distribution that the stake will be '
+                             'sampled from. Default is 2.')
+    parser.add_argument('--utility_threshold', type=float, default=1e-9,
+                        help='The utility threshold under which moves are disregarded. Default is 1e-9.')
     parser.add_argument('--player_activation_order', type=str, default='Random',
-                        help='Player activation order.')
+                        help='Player activation order. Default is random.')
     parser.add_argument('--seed', type=int, default=42,
-                        help='Seed for reproducibility.')
+                        help='Seed for reproducibility. Default is 42.')
+    parser.add_argument("--idle_steps_after_pool", type=int, default=10,
+                        help='The number of steps for which a player remains idle after opening a pool. Default is 10.')
     parser.add_argument('--myopic_fraction', type=float, default=0.0,
-                        help='The fraction of myopic players in the simulation.')
-    parser.add_argument('--pool_splitting', type=bool, default=True,
-                        help='Are individual players allowed to create multiple pools?')
-    parser.add_argument('--common_cost', type=float, default=0.0,
-                        help='The additional cost that applies to all players for each pool they operate.')
+                        help='The fraction of myopic players in the simulation. Default is 0.')
+    parser.add_argument('--pool_splitting', type=bool, default=True, action=argparse.BooleanOptionalAction,
+                        help='Are individual players allowed to create multiple pools? Default is yes.')
+    parser.add_argument('--common_cost', type=float, default=0.0001,
+                        help='The additional cost that applies to all players for each pool they operate. '
+                             'Default is 0.0001.')
+    parser.add_argument('--max_iterations', type=int, default=1000,
+                        help='The maximum number of iterations of the system. Default is 1000.')
 
     args = parser.parse_args()
 
+    # todo deal with invalid inputs, e.g. negative n
+    # todo make it possible to run more simulations w/o having to rerun the program (e.g. press any key to continue)
     sim = Simulation(n=args.n, k=args.k, alpha=args.alpha, max_iterations=args.max_iterations,
                      cost_min=args.cost_min, cost_max=args.cost_max, common_cost=args.common_cost,
                      pareto_param=args.pareto_param, player_activation_order=args.player_activation_order,
@@ -50,7 +60,7 @@ def main():
     plt.figure()
     pool_nums.plot()
     plt.title("#Pools")
-    plt.savefig(figures_dir + "poolCount.png", bbox_inches='tight')
+    #plt.savefig(figures_dir + "poolCount.png", bbox_inches='tight')
 
     '''agent_utility = sim.datacollector.get_agent_vars_dataframe()
     #print(agent_utility)
@@ -68,8 +78,8 @@ def main():
     plt.ylabel("Utility")
     plt.savefig(figures_dir + "utilityAgent3.png", bbox_inches='tight')'''
 
-    pool_sizes_by_step = sim_df["PoolSizes"] #todo fix
-    print(pool_sizes_by_step)
+    pool_sizes_by_step = sim_df["PoolSizes"]  # todo fix
+    # print(pool_sizes_by_step)
     '''pool_sizes_by_pool = np.array(list(pool_sizes_by_step)).T
     print(pool_sizes_by_pool)
     plt.figure()
@@ -89,8 +99,19 @@ def main():
     plt.ylabel("Pool stake")
     plt.savefig(figures_dir + "stakePairs.png", bbox_inches='tight')'''
 
-    plt.show()
+    #plt.show()
 
 
 if __name__ == "__main__":
+    import cProfile
+    from pstats import Stats
+
+    pr = cProfile.Profile()
+    pr.enable()
+
     main()
+
+    pr.disable()
+    stats = Stats(pr)
+    stats.sort_stats('tottime').print_stats(10)
+

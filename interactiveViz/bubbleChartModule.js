@@ -41,7 +41,7 @@ var BubbleChartModule  = function(series, canvas_width, canvas_height) {
                     var datasetIndex = tooltipItems[0].datasetIndex;
                     var dataset = data.datasets[datasetIndex];
                     var datasetItem = dataset.data[index];
-                    return "Pool " + datasetItem.id;
+                    return "Pool " + datasetItem.pool_id + " | Player " + datasetItem.owner_id;
                     },
                 label: function(tooltipItem, data) {
                     var output = "";
@@ -114,9 +114,15 @@ var BubbleChartModule  = function(series, canvas_width, canvas_height) {
     this.render = function(data) {
         var pointData = [];
 
-        for (i = 0; i < data.length; i+=4) {
+        for (i = 0; i < data.length; i+=5) {
             if (data[i] > 0) {
-                pointData.push({x: data[i], y: data[i+1], r: 3 + 20*data[i+2], id: data[i+3]});
+                pointData.push({
+                    x: data[i],
+                    y: data[i+1],
+                    r: 3 + 20*data[i+2],
+                    pool_id: data[i+3],
+                    owner_id: data[i+4]
+                });
             }
         }
         chart.data.datasets[0].data = pointData;

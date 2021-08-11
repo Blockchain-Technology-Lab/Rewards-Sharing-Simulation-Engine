@@ -14,7 +14,7 @@ from interactiveViz.stackedChartModule import StackedChartModule
 from interactiveViz.bubbleChartModule import BubbleChartModule
 from interactiveViz.myChartModule import MyChartModule
 
-from sim import MAX_NUM_POOLS
+from logic.sim import MAX_NUM_POOLS
 
 poolsChart = MyChartModule([{"label": "#Pools","title": "Number of pools over time", "xLabel": "Iteration",
                              "yLabel": "#Pools", "tooltipText": " pools", "color": "Blue"}])
@@ -40,54 +40,47 @@ model_params = {
         "slider", "α", 0.3, 0, 1, 0.01,
         description="The alpha value of the system."
     ),
-
     "cost_min": UserSettableParameter(
         "slider", "Minimum cost", 0.001, 0.001, 0.05, 0.001,
         description="The minimum possible cost for operating a stake pool."
     ),
-
     "cost_max": UserSettableParameter(
         "slider", "Maximum cost", 0.002, 0.002, 0.1, 0.001,
         description="The maximum possible cost for operating a stake pool."
     ),
-
     "pareto_param": UserSettableParameter(
         "slider", "Pareto shape value", 2, 0.1, 5, 0.1,
         description="The parameter that determines the shape of the distribution that the stake will be sampled from"
     ),
-
     "utility_threshold": UserSettableParameter(
         "slider", "Utility threshold", 1e-9, 0.0, 00.1, 0.0000001,
         description="The utility threshold under which moves are disregarded."
     ),
-
-    "player_activation_order": UserSettableParameter("choice", "Player activation order", value="Random",
-                                              choices=list(Simulation.player_activation_orders.keys())),
+    "player_activation_order": UserSettableParameter("choice", "Player activation order",
+                                                     value="Random",
+                                                     choices=list(Simulation.player_activation_orders.keys())),
 
     "seed": UserSettableParameter(
         "number", "Random seed", 42, description="Seed for reproducibility"
     ),
-
     "idle_steps_after_pool": UserSettableParameter(
-        "slider", "Idle steps", 10, 1, 20, 1
+        "slider", "Idle steps", 10, 1, 20, 1,
+        description="The number of steps for which a player remains idle after opening a pool."
     ),
     "myopic_fraction": UserSettableParameter(
             "slider", "Myopic fraction", 0.0, 0.0, 1.0, 0.01,
             description="The fraction of myopic players in the simulation."
-        ),
+    ),
     "pool_splitting": UserSettableParameter(
         "checkbox", "Allow pool splitting", True
     ),
-
     "common_cost": UserSettableParameter(
         "slider", "Common cost per pool", 0.0001, 0.0, 0.001, 0.0001
     ),
-
     "max_iterations": UserSettableParameter(
-        "slider", "Max iterations", 300, 1, 500, 1,
+        "slider", "Max iterations", 500, 1, 500, 1,
         description="The maximum number of iterations of the system."
     )
-
 }
 
 # figure out why MyModularServer was not working at some point
@@ -97,5 +90,5 @@ server = ModularServer(Simulation,
                        "PoS Pooling Games",
                        model_params)
 
-server.port = 8521
+server.port = 8521 # todo change to allow simultaneous runs?
 server.launch()

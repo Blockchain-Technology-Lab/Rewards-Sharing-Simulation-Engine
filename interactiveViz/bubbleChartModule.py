@@ -68,10 +68,12 @@ class BubbleChartModule(VisualizationElement):
             x = data_dict['x']
             y = data_dict['y']
             r = data_dict['r']
-            ids = data_dict['id']
+            pool_ids = data_dict['pool_id']
+            owner_ids = data_dict['owner_id']
             for i in range(len(x)):
                 current_values.append(x[i])
                 current_values.append(y[i])
                 current_values.append(r[i])
-                current_values.append(ids[i])
+                current_values.append(pool_ids[i])
+                current_values.append(owner_ids[i])
         return current_values

@@ -1,5 +1,4 @@
 import helper as hlp
-# import numpy as np
 
 
 def test_generate_stake_distr():
@@ -65,11 +64,19 @@ def test_calculate_pool_stake_nm():
     # define pool, pools, pool_index, alpha, beta, k
     assert True
 
-def test_calculate_rank():
+
+def test_calculate_ranks():
     desirabilities = {5: 0.2, 3: 0.3, 1: 0.1, 12: 0.9, 8: 0.8}
-    ranks = [3, 2, 4, 0, 1]
-    for i, key in enumerate(desirabilities):
-        assert hlp.calculate_rank(desirabilities, key) == ranks[i]
+    ranks = {5: 4, 3: 3, 1: 5, 12: 1, 8: 2}
+    assert hlp.calculate_ranks(desirabilities) == ranks
+
+
+def test_calculate_ranks_with_tie_breaking():
+    desirabilities = {5: 0.2, 3: 0.2, 1: 0.1, 12: 0.9, 8: 0.9}
+    potential_profits = {5: 0.8, 3: 0.7, 1: 0.99, 12: 0.8, 8: 0.9}
+    ranks = {5: 3, 3: 4, 1: 5, 12: 2, 8: 1}
+    assert hlp.calculate_ranks(desirabilities, potential_profits) == ranks
+
 
 '''def test_is_list_flat():
     assert hlp.isListFlat([1, 2, 3]) is True
@@ -88,4 +95,3 @@ def test_softmax():
     assert (np.round(hlp.softmax([0.1, 0.2, 0.3, 0.4, 0.1, 0.2, 0.3]), 3) == np.array(
         [0.125, 0.138, 0.153, 0.169, 0.125, 0.138, 0.153])).all()
 '''
-
