@@ -6,11 +6,12 @@ Created on Sun Jun 13 08:15:26 2021
 """
 import random
 from numpy.random import default_rng
+import csv
 
 TOTAL_EPOCH_REWARDS_R = 1
 
 
-def generate_stake_distr(num_agents, total_stake, pareto_param):
+def generate_stake_distr(num_agents, total_stake=1, distribution_file=None, pareto_param=None):
     """
     Generate a distribution for the players' initial stake (wealth),
     sampling from a Pareto distribution
@@ -19,10 +20,28 @@ def generate_stake_distr(num_agents, total_stake, pareto_param):
     :param total_stake:
     :return:
     """
-    rng = default_rng(seed=156)
-    pareto_distr = rng.pareto(pareto_param, num_agents)
-    stakes = normalize_distr(pareto_distr, normal_sum=total_stake)
-    random.shuffle(stakes)
+    if distribution_file is None:
+        # Sample from a Pareto distribution with the specified shape
+        rng = default_rng(seed=156)
+        stake_sample = rng.pareto(pareto_param, num_agents)
+    else:
+        # Sample from file that contains the (real) stake distribution
+        all_stakes = get_stakes_from_file(distribution_file)
+        stake_sample = random.sample(all_stakes, num_agents)
+    normalized_stake_sample = normalize_distr(stake_sample, normal_sum=total_stake)
+    random.shuffle(normalized_stake_sample)
+    return normalized_stake_sample
+
+
+def get_stakes_from_file(filename):  # todo if we keep this function replace with sth more efficient (e.g. pandas)
+    stakes = []
+    with open(filename) as file:
+        reader = csv.reader(file)
+        for i, row in enumerate(reader):
+            if i > 0:  # skip header row
+                stake = float(row[-1])  # the last column represents the wallet's stake
+                if stake > 0:
+                    stakes.append(stake)
     return stakes
 
 
@@ -89,7 +108,8 @@ def calculate_pool_stake_NM(pool_id, pools, beta, k):
     :return:
     """
     desirabilities = {id: pool.calculate_desirability() for id, pool in pools.items()}
-    rank = calculate_ranks(desirabilities)[pool_id] # todo use potential profit to break ties between desirability ranks
+    rank = calculate_ranks(desirabilities)[
+        pool_id]  # todo use potential profit to break ties between desirability ranks
     pool = pools[pool_id]
     return pool.calculate_stake_NM(k, beta, rank)
 

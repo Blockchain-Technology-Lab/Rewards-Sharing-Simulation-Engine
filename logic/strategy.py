@@ -4,9 +4,6 @@ Created on Fri Jun 11 17:13:20 2021
 
 @author: chris
 """
-from collections import defaultdict
-
-
 STARTING_MARGIN = 0.2
 MARGIN_INCREMENT = 0.01
 
@@ -21,9 +18,9 @@ class Strategy:
         if margins is None:
             margins = []
         if owned_pools is None:
-            owned_pools = defaultdict(lambda: None)
+            owned_pools = dict()
         if stake_allocations is None:
-            stake_allocations = defaultdict(lambda: 0)
+            stake_allocations = dict()
         self.stake_allocations = stake_allocations
         self.is_pool_operator = is_pool_operator
         self.num_pools = num_pools

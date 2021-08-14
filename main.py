@@ -1,10 +1,9 @@
-
-
 from logic.sim import Simulation
 
 import matplotlib.pyplot as plt
 import numpy as np
 import argparse
+import time
 
 
 def main():
@@ -21,38 +20,49 @@ def main():
                         help='The minimum possible cost for operating a stake pool. Default is 0.001.')
     parser.add_argument('--cost_max', type=float, default=0.002,
                         help='The maximum possible cost for operating a stake pool. Default is 0.002.')
+    parser.add_argument('--common_cost', type=float, default=0.0001,
+                        help='The additional cost that applies to all players for each pool they operate. '
+                             'Default is 0.0001.')
     parser.add_argument('--pareto_param', type=float, default=2.0,
                         help='The parameter that determines the shape of the distribution that the stake will be '
                              'sampled from. Default is 2.')
-    parser.add_argument('--utility_threshold', type=float, default=1e-9,
-                        help='The utility threshold under which moves are disregarded. Default is 1e-9.')
+    parser.add_argument('--utility_inertia_ratio', type=float, default=0.01,
+                        help='The utility increase ratio under which moves are disregarded. Default is 1%.')
     parser.add_argument('--player_activation_order', type=str, default='Random',
                         help='Player activation order. Default is random.')
     parser.add_argument('--seed', type=int, default=42,
                         help='Seed for reproducibility. Default is 42.')
-    parser.add_argument("--idle_steps_after_pool", type=int, default=10,
+    parser.add_argument("--min_steps_to_keep_pool", type=int, default=5,
                         help='The number of steps for which a player remains idle after opening a pool. Default is 10.')
     parser.add_argument('--myopic_fraction', type=float, default=0.0,
                         help='The fraction of myopic players in the simulation. Default is 0.')
+    parser.add_argument('--abstention_percentage', type=float, default=0.0,
+                        help='The percentage of players that will abstain from the game in this run.')
     parser.add_argument('--pool_splitting', type=bool, default=True, action=argparse.BooleanOptionalAction,
                         help='Are individual players allowed to create multiple pools? Default is yes.')
-    parser.add_argument('--common_cost', type=float, default=0.0001,
-                        help='The additional cost that applies to all players for each pool they operate. '
-                             'Default is 0.0001.')
     parser.add_argument('--max_iterations', type=int, default=1000,
                         help='The maximum number of iterations of the system. Default is 1000.')
+    parser.add_argument('--margin_restricted', type=bool, default=False, action=argparse.BooleanOptionalAction,
+                        help='Restrict pool margins so that they can only decrease.')
 
     args = parser.parse_args()
 
     # todo deal with invalid inputs, e.g. negative n
     # todo make it possible to run more simulations w/o having to rerun the program (e.g. press any key to continue)
-    sim = Simulation(n=args.n, k=args.k, alpha=args.alpha, max_iterations=args.max_iterations,
+    sim = Simulation(n=args.n, k=args.k, alpha=args.alpha,
                      cost_min=args.cost_min, cost_max=args.cost_max, common_cost=args.common_cost,
-                     pareto_param=args.pareto_param, player_activation_order=args.player_activation_order,
-                     seed=args.seed, myopic_fraction=args.myopic_fraction, pool_splitting=args.pool_splitting)
+                     pareto_param=args.pareto_param, utility_inertia_ratio=args.utility_inertia_ratio,
+                     player_activation_order=args.player_activation_order,
+                     seed=args.seed, min_steps_to_keep_pool=args.min_steps_to_keep_pool,
+                     myopic_fraction=args.myopic_fraction, abstention_percentage=args.abstention_percentage,
+                     pool_splitting=args.pool_splitting, max_iterations=args.max_iterations,
+                     margin_restricted=args.margin_restricted
+                     )
+
     sim.run_model()
 
     sim_df = sim.datacollector.get_model_vars_dataframe()
+    current_datetime = time.strftime("%Y%m%d_%H%M%S")
 
     figures_dir = "figures/"
 
@@ -60,7 +70,7 @@ def main():
     plt.figure()
     pool_nums.plot()
     plt.title("#Pools")
-    #plt.savefig(figures_dir + "poolCount.png", bbox_inches='tight')
+    plt.savefig(figures_dir + "poolCount" + current_datetime + ".png", bbox_inches='tight')
 
     '''agent_utility = sim.datacollector.get_agent_vars_dataframe()
     #print(agent_utility)
@@ -99,11 +109,13 @@ def main():
     plt.ylabel("Pool stake")
     plt.savefig(figures_dir + "stakePairs.png", bbox_inches='tight')'''
 
-    #plt.show()
+    plt.show()
 
 
 if __name__ == "__main__":
-    import cProfile
+    main()  # for profiling the code, comment this line and uncomment the ones below
+
+    '''import cProfile
     from pstats import Stats
 
     pr = cProfile.Profile()
@@ -113,5 +125,5 @@ if __name__ == "__main__":
 
     pr.disable()
     stats = Stats(pr)
-    stats.sort_stats('tottime').print_stats(10)
+    stats.sort_stats('tottime').print_stats(10)'''
 

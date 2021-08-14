@@ -4,8 +4,6 @@ Created on Fri Jun 11 17:14:16 2021
 
 @author: chris
 """
-from collections import defaultdict
-
 import logic.helper as hlp
 
 
@@ -20,7 +18,8 @@ class Pool:
         self.stake = pledge
         self.owner = owner
         self.is_private = is_private
-        self.delegators = defaultdict(lambda: 0)
+        #self.delegators = defaultdict(lambda: 0)
+        self.delegators = dict()
         self.set_potential_profit(alpha, beta)
 
     def set_potential_profit(self, alpha, beta):
@@ -28,7 +27,12 @@ class Pool:
 
     def update_delegation(self, stake, delegator_id):
         self.stake += stake
-        self.delegators[delegator_id] += stake
+        if delegator_id in self.delegators:
+            self.delegators[delegator_id] += stake
+        else:
+            self.delegators[delegator_id] = stake
+        if self.delegators[delegator_id] == 0:
+            self.delegators.pop(delegator_id)
 
     # todo shouldn't a pool's desirability decrease in the case that it gets oversaturated??
     def calculate_desirability(self):

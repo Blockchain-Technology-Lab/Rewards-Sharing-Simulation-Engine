@@ -4,8 +4,6 @@ Created on Fri Jun 11 17:14:45 2021
 
 @author: chris
 """
-from collections import defaultdict
-
 from mesa import Agent
 from copy import deepcopy
 import operator
@@ -19,16 +17,17 @@ from logic.custom_exceptions import PoolNotFoundError, NonPositiveAllocationErro
 
 
 class Stakeholder(Agent):
-    __slots__ = ['unique_id', 'model', 'stake', 'cost', 'isMyopic', 'idle_steps_remaining', 'strategy',
+    __slots__ = ['unique_id', 'model', 'stake', 'cost', 'isMyopic', 'abstains', 'min_steps_to_keep_pool', 'strategy',
                  'new_strategy']  # note that because the parent class doesn't use slots, the effect is not what it could otherwise have been
 
-    def __init__(self, unique_id, model, stake=0, is_myopic=False,
+    def __init__(self, unique_id, model, stake=0, is_myopic=False, is_abstainer=False,
                  cost=0, strategy=None):
         super().__init__(unique_id, model)
         self.cost = cost  # the player's individual cost of running one or more pools
         self.stake = stake
         self.isMyopic = is_myopic
-        self.idle_steps_remaining = 0
+        self.abstains = is_abstainer
+        self.min_steps_to_keep_pool = 0
         self.new_strategy = None
 
         if strategy is None:
@@ -38,13 +37,13 @@ class Stakeholder(Agent):
 
     # In every step the agent needs to decide what to do
     def step(self):
-        if self.idle_steps_remaining > 0:
-            # For players that are excluded from this round (e.g. operators who recently opened their pool)
-            self.idle_steps_remaining -= 1
-            return
-        self.make_move()
-        if self.model.player_activation_order != "Simultaneous":
-            self.advance()
+        if not self.abstains:
+            self.make_move()
+            if self.model.player_activation_order != "Simultaneous":
+                self.advance()
+            if self.min_steps_to_keep_pool > 0:
+                # For players that are recently opened a pool
+                self.min_steps_to_keep_pool -= 1
 
     # When players make moves simultaneously, "step() activates the agent and stages any necessary changes,
     # but does not apply them yet, and advance() then applies the changes"
@@ -61,12 +60,14 @@ class Stakeholder(Agent):
         current_utility = self.calculate_utility(self.strategy)
         # hold the player's potential moves in a dict, where the values are tuples of (utility, strategy)
         possible_moves = {"current": (
-            current_utility + self.model.utility_threshold, self.strategy)}
+            (1 + self.model.utility_inertia_ratio) * current_utility, self.strategy)}
 
         # For all players, find a possible delegation strategy and calculate its potential utility
-        delegator_strategy = self.find_delegation_move_desirability()
-        delegator_utility = self.calculate_utility(delegator_strategy)
-        possible_moves["delegator"] = delegator_utility, delegator_strategy
+        # unless they are pool operators with recently opened pools (we assume that they will keep them at least for a bit)
+        if self.min_steps_to_keep_pool == 0:
+            delegator_strategy = self.find_delegation_move_desirability()
+            delegator_utility = self.calculate_utility(delegator_strategy)
+            possible_moves["delegator"] = delegator_utility, delegator_strategy
 
         if self.strategy.is_pool_operator or self.has_potential_for_pool():
             # Player is considering opening a pool, so he has to find the most suitable pool params
@@ -108,11 +109,12 @@ class Stakeholder(Agent):
                 continue
                 # raise NonPositiveAllocationError(
                 #   "Player tried to allocate zero or less stake to a pool.")  # todo replace with ValueError?
-            pool = pools[pool_id]
-            if pool is None:
-                raise PoolNotFoundError("Player considered delegating to a non-existing pool!")
-            else:
+            if pool_id in pools:
+                pool = pools[pool_id]
                 utility += self.calculate_delegator_utility(pool, a)
+            else:
+                raise PoolNotFoundError("Player {} considered delegating to a non-existing pool ({})!"
+                                        .format(self.unique_id, pool_id))
         return utility
 
     def calculate_operator_utility_by_strategy(self, strategy):
@@ -148,7 +150,9 @@ class Stakeholder(Agent):
     def calculate_delegator_utility(self, pool, stake_allocation):
         alpha = self.model.alpha
         beta = self.model.beta
-        previous_allocation_to_pool = self.strategy.stake_allocations[pool.id]
+
+        previous_allocation_to_pool = self.strategy.stake_allocations[pool.id] \
+            if pool.id in self.strategy.stake_allocations else 0
         current_stake = pool.stake - previous_allocation_to_pool + stake_allocation
         non_myopic_stake = max(hlp.calculate_pool_stake_NM(pool.id,
                                                            self.model.pools,
@@ -165,9 +169,7 @@ class Stakeholder(Agent):
         utility = max(0, u)
         return utility
 
-    # todo how does a myopic player decide whether to open a pool or not?
-    # todo if we use potential profit for that, then when k pools remain (and they are the k with the highest potential profit),
-    # then they can do whatever they want (e.g. increase margins arbitrarily) and still no one else would open a pool, which makes no sense
+    # how does a myopic player decide whether to open a pool or not? -> for now we assume that all players play non-myopically when it comes to pool moves
     def has_potential_for_pool(self):
         """
         Determine whether the player is at a good position to open a pool, using the following rules:
@@ -196,8 +198,6 @@ class Stakeholder(Agent):
         existing_desirabilities = [pool.calculate_desirability() for pool in current_pools]
         return potential_profit > 0 and any(
             desirability < potential_desirability for desirability in existing_desirabilities)
-        # existing_potential_profits = [pool.potential_profit for pool in current_pools]
-        # return any(profit < potential_profit for profit in existing_potential_profits)
 
     def calculate_pledges(self, num_pools):
         """
@@ -212,7 +212,6 @@ class Stakeholder(Agent):
             raise ValueError("Player tried to calculate pledge for zero or less pools.")
         return [min(self.stake / num_pools, self.model.beta)] * num_pools
 
-    # todo how do we avoid myopic margin increases?
     def calculate_margin_binary_search(self, pool, initial_margin=0.25):
         new_pool = deepcopy(pool)
         all_pools = deepcopy(self.model.pools)
@@ -299,9 +298,10 @@ class Stakeholder(Agent):
         :return: float, the margin that the player will use to open a new pool
         """
         # first calculate the potential profits of all players
-        potential_profits = {agent.unique_id:
-            hlp.calculate_potential_profit(agent.stake, agent.cost, self.model.alpha, self.model.beta)
-            for agent in self.model.schedule.agents}
+        players = self.model.get_players_dict()
+        potential_profits = {player_id:
+            hlp.calculate_potential_profit(player.stake, player.cost, self.model.alpha, self.model.beta)
+            for player_id, player in players.items()}
 
         potential_profit_ranks = hlp.calculate_ranks(potential_profits)
         k = self.model.k
@@ -325,7 +325,7 @@ class Stakeholder(Agent):
                 desirabilities = {id: pool.calculate_desirability() for id, pool in owned_pools.items()}
                 ranks = hlp.calculate_ranks(desirabilities)
                 # important to use rank and not desirabilities to make sure that the same tie breaking rule is followed
-                owned_pools.pop(max(ranks, key=lambda key: ranks[key]))  # todo easier way to find max by value in dict
+                owned_pools.pop(max(ranks, key=lambda key: ranks[key]))
         return owned_pools
 
     def find_operator_moves(self):
@@ -337,7 +337,8 @@ class Stakeholder(Agent):
             current_num_pools = self.strategy.num_pools
             if current_num_pools > 0:
                 num_pools_options.append(current_num_pools)
-                if current_num_pools > 1:
+                if current_num_pools > 1 and self.min_steps_to_keep_pool == 0:
+                    # in case an operator has recently opened a new pool, they are not allowed to close any, so only the 2 first cases are checked
                     num_pools_options.append(current_num_pools - 1)
             num_pools_options.append(current_num_pools + 1)
         else:
@@ -360,10 +361,10 @@ class Stakeholder(Agent):
             pool.is_private = pool.pledge >= self.model.beta
             pool.cost = cost_per_pool
             pool.set_potential_profit(self.model.alpha, self.model.beta)
-            # pool.margin = 0 if pool.is_private else self.calculate_margin_binary_search(pool, pool.margin)
-            # pool.margin = 0 if pool.is_private else self.calculate_margin_increment(pool)
-            # pool.margin = 0 if pool.is_private else self.calculate_margin_simple(pool.margin)
-            pool.margin = 0 if pool.is_private else self.calculate_margin_increment_down(pool)
+            if self.model.margin_restricted:
+                pool.margin = 0 if pool.is_private else self.calculate_margin_increment_down(pool)
+            else:
+                pool.margin = 0 if pool.is_private else self.calculate_margin_binary_search(pool, pool.margin)
             margins.append(pool.margin)
             owned_pools[pool.id] = pool
         existing_pools_num = len(owned_pools)
@@ -375,10 +376,10 @@ class Stakeholder(Agent):
                         pledge=pledges[i], owner=self.unique_id, alpha=self.model.alpha,
                         beta=self.model.beta, is_private=pledges[i] >= self.model.beta)
             # private pools have margin 0 but don't allow delegations
-            # pool.margin = 0 if pool.is_private else self.calculate_margin_binary_search(pool)
-            # pool.margin = 0 if pool.is_private else self.calculate_margin_increment(pool)
-            # pool.margin = 0 if pool.is_private else self.calculate_margin_simple(pool.margin)
-            pool.margin = 0 if pool.is_private else self.calculate_margin_increment_down(pool)
+            if self.model.margin_restricted:
+                pool.margin = 0 if pool.is_private else self.calculate_margin_increment_down(pool)
+            else:
+                pool.margin = 0 if pool.is_private else self.calculate_margin_binary_search(pool)
             margins.append(pool.margin)
             owned_pools[pool.id] = pool
 
@@ -388,7 +389,7 @@ class Stakeholder(Agent):
                         is_pool_operator=True, num_pools=num_pools, owned_pools=owned_pools)
 
     def find_delegation_move_for_operator(self, pledges):
-        allocations = defaultdict(lambda: 0)
+        allocations = dict()
         remaining_stake = self.stake - sum(pledges)
         if remaining_stake > 0:
             # in some cases players may not want to allocate their entire stake to their pool (e.g. when stake > β)
@@ -412,7 +413,7 @@ class Stakeholder(Agent):
             if allocation > 0:
                 pools[pool_id].update_delegation(stake=-allocation, delegator_id=self.unique_id)
         pools_list = list(pools.values())
-        allocations = defaultdict(lambda: 0)
+        allocations = dict()
 
         if self.isMyopic:
             desirabilities_n_stakes = {pool.id: (pool.calculate_myopic_desirability(self.model.alpha, saturation_point),
@@ -449,9 +450,16 @@ class Stakeholder(Agent):
 
         old_allocations = self.strategy.stake_allocations
         new_allocations = self.new_strategy.stake_allocations
-        relevant_pools = old_allocations.keys() | new_allocations.keys()
-        allocation_changes = {pool_id: new_allocations[pool_id] - old_allocations[pool_id] for pool_id in
-                              relevant_pools}
+        # todo make simpler
+        allocation_changes = {}
+        old_pool_ids = old_allocations.keys()
+        new_pool_ids = new_allocations.keys()
+        for pool_id in old_pool_ids - new_pool_ids:
+            allocation_changes[pool_id] = -old_allocations[pool_id]
+        for pool_id in old_pool_ids & new_pool_ids:
+            allocation_changes[pool_id] = new_allocations[pool_id] - old_allocations[pool_id]
+        for pool_id in new_pool_ids - old_pool_ids:
+            allocation_changes[pool_id] = new_allocations[pool_id]
 
         old_owned_pools = set(self.strategy.owned_pools.keys())
         new_owned_pools = set(self.new_strategy.owned_pools.keys())
@@ -472,23 +480,25 @@ class Stakeholder(Agent):
             current_pools[pool_id].pledge = updated_pool.pledge
             current_pools[pool_id].cost = updated_pool.cost
             current_pools[pool_id].is_private = updated_pool.is_private
+            if current_pools[pool_id].is_private:
+                # undelegate stake in case the pool turned from public to private
+                self.remove_delegations(pool_id)
             current_pools[pool_id].set_potential_profit(self.model.alpha, self.model.beta)
-            # todo should we make the player idle after a pool update??
-            # self.idle_steps_remaining = self.model.idle_steps_after_pool
 
         self.strategy = self.new_strategy
         self.new_strategy = None
         for pool_id in new_owned_pools - old_owned_pools:
             self.open_pool(pool_id)
 
-        for pool_id in allocation_changes:
-            if current_pools[pool_id] is not None:
+        for pool_id, allocation_change in allocation_changes.items():
+            if current_pools[pool_id] is not None:  # todo can't really be none here, right?
                 # add or subtract the relevant stake from the pool if it hasn't closed
-                current_pools[pool_id].update_delegation(stake=allocation_changes[pool_id], delegator_id=self.unique_id)
+                if allocation_change != 0:
+                    current_pools[pool_id].update_delegation(stake=allocation_changes[pool_id], delegator_id=self.unique_id)
 
     def open_pool(self, pool_id):
         self.model.pools[pool_id] = self.strategy.owned_pools[pool_id]
-        self.idle_steps_remaining = self.model.idle_steps_after_pool
+        self.min_steps_to_keep_pool = self.model.min_steps_to_keep_pool
 
     def close_pool(self, pool_id):
         pools = self.model.pools
@@ -497,14 +507,23 @@ class Stakeholder(Agent):
                 raise ValueError("Player tried to close pool that belongs to another player.")
         except AttributeError:
             raise ValueError("Given pool id is not valid.")
-        pools.pop(pool_id, None)
         # Undelegate delegators' stake
-        for agent in self.model.schedule.agents:
-            agent.strategy.stake_allocations.pop(pool_id, None)
+        self.remove_delegations(pool_id)
+        pools.pop(pool_id)
+
+    def remove_delegations(self, pool_id):  # todo potentially add in pool class (with changes)
+        pool = self.model.pools[pool_id]
+        players = self.model.get_players_dict()
+        delegators = list(pool.delegators.keys())
+        for player_id in delegators:
+            pool.update_delegation(-pool.delegators[player_id], player_id)
+            player = players[player_id]
+            player.strategy.stake_allocations.pop(pool_id)
             if self.model.player_activation_order == "Simultaneous":
                 # Also remove pool from players' upcoming moves in case of simultenous activation
-                if agent.new_strategy is not None:
-                    agent.new_strategy.stake_allocations.pop(pool_id, None)
+                if player.new_strategy is not None:
+                    player.new_strategy.stake_allocations.pop(pool_id)
+
 
     def get_status(self):
         print("Agent id: {}, is myopic: {}, stake: {}, cost:{}"

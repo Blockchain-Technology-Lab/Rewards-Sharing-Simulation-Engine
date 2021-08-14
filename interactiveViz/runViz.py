@@ -52,19 +52,18 @@ model_params = {
         "slider", "Pareto shape value", 2, 0.1, 5, 0.1,
         description="The parameter that determines the shape of the distribution that the stake will be sampled from"
     ),
-    "utility_threshold": UserSettableParameter(
-        "slider", "Utility threshold", 1e-9, 0.0, 00.1, 0.0000001,
+    "utility_inertia_ratio": UserSettableParameter(
+        "slider", "Utility inertia ratio", 0.05, 0.0, 1, 0.001,
         description="The utility threshold under which moves are disregarded."
     ),
     "player_activation_order": UserSettableParameter("choice", "Player activation order",
                                                      value="Random",
                                                      choices=list(Simulation.player_activation_orders.keys())),
-
     "seed": UserSettableParameter(
         "number", "Random seed", 42, description="Seed for reproducibility"
     ),
-    "idle_steps_after_pool": UserSettableParameter(
-        "slider", "Idle steps", 10, 1, 20, 1,
+    "min_steps_to_keep_pool": UserSettableParameter(
+        "slider", "Min steps to keep pool", 5, 1, 20, 1,
         description="The number of steps for which a player remains idle after opening a pool."
     ),
     "myopic_fraction": UserSettableParameter(
@@ -80,6 +79,9 @@ model_params = {
     "max_iterations": UserSettableParameter(
         "slider", "Max iterations", 500, 1, 500, 1,
         description="The maximum number of iterations of the system."
+    ),
+    "margin_restricted": UserSettableParameter(
+        "checkbox", "Restrict pool margins so that they can only decrease.", False
     )
 }
 
