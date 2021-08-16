@@ -11,7 +11,7 @@ import csv
 TOTAL_EPOCH_REWARDS_R = 1
 
 
-def generate_stake_distr(num_agents, total_stake=1, distribution_file=None, pareto_param=None):
+def generate_stake_distr(num_agents, total_stake=1, pareto_param=None):
     """
     Generate a distribution for the players' initial stake (wealth),
     sampling from a Pareto distribution
@@ -20,12 +20,13 @@ def generate_stake_distr(num_agents, total_stake=1, distribution_file=None, pare
     :param total_stake:
     :return:
     """
-    if distribution_file is None:
+    if pareto_param is not None:
         # Sample from a Pareto distribution with the specified shape
         rng = default_rng(seed=156)
         stake_sample = rng.pareto(pareto_param, num_agents)
     else:
         # Sample from file that contains the (real) stake distribution
+        distribution_file = 'stake_distribution_275.csv'
         all_stakes = get_stakes_from_file(distribution_file)
         stake_sample = random.sample(all_stakes, num_agents)
     normalized_stake_sample = normalize_distr(stake_sample, normal_sum=total_stake)

@@ -17,8 +17,6 @@ from logic.custom_exceptions import PoolNotFoundError, NonPositiveAllocationErro
 
 
 class Stakeholder(Agent):
-    __slots__ = ['unique_id', 'model', 'stake', 'cost', 'isMyopic', 'abstains', 'min_steps_to_keep_pool', 'strategy',
-                 'new_strategy']  # note that because the parent class doesn't use slots, the effect is not what it could otherwise have been
 
     def __init__(self, unique_id, model, stake=0, is_myopic=False, is_abstainer=False,
                  cost=0, strategy=None):
@@ -60,7 +58,7 @@ class Stakeholder(Agent):
         current_utility = self.calculate_utility(self.strategy)
         # hold the player's potential moves in a dict, where the values are tuples of (utility, strategy)
         possible_moves = {"current": (
-            (1 + self.model.utility_inertia_ratio) * current_utility, self.strategy)}
+            (1 + self.model.inertia_ratio) * current_utility, self.strategy)}
 
         # For all players, find a possible delegation strategy and calculate its potential utility
         # unless they are pool operators with recently opened pools (we assume that they will keep them at least for a bit)
@@ -191,13 +189,15 @@ class Stakeholder(Agent):
         potential_profit = hlp.calculate_potential_profit(self.stake, self.cost, alpha, saturation_point)
         if len(current_pools) * saturation_point < self.model.total_stake:
             return potential_profit > 0
-        potential_pool = Pool(pool_id=-1, cost=self.cost, pledge=self.stake, margin=0, owner=self.unique_id,
-                              alpha=self.model.alpha, beta=self.model.beta, is_private=self.stake >= self.model.beta)
-        potential_desirability = potential_pool.calculate_desirability()
+        #potential_pool = Pool(pool_id=-1, cost=self.cost, pledge=self.stake, margin=0, owner=self.unique_id,
+        #alpha=self.model.alpha, beta=self.model.beta, is_private=self.stake >= self.model.beta)
+        #potential_desirability = potential_pool.calculate_desirability()
 
         existing_desirabilities = [pool.calculate_desirability() for pool in current_pools]
+        # Note that the potential profit is equal to the desirability of a pool with 0 margin,
+        # so, effectively, the player is comparing his best-case desirability with the desirabilities of the current pools
         return potential_profit > 0 and any(
-            desirability < potential_desirability for desirability in existing_desirabilities)
+            desirability < potential_profit for desirability in existing_desirabilities)
 
     def calculate_pledges(self, num_pools):
         """
@@ -305,7 +305,7 @@ class Stakeholder(Agent):
 
         potential_profit_ranks = hlp.calculate_ranks(potential_profits)
         k = self.model.k
-        n = self.model.num_agents
+        n = self.model.n
         keys = list(potential_profit_ranks.keys())
         values = list(potential_profit_ranks.values())
         # find the player who is ranked at position k+1, if such player exists
@@ -361,10 +361,7 @@ class Stakeholder(Agent):
             pool.is_private = pool.pledge >= self.model.beta
             pool.cost = cost_per_pool
             pool.set_potential_profit(self.model.alpha, self.model.beta)
-            if self.model.margin_restricted:
-                pool.margin = 0 if pool.is_private else self.calculate_margin_increment_down(pool)
-            else:
-                pool.margin = 0 if pool.is_private else self.calculate_margin_binary_search(pool, pool.margin)
+            pool.margin = 0 if pool.is_private else self.calculate_margin_binary_search(pool, pool.margin)
             margins.append(pool.margin)
             owned_pools[pool.id] = pool
         existing_pools_num = len(owned_pools)
@@ -376,10 +373,7 @@ class Stakeholder(Agent):
                         pledge=pledges[i], owner=self.unique_id, alpha=self.model.alpha,
                         beta=self.model.beta, is_private=pledges[i] >= self.model.beta)
             # private pools have margin 0 but don't allow delegations
-            if self.model.margin_restricted:
-                pool.margin = 0 if pool.is_private else self.calculate_margin_increment_down(pool)
-            else:
-                pool.margin = 0 if pool.is_private else self.calculate_margin_binary_search(pool)
+            pool.margin = 0 if pool.is_private else self.calculate_margin_binary_search(pool)
             margins.append(pool.margin)
             owned_pools[pool.id] = pool
 

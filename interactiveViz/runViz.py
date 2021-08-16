@@ -52,9 +52,9 @@ model_params = {
         "slider", "Pareto shape value", 2, 0.1, 5, 0.1,
         description="The parameter that determines the shape of the distribution that the stake will be sampled from"
     ),
-    "utility_inertia_ratio": UserSettableParameter(
-        "slider", "Utility inertia ratio", 0.05, 0.0, 1, 0.001,
-        description="The utility threshold under which moves are disregarded."
+    "inertia_ratio": UserSettableParameter(
+        "slider", "Inertia ratio", 0.1, 0.0, 1, 0.001,
+        description="The utility increase threshold under which moves are disregarded."
     ),
     "player_activation_order": UserSettableParameter("choice", "Player activation order",
                                                      value="Random",
@@ -67,8 +67,12 @@ model_params = {
         description="The number of steps for which a player remains idle after opening a pool."
     ),
     "myopic_fraction": UserSettableParameter(
-            "slider", "Myopic fraction", 0.0, 0.0, 1.0, 0.01,
+            "slider", "Myopic fraction", 0.1, 0.0, 1.0, 0.01,
             description="The fraction of myopic players in the simulation."
+    ),
+    "abstaining_fraction": UserSettableParameter(
+        "slider", "Abstaining fraction", 0.1, 0.0, 1.0, 0.01,
+        description="The percentage of players that will abstain from the game in this run."
     ),
     "pool_splitting": UserSettableParameter(
         "checkbox", "Allow pool splitting", True
@@ -79,9 +83,6 @@ model_params = {
     "max_iterations": UserSettableParameter(
         "slider", "Max iterations", 500, 1, 500, 1,
         description="The maximum number of iterations of the system."
-    ),
-    "margin_restricted": UserSettableParameter(
-        "checkbox", "Restrict pool margins so that they can only decrease.", False
     )
 }
 

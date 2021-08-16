@@ -1,9 +1,7 @@
 from logic.sim import Simulation
 
 import matplotlib.pyplot as plt
-import numpy as np
 import argparse
-import time
 
 
 def main():
@@ -26,24 +24,22 @@ def main():
     parser.add_argument('--pareto_param', type=float, default=2.0,
                         help='The parameter that determines the shape of the distribution that the stake will be '
                              'sampled from. Default is 2.')
-    parser.add_argument('--utility_inertia_ratio', type=float, default=0.01,
-                        help='The utility increase ratio under which moves are disregarded. Default is 1%.')
+    parser.add_argument('--inertia_ratio', type=float, default=0.1,
+                        help='The utility increase ratio under which moves are disregarded. Default is 10%.')
     parser.add_argument('--player_activation_order', type=str, default='Random',
                         help='Player activation order. Default is random.')
     parser.add_argument('--seed', type=int, default=42,
                         help='Seed for reproducibility. Default is 42.')
     parser.add_argument("--min_steps_to_keep_pool", type=int, default=5,
-                        help='The number of steps for which a player remains idle after opening a pool. Default is 10.')
-    parser.add_argument('--myopic_fraction', type=float, default=0.0,
+                        help='The number of steps for which a player remains idle after opening a pool. Default is 5.')
+    parser.add_argument('--myopic_fraction', type=float, default=0.1,
                         help='The fraction of myopic players in the simulation. Default is 0.')
-    parser.add_argument('--abstention_percentage', type=float, default=0.0,
+    parser.add_argument('--abstaining_fraction', type=float, default=0.1,
                         help='The percentage of players that will abstain from the game in this run.')
     parser.add_argument('--pool_splitting', type=bool, default=True, action=argparse.BooleanOptionalAction,
                         help='Are individual players allowed to create multiple pools? Default is yes.')
     parser.add_argument('--max_iterations', type=int, default=1000,
                         help='The maximum number of iterations of the system. Default is 1000.')
-    parser.add_argument('--margin_restricted', type=bool, default=False, action=argparse.BooleanOptionalAction,
-                        help='Restrict pool margins so that they can only decrease.')
 
     args = parser.parse_args()
 
@@ -51,42 +47,30 @@ def main():
     # todo make it possible to run more simulations w/o having to rerun the program (e.g. press any key to continue)
     sim = Simulation(n=args.n, k=args.k, alpha=args.alpha,
                      cost_min=args.cost_min, cost_max=args.cost_max, common_cost=args.common_cost,
-                     pareto_param=args.pareto_param, utility_inertia_ratio=args.utility_inertia_ratio,
+                     pareto_param=args.pareto_param, inertia_ratio=args.inertia_ratio,
                      player_activation_order=args.player_activation_order,
                      seed=args.seed, min_steps_to_keep_pool=args.min_steps_to_keep_pool,
-                     myopic_fraction=args.myopic_fraction, abstention_percentage=args.abstention_percentage,
-                     pool_splitting=args.pool_splitting, max_iterations=args.max_iterations,
-                     margin_restricted=args.margin_restricted
+                     myopic_fraction=args.myopic_fraction, abstaining_fraction=args.abstaining_fraction,
+                     pool_splitting=args.pool_splitting, max_iterations=args.max_iterations
                      )
 
     sim.run_model()
 
     sim_df = sim.datacollector.get_model_vars_dataframe()
-    current_datetime = time.strftime("%Y%m%d_%H%M%S")
 
+    sim_params = sim.__dict__
+    sim_params = sim.arguments
+    current_run_descriptor = "".join(['-' + str(key) + '=' + str(value) for key, value in sim_params.items()
+                                      if type(value) == bool or type(value) == int or type(value) == float])[:180]
     figures_dir = "figures/"
 
     pool_nums = sim_df["#Pools"]
     plt.figure()
     pool_nums.plot()
-    plt.title("#Pools")
-    plt.savefig(figures_dir + "poolCount" + current_datetime + ".png", bbox_inches='tight')
-
-    '''agent_utility = sim.datacollector.get_agent_vars_dataframe()
-    #print(agent_utility)
-    end_util = agent_utility.xs(2, level="Step")["Utility"]
-    plt.figure()
-    plt.hist(end_util)
-    plt.title("Step 2 utility")
-    plt.savefig(figures_dir + "utilityStep2.png", bbox_inches='tight')
-
-    one_agent_util = agent_utility.xs(3, level="AgentID")
-    plt.figure()
-    plt.plot(one_agent_util)
-    plt.title("Agent 3 utility")
-    plt.xlabel("Iteration")
-    plt.ylabel("Utility")
-    plt.savefig(figures_dir + "utilityAgent3.png", bbox_inches='tight')'''
+    plt.title("Number of pools over time")
+    plt.ylabel("#Pools")
+    plt.xlabel("Round")
+    plt.savefig(figures_dir + "poolCount" + current_run_descriptor + ".png", bbox_inches='tight')
 
     pool_sizes_by_step = sim_df["PoolSizes"]  # todo fix
     # print(pool_sizes_by_step)
@@ -99,7 +83,7 @@ def main():
     plt.ylabel("Stake")
     plt.savefig(figures_dir + "poolDynamics.png", bbox_inches='tight')'''
 
-    '''last_stakes = sim_df["StakePairs"].iloc[-1]
+    last_stakes = sim_df["StakePairs"].iloc[-1]
     x = last_stakes['x']
     y = last_stakes['y']
     plt.figure()
@@ -107,9 +91,17 @@ def main():
     plt.title("Owner stake vs pool stake")
     plt.xlabel("Pool owner stake")
     plt.ylabel("Pool stake")
-    plt.savefig(figures_dir + "stakePairs.png", bbox_inches='tight')'''
+    plt.savefig(figures_dir + "stakePairs" + current_run_descriptor + ".png", bbox_inches='tight')
 
-    plt.show()
+    avg_pledge = sim_df["AvgPledge"]
+    plt.figure()
+    avg_pledge.plot(color='r')
+    plt.title("Average pledge over time")
+    plt.ylabel("Average pledge")
+    plt.xlabel("Round")
+    plt.savefig(figures_dir + "avgPledge" + current_run_descriptor + ".png", bbox_inches='tight')
+
+    #plt.show()
 
 
 if __name__ == "__main__":
@@ -126,4 +118,3 @@ if __name__ == "__main__":
     pr.disable()
     stats = Stats(pr)
     stats.sort_stats('tottime').print_stats(10)'''
-

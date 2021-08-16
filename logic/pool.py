@@ -8,7 +8,6 @@ import logic.helper as hlp
 
 
 class Pool:
-    __slots__ = ['id', 'margin', 'cost', 'pledge', 'stake', 'owner', 'is_private', 'delegators', 'potential_profit']
 
     def __init__(self, pool_id, cost, pledge, owner, alpha, beta, margin=-1, is_private=False):
         self.id = pool_id

@@ -9,7 +9,8 @@ MARGIN_INCREMENT = 0.01
 
 
 class Strategy:
-    __slots__ = ['is_pool_operator', 'num_pools', 'pledges', 'margins', 'owned_pools', 'stake_allocations']
+    # todo rethink slots as they may scale better
+    # __slots__ = ['is_pool_operator', 'num_pools', 'pledges', 'margins', 'owned_pools', 'stake_allocations']
 
     def __init__(self, pledges=None, margins=None, stake_allocations=None,
                  is_pool_operator=False, owned_pools=None, num_pools=0):
