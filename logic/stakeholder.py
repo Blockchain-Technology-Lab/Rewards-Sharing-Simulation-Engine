@@ -329,21 +329,18 @@ class Stakeholder(Agent):
         return owned_pools
 
     def find_operator_moves(self):
-        # Try out 3 options:
-        # keep current number of pools (if > 0), increase by 1 or decrease by 1 (if > 1)
         moves = {}
-        num_pools_options = []
+        num_pools_options = {1}  # players always consider the possibility of having one pool
         if self.model.pool_splitting:
+            # If pool splitting is allowed by the model, then try out 3 more options:
+            # keep current number of pools (if > 0), increase by 1 or decrease by 1 (if > 1)
             current_num_pools = self.strategy.num_pools
             if current_num_pools > 0:
-                num_pools_options.append(current_num_pools)
+                num_pools_options.add(current_num_pools)
                 if current_num_pools > 1 and self.min_steps_to_keep_pool == 0:
                     # in case an operator has recently opened a new pool, they are not allowed to close any, so only the 2 first cases are checked
-                    num_pools_options.append(current_num_pools - 1)
-            num_pools_options.append(current_num_pools + 1)
-        else:
-            # If pool splitting is not allowed by the model, then the player only considers opening one pool
-            num_pools_options = [1]
+                    num_pools_options.add(current_num_pools - 1)
+            num_pools_options.add(current_num_pools + 1)
         for num_pools in num_pools_options:
             owned_pools = self.determine_current_pools(num_pools)
             moves[num_pools] = self.find_operator_move(num_pools, owned_pools)

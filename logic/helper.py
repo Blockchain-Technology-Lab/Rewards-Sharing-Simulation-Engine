@@ -20,7 +20,7 @@ def generate_stake_distr(num_agents, total_stake=1, pareto_param=None):
     :param total_stake:
     :return:
     """
-    if pareto_param is not None:
+    if pareto_param > 0:
         # Sample from a Pareto distribution with the specified shape
         rng = default_rng(seed=156)
         stake_sample = rng.pareto(pareto_param, num_agents)

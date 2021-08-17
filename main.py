@@ -2,6 +2,7 @@ from logic.sim import Simulation
 
 import matplotlib.pyplot as plt
 import argparse
+import pickle as pkl
 
 
 def main():
@@ -65,6 +66,11 @@ def main():
     figures_dir = "figures/"
 
     pool_nums = sim_df["#Pools"]
+    if sim.schedule.steps >= sim.max_iterations:
+        # If the max number of iterations was reached, then we want to analyse the statistic properties of the execution
+        filename = figures_dir + "poolCount" + current_run_descriptor + ".pkl"
+        with open(filename, "wb") as pkl_file:
+            pkl.dump(pool_nums, pkl_file)
     plt.figure()
     pool_nums.plot()
     plt.title("Number of pools over time")
