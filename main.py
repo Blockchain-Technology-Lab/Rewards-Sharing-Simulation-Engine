@@ -1,4 +1,5 @@
 from logic.sim import Simulation
+from pathlib import Path
 
 import matplotlib.pyplot as plt
 import argparse
@@ -59,11 +60,12 @@ def main():
 
     sim_df = sim.datacollector.get_model_vars_dataframe()
 
-    sim_params = sim.__dict__
     sim_params = sim.arguments
     current_run_descriptor = "".join(['-' + str(key) + '=' + str(value) for key, value in sim_params.items()
                                       if type(value) == bool or type(value) == int or type(value) == float])[:180]
     figures_dir = "figures/"
+    path = Path.cwd() / figures_dir
+    Path(path).mkdir(parents=True, exist_ok=True)
 
     pool_nums = sim_df["#Pools"]
     if sim.schedule.steps >= sim.max_iterations:
@@ -107,7 +109,7 @@ def main():
     plt.xlabel("Round")
     plt.savefig(figures_dir + "avgPledge" + current_run_descriptor + ".png", bbox_inches='tight')
 
-    #plt.show()
+    plt.show()
 
 
 if __name__ == "__main__":

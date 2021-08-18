@@ -9,22 +9,20 @@ from logic.sim import Simulation
 from logic.sim import get_number_of_pools
 
 if __name__ == '__main__':
-    freeze_support()  # needed for multiprocessing to work on windows systems (comment out line to run on linux)
+    #freeze_support()  # needed for multiprocessing to work on windows systems (comment out line to run on linux / uncomment for windows)
 
     fixed_params = {"n": 100,
-                    "k": 10,
                     "total_stake": 1,
                     "max_iterations": 50,
-                    "cost_min": 0.001,
                     "player_activation_order": "Random"}
 
-    variable_params = {"alpha": [0.1, 0.3, 0.5],
-                       "cost_max": [0.002, 0.02, 0.1],
-                       "pareto_param": [1, 1.5, 2]}
+    variable_params = {"k":[5,10,15,20,25,30]}
+                       #"alpha": [0.01, 0.3]}
+                       #"pareto_param": [1, 1.5, 2]}
     # todo figure out how to run the model with only certain combinations of the variable params
 
-    # Run the models as a single process (takes almost 2 mins on my laptop with current settings)
-    batch_run = BatchRunner(Simulation,
+    # only use the non-multiprocessing batch-run (uncomment the lines above and comment the lines below) if the multiprocessing one doesn't work for some reason
+    '''batch_run = BatchRunner(Simulation,
                             variable_params,
                             fixed_params,
                             iterations=1,
@@ -41,9 +39,9 @@ if __name__ == '__main__':
     plt.scatter(run_data['alpha'], run_data['#Pools'])
     plt.xlabel("α")
     plt.ylabel("#pools")
-    plt.show()
+    plt.show()'''
+    # only use the non-multiprocessing batch-run (uncomment the lines above and comment the lines below) if the multiprocessing one doesn't work for some reason
 
-    # Run the models using multiprocessing (takes less than 30'')
     batch_run_MP = BatchRunnerMP(Simulation,
                                  nr_processes=12,
                                  variable_parameters=variable_params,
@@ -57,10 +55,10 @@ if __name__ == '__main__':
 
     # Extract data from the batch runner
     run_data_MP = batch_run_MP.get_model_vars_dataframe()
-    print(run_data_MP.head())
+    #print(run_data_MP.head())
     plt.figure()
-    plt.scatter(run_data_MP['alpha'], run_data_MP['#Pools'])
-    plt.xlabel("α")
+    plt.scatter(run_data_MP['k'], run_data_MP['#Pools'])
+    plt.xlabel("k")
     plt.ylabel("#pools")
     plt.show()
 

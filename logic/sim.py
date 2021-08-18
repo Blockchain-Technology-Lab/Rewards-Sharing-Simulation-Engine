@@ -101,7 +101,7 @@ class Simulation(Model):
                  common_cost=1e-4, cost_min=0.001, cost_max=0.002, player_activation_order="Random", total_stake=1
                  ):
 
-        # todo make sure that the input is valid?
+        # todo make sure that the input is valid? n > 0, 0 < k <= n
 
         self.arguments = locals()  # only used for naming the output files appropriately
         if seed is not None:
@@ -218,10 +218,9 @@ class Simulation(Model):
 
     def dump_state_to_csv(self):
         row_list = [
-            ["Owner id", "Pool id", "Pool rank (desirability)", "Cost rank", "Owner stake", "Pool stake",
-             "Pool pledge", "Pool cost", "Pool margin",
-             "Perfect margin", "Pool potential profit", "Pool desirability", "Owner potential profit rank",
-             "Owner stake rank", "Private pool"]]
+            ["Owner id", "Pool id", "Pool stake", "Pool margin", "Perfect margin", "Pool pledge",
+             "Owner stake", "Owner stake rank", "Pool cost", "Cost rank", "Pool desirability",
+             "Pool potential profit", "Owner potential profit rank", "Pool status"]]
         players = self.get_players_dict()
         pools = self.get_pools_list()
         potential_profits = {
@@ -231,14 +230,11 @@ class Simulation(Model):
         stakes = {player_id: player.stake for player_id, player in players.items()}
         stake_ranks = hlp.calculate_ranks(stakes)
         negative_cost_ranks = hlp.calculate_ranks({player_id: -player.cost for player_id, player in players.items()})
-        pool_ranks_desirability = hlp.calculate_ranks({pool.id: pool.calculate_desirability() for pool in pools})
         row_list.extend(
-            [[pool.owner, pool.id, pool_ranks_desirability[pool.id], negative_cost_ranks[pool.owner],
-              players[pool.owner].stake,
-              pool.stake, pool.pledge, pool.cost, pool.margin,
-              players[pool.owner].calculate_margin_perfect_strategy(), pool.potential_profit,
-              pool.calculate_desirability(), potential_profit_ranks[pool.owner],
-              stake_ranks[pool.owner], pool.is_private]
+            [[pool.owner, pool.id, pool.stake, pool.margin, players[pool.owner].calculate_margin_perfect_strategy(),
+              pool.pledge, players[pool.owner].stake, stake_ranks[pool.owner], pool.cost,
+              negative_cost_ranks[pool.owner], pool.calculate_desirability(), pool.potential_profit,
+              potential_profit_ranks[pool.owner], "Private" if pool.is_private else "Public"]
              for pool in pools])
         # current_datetime = time.strftime("%Y%m%d_%H%M%S")
         current_run_descriptor = "".join(['-' + str(key) + '=' + str(value) for key, value in self.__dict__.items()
@@ -249,32 +245,6 @@ class Simulation(Model):
         with open(filename, 'w', newline='') as file:
             writer = csv.writer(file)
             writer.writerows(row_list)
-        print("Final configuration")
-        for row in row_list:
-            print(row)
-
-        sim_df = self.datacollector.get_model_vars_dataframe()
-
-        '''desirabilities = sim_df["DesirabilitiesByPool"]
-        filename = path / ('desirabilities_by_step' + current_run_descriptor + '.csv')
-        with open(filename, 'w', newline='') as file:
-            writer = csv.writer(file)
-            writer.writerow(
-                [(str(pool_id) + " | " + str(owner_id)) for pool_id, owner_id in self.pool_owner_id_mapping.items()])
-            writer.writerows(desirabilities)'''
-
-        '''pool_sizes_by_step = sim_df["PoolSizesByPool"]
-        filename = path / ('pool_sizes_by_step' + current_run_descriptor + '.csv')
-        with open(filename, 'w', newline='') as file:
-            writer = csv.writer(file)
-            header_row = [(str(pool_id) + " | " + str(owner_id)) for pool_id, owner_id in
-                          self.pool_owner_id_mapping.items()]
-            header_row.append("sum")
-            writer.writerow(header_row)
-            for row in pool_sizes_by_step:
-                total_pool_stake = sum(row) if len(row) > 0 else 0
-                row.append(total_pool_stake)
-                writer.writerow(row)'''
 
     def get_pools_list(self):
         return list(self.pools.values())
