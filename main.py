@@ -27,7 +27,7 @@ def main():
                         help='The parameter that determines the shape of the distribution that the stake will be '
                              'sampled from. Default is 2.')
     parser.add_argument('--inertia_ratio', type=float, default=0.1,
-                        help='The utility increase ratio under which moves are disregarded. Default is 10%.')
+                        help='The utility increase ratio under which moves are disregarded. Default is 10%%.')
     parser.add_argument('--player_activation_order', type=str, default='Random',
                         help='Player activation order. Default is random.')
     parser.add_argument('--seed', type=int, default=42,
@@ -42,6 +42,9 @@ def main():
                         help='Are individual players allowed to create multiple pools? Default is yes.')
     parser.add_argument('--max_iterations', type=int, default=1000,
                         help='The maximum number of iterations of the system. Default is 1000.')
+    parser.add_argument('--ms', type=int, default=10,
+                        help='The minimum consecutive idle steps that are required to declare convergence. '
+                             'Default is 10. But if min_steps_to_keep_pool > ms then ms = min_steps_to_keep_pool + 1. ')
 
     args = parser.parse_args()
 
@@ -75,9 +78,13 @@ def main():
             pkl.dump(pool_nums, pkl_file)
     plt.figure()
     pool_nums.plot()
+    if sim.schedule.steps < sim.max_iterations:
+        equilibrium_step = len(pool_nums) - sim.min_consecutive_idle_steps_for_convergence
+        plt.axvline(x=equilibrium_step, label="Equilibrium at step {}".format(equilibrium_step), c='r')
     plt.title("Number of pools over time")
     plt.ylabel("#Pools")
     plt.xlabel("Round")
+    plt.legend()
     plt.savefig(figures_dir + "poolCount" + current_run_descriptor + ".png", bbox_inches='tight')
 
     pool_sizes_by_step = sim_df["PoolSizes"]  # todo fix
@@ -91,7 +98,7 @@ def main():
     plt.ylabel("Stake")
     plt.savefig(figures_dir + "poolDynamics.png", bbox_inches='tight')'''
 
-    last_stakes = sim_df["StakePairs"].iloc[-1]
+    '''last_stakes = sim_df["StakePairs"].iloc[-1]
     x = last_stakes['x']
     y = last_stakes['y']
     plt.figure()
@@ -99,14 +106,17 @@ def main():
     plt.title("Owner stake vs pool stake")
     plt.xlabel("Pool owner stake")
     plt.ylabel("Pool stake")
-    plt.savefig(figures_dir + "stakePairs" + current_run_descriptor + ".png", bbox_inches='tight')
+    plt.savefig(figures_dir + "stakePairs" + current_run_descriptor + ".png", bbox_inches='tight')'''
 
     avg_pledge = sim_df["AvgPledge"]
     plt.figure()
     avg_pledge.plot(color='r')
+    if sim.schedule.steps < sim.max_iterations:
+        plt.axvline(x=equilibrium_step, label="Equilibrium at step {}".format(equilibrium_step))
     plt.title("Average pledge over time")
     plt.ylabel("Average pledge")
     plt.xlabel("Round")
+    plt.legend()
     plt.savefig(figures_dir + "avgPledge" + current_run_descriptor + ".png", bbox_inches='tight')
 
     plt.show()

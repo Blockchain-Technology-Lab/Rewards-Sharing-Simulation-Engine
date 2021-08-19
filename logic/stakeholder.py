@@ -25,7 +25,7 @@ class Stakeholder(Agent):
         self.stake = stake
         self.isMyopic = is_myopic
         self.abstains = is_abstainer
-        self.min_steps_to_keep_pool = 0
+        self.remaining_min_steps_to_keep_pool = 0
         self.new_strategy = None
 
         if strategy is None:
@@ -39,9 +39,9 @@ class Stakeholder(Agent):
             self.make_move()
             if self.model.player_activation_order != "Simultaneous":
                 self.advance()
-            if self.min_steps_to_keep_pool > 0:
+            if self.remaining_min_steps_to_keep_pool > 0:
                 # For players that are recently opened a pool
-                self.min_steps_to_keep_pool -= 1
+                self.remaining_min_steps_to_keep_pool -= 1
 
     # When players make moves simultaneously, "step() activates the agent and stages any necessary changes,
     # but does not apply them yet, and advance() then applies the changes"
@@ -62,7 +62,7 @@ class Stakeholder(Agent):
 
         # For all players, find a possible delegation strategy and calculate its potential utility
         # unless they are pool operators with recently opened pools (we assume that they will keep them at least for a bit)
-        if self.min_steps_to_keep_pool == 0:
+        if self.remaining_min_steps_to_keep_pool == 0:
             delegator_strategy = self.find_delegation_move_desirability()
             delegator_utility = self.calculate_utility(delegator_strategy)
             possible_moves["delegator"] = delegator_utility, delegator_strategy
@@ -177,7 +177,8 @@ class Stakeholder(Agent):
         or delegated to an oversaturated pool that yields suboptimal rewards)
 
         If there are enough pools to cover all players' stake without causing oversaturation,
-        then the player only opens a pool if his potential profit is higher than anyone who already owns a pool
+        then the player only opens a pool if the maximum possible desirability of their pool
+        (aka the potential profit) is higher than the desirability of at least one currently active pool
         (with the perspective of "stealing" the delegators from that pool)
 
         :return: bool
@@ -337,9 +338,12 @@ class Stakeholder(Agent):
             current_num_pools = self.strategy.num_pools
             if current_num_pools > 0:
                 num_pools_options.add(current_num_pools)
-                if current_num_pools > 1 and self.min_steps_to_keep_pool == 0:
-                    # in case an operator has recently opened a new pool, they are not allowed to close any, so only the 2 first cases are checked
-                    num_pools_options.add(current_num_pools - 1)
+                if current_num_pools > 1:
+                    if self.remaining_min_steps_to_keep_pool > 0:
+                        # in case an operator has recently opened a new pool, they are not allowed to close any, so only the 2 first cases are checked
+                        num_pools_options.remove(1)
+                    else:
+                        num_pools_options.add(current_num_pools - 1)
             num_pools_options.add(current_num_pools + 1)
         for num_pools in num_pools_options:
             owned_pools = self.determine_current_pools(num_pools)
@@ -489,7 +493,7 @@ class Stakeholder(Agent):
 
     def open_pool(self, pool_id):
         self.model.pools[pool_id] = self.strategy.owned_pools[pool_id]
-        self.min_steps_to_keep_pool = self.model.min_steps_to_keep_pool
+        self.remaining_min_steps_to_keep_pool = self.model.min_steps_to_keep_pool
 
     def close_pool(self, pool_id):
         pools = self.model.pools

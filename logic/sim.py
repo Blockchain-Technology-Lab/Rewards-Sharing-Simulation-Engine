@@ -98,7 +98,8 @@ class Simulation(Model):
 
     def __init__(self, n=100, k=10, alpha=0.3, myopic_fraction=0.1, abstaining_fraction=0.1, inertia_ratio=0.1,
                  min_steps_to_keep_pool=5, pool_splitting=True, seed=42, pareto_param=2.0, max_iterations=1000,
-                 common_cost=1e-4, cost_min=0.001, cost_max=0.002, player_activation_order="Random", total_stake=1
+                 common_cost=1e-4, cost_min=0.001, cost_max=0.002, player_activation_order="Random", total_stake=1,
+                 ms=10
                  ):
 
         # todo make sure that the input is valid? n > 0, 0 < k <= n
@@ -125,7 +126,7 @@ class Simulation(Model):
         self.schedule = self.player_activation_orders[player_activation_order](self)
         self.consecutive_idle_steps = 0  # steps towards convergence
         self.current_step_idle = True
-        self.min_consecutive_idle_steps_for_convergence = max(min_steps_to_keep_pool + 1, 10)
+        self.min_consecutive_idle_steps_for_convergence = max(min_steps_to_keep_pool + 1, ms)
         self.pools = dict()
         # self.initial_states = {"inactive":0, "maximally_decentralised":1, "nicely_decentralised":2} todo maybe support different initial states
 

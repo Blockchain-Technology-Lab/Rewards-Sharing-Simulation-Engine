@@ -5,20 +5,15 @@ from mesa.batchrunner import BatchRunnerMP
 import time
 import matplotlib.pyplot as plt
 
-from logic.sim import Simulation
-from logic.sim import get_number_of_pools
+import logic.sim as sim
 
 if __name__ == '__main__':
-    #freeze_support()  # needed for multiprocessing to work on windows systems (comment out line to run on linux / uncomment for windows)
+    # freeze_support()  # needed for multiprocessing to work on windows systems (comment out line to run on linux / uncomment for windows)
 
-    fixed_params = {"n": 100,
-                    "total_stake": 1,
-                    "max_iterations": 50,
-                    "player_activation_order": "Random"}
+    fixed_params = {"n": 100}
 
-    variable_params = {"k":[5,10,15,20,25,30]}
-                       #"alpha": [0.01, 0.3]}
-                       #"pareto_param": [1, 1.5, 2]}
+    variable_params = {"k": [k for k in range(1, 31)]}
+    #variable_params = {"alpha": [a/10 for a in range(11)]}
     # todo figure out how to run the model with only certain combinations of the variable params
 
     # only use the non-multiprocessing batch-run (uncomment the lines above and comment the lines below) if the multiprocessing one doesn't work for some reason
@@ -42,24 +37,27 @@ if __name__ == '__main__':
     plt.show()'''
     # only use the non-multiprocessing batch-run (uncomment the lines above and comment the lines below) if the multiprocessing one doesn't work for some reason
 
-    batch_run_MP = BatchRunnerMP(Simulation,
+    batch_run_MP = BatchRunnerMP(sim.Simulation,
                                  nr_processes=12,
                                  variable_parameters=variable_params,
                                  fixed_parameters=fixed_params,
                                  iterations=1,
                                  max_steps=100,
-                                 model_reporters={"#Pools": get_number_of_pools})
+                                 model_reporters={"#Pools": sim.get_number_of_pools, "avgPledge": sim.get_avg_pledge})
     start_time = time.time()
     batch_run_MP.run_all()
     print("Batch run with multiprocessing:  {:.2f} seconds".format(time.time() - start_time))
 
     # Extract data from the batch runner
     run_data_MP = batch_run_MP.get_model_vars_dataframe()
-    #print(run_data_MP.head())
+    # print(run_data_MP.head())
     plt.figure()
     plt.scatter(run_data_MP['k'], run_data_MP['#Pools'])
     plt.xlabel("k")
     plt.ylabel("#pools")
+    '''plt.scatter(run_data_MP['alpha'], run_data_MP['avgPledge'], c='r')
+    plt.xlabel("alpha")
+    plt.ylabel("Average pledge")'''
     plt.show()
 
     # ordered dicts with data from each step of each run (the combinations of variable params act as the keys)
