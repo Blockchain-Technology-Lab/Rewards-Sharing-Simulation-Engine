@@ -1,6 +1,8 @@
 import helper as hlp
 
 
+# todo add more tests
+
 def test_generate_stake_distr():
     assert True
 

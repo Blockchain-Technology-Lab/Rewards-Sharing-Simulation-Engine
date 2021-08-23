@@ -20,7 +20,7 @@ MAX_NUM_POOLS = 1000
 
 
 def get_number_of_pools(model):
-    return len(model.get_pools_list())
+    return len(model.pools)
 
 
 def get_pool_sizes(model):
@@ -62,6 +62,13 @@ def get_avg_pledge(model):
     return sum(current_pool_pledges) / len(current_pool_pledges) if len(current_pool_pledges) > 0 else 0
 
 
+def get_avg_pools_per_operator(model):
+    current_pools = model.pools
+    current_num_pools = len(current_pools)
+    current_num_operators = len(set([pool.owner for pool in current_pools.values()]))
+    return current_num_pools / current_num_operators
+
+
 def get_stakes_n_margins(model):
     players = model.get_players_dict()
     pools = model.get_pools_list()
@@ -99,7 +106,7 @@ class Simulation(Model):
     def __init__(self, n=100, k=10, alpha=0.3, myopic_fraction=0.1, abstaining_fraction=0.1, inertia_ratio=0.1,
                  min_steps_to_keep_pool=5, pool_splitting=True, seed=42, pareto_param=2.0, max_iterations=1000,
                  common_cost=1e-4, cost_min=0.001, cost_max=0.002, player_activation_order="Random", total_stake=1,
-                 ms=10
+                 ms=10, simulation_id=''
                  ):
 
         # todo make sure that the input is valid? n > 0, 0 < k <= n
@@ -121,6 +128,9 @@ class Simulation(Model):
         self.beta = 1 / k
         self.total_stake = total_stake
         self.player_activation_order = player_activation_order
+        self.simulation_id = simulation_id if simulation_id != '' else \
+            "".join(['-' + str(key) + '=' + str(value) for key, value in self.arguments.items()
+                     if type(value) == bool or type(value) == int or type(value) == float])[:147]
 
         self.running = True  # for batch running and visualisation purposes
         self.schedule = self.player_activation_orders[player_activation_order](self)
@@ -219,9 +229,9 @@ class Simulation(Model):
 
     def dump_state_to_csv(self):
         row_list = [
-            ["Owner id", "Pool id", "Pool stake", "Pool margin", "Perfect margin", "Pool pledge",
-             "Owner stake", "Owner stake rank", "Pool cost", "Cost rank", "Pool desirability",
-             "Pool potential profit", "Owner potential profit rank", "Pool status"]]
+            ["Owner id", "Pool id", "Pool stake", "Margin", "Perfect margin", "Pledge",
+             "Owner stake", "Owner stake rank", "Pool cost", "Owner cost rank", "Pool desirability",
+             "Pool potential profit", "Owner PP rank", "Pool status"]]
         players = self.get_players_dict()
         pools = self.get_pools_list()
         potential_profits = {
@@ -231,18 +241,21 @@ class Simulation(Model):
         stakes = {player_id: player.stake for player_id, player in players.items()}
         stake_ranks = hlp.calculate_ranks(stakes)
         negative_cost_ranks = hlp.calculate_ranks({player_id: -player.cost for player_id, player in players.items()})
+        decimals = 4
         row_list.extend(
-            [[pool.owner, pool.id, pool.stake, pool.margin, players[pool.owner].calculate_margin_perfect_strategy(),
-              pool.pledge, players[pool.owner].stake, stake_ranks[pool.owner], pool.cost,
-              negative_cost_ranks[pool.owner], pool.calculate_desirability(), pool.potential_profit,
-              potential_profit_ranks[pool.owner], "Private" if pool.is_private else "Public"]
+            [[pool.owner, pool.id, round(pool.stake, decimals), round(pool.margin, decimals),
+              round(players[pool.owner].calculate_margin_perfect_strategy(), decimals),
+              round(pool.pledge, decimals), round(players[pool.owner].stake, decimals), stake_ranks[pool.owner],
+              round(pool.cost, decimals),
+              negative_cost_ranks[pool.owner], round(pool.calculate_desirability(), decimals),
+              round(pool.potential_profit, decimals), potential_profit_ranks[pool.owner],
+              "Private" if pool.is_private else "Public"]
              for pool in pools])
-        # current_datetime = time.strftime("%Y%m%d_%H%M%S")
-        current_run_descriptor = "".join(['-' + str(key) + '=' + str(value) for key, value in self.__dict__.items()
-                                          if type(value) == bool or type(value) == int or type(value) == float])[:147]
+
         path = Path.cwd() / "output"
         Path(path).mkdir(parents=True, exist_ok=True)
-        filename = path / ('final_configuration' + current_run_descriptor + '.csv')
+        filename = (path / (self.simulation_id + '-final_configuration.csv')) \
+            if self.has_converged() else (path / (self.simulation_id + '-intermediate-configuration.csv'))
         with open(filename, 'w', newline='') as file:
             writer = csv.writer(file)
             writer.writerows(row_list)

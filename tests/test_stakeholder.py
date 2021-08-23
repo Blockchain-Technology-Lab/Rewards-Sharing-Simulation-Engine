@@ -6,6 +6,8 @@ from stakeholder import Stakeholder
 from strategy import Strategy
 
 
+# todo add more tests
+
 def test_step():
     stakeholder = Stakeholder()
     assert False
@@ -56,6 +58,7 @@ def test_calculate_margin_simple():
 
 def test_calculate_margin_perfect_strategy():
     assert False
+
 
 # todo test going from 2 pools to 1 pool, 2 pools to 3 pools, 1 pool to 1 pool
 def test_find_operator_move():

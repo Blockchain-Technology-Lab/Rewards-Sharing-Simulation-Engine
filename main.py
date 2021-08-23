@@ -35,9 +35,9 @@ def main():
     parser.add_argument("--min_steps_to_keep_pool", type=int, default=5,
                         help='The number of steps for which a player remains idle after opening a pool. Default is 5.')
     parser.add_argument('--myopic_fraction', type=float, default=0.1,
-                        help='The fraction of myopic players in the simulation. Default is 0.')
+                        help='The fraction of myopic players in the simulation. Default is 10%%.')
     parser.add_argument('--abstaining_fraction', type=float, default=0.1,
-                        help='The percentage of players that will abstain from the game in this run.')
+                        help='The percentage of players that will abstain from the game in this run. Default is 10%%.')
     parser.add_argument('--pool_splitting', type=bool, default=True, action=argparse.BooleanOptionalAction,
                         help='Are individual players allowed to create multiple pools? Default is yes.')
     parser.add_argument('--max_iterations', type=int, default=1000,
@@ -45,6 +45,9 @@ def main():
     parser.add_argument('--ms', type=int, default=10,
                         help='The minimum consecutive idle steps that are required to declare convergence. '
                              'Default is 10. But if min_steps_to_keep_pool > ms then ms = min_steps_to_keep_pool + 1. ')
+    parser.add_argument('--simulation_id', type=str, default='',
+                        help='An optional identifier for the specific simulation run, '
+                             'which will be included in the output.')
 
     args = parser.parse_args()
 
@@ -56,7 +59,8 @@ def main():
                      player_activation_order=args.player_activation_order,
                      seed=args.seed, min_steps_to_keep_pool=args.min_steps_to_keep_pool,
                      myopic_fraction=args.myopic_fraction, abstaining_fraction=args.abstaining_fraction,
-                     pool_splitting=args.pool_splitting, max_iterations=args.max_iterations
+                     pool_splitting=args.pool_splitting, max_iterations=args.max_iterations,
+                     ms=args.ms, simulation_id=args.simulation_id
                      )
 
     sim.run_model()
@@ -64,16 +68,21 @@ def main():
     sim_df = sim.datacollector.get_model_vars_dataframe()
 
     sim_params = sim.arguments
-    current_run_descriptor = "".join(['-' + str(key) + '=' + str(value) for key, value in sim_params.items()
-                                      if type(value) == bool or type(value) == int or type(value) == float])[:180]
-    figures_dir = "figures/"
+    simulation_id = args.simulation_id
+    if simulation_id == '':
+        # No identifier was provided by the user, so we construct one based on the simulation's parameter values
+        simulation_id = "".join(['-' + str(key) + '=' + str(value) for key, value in sim_params.items()
+                                 if type(value) == bool or type(value) == int or type(value) == float])[:180]
+    output_dir = "output/"
+    figures_dir = "output/figures/"
     path = Path.cwd() / figures_dir
     Path(path).mkdir(parents=True, exist_ok=True)
 
     pool_nums = sim_df["#Pools"]
     if sim.schedule.steps >= sim.max_iterations:
-        # If the max number of iterations was reached, then we want to analyse the statistic properties of the execution
-        filename = figures_dir + "poolCount" + current_run_descriptor + ".pkl"
+        # If the max number of iterations was reached, then we save the data about the pool numbers
+        # in order to later analyse the statistic properties of the execution
+        filename = output_dir + simulation_id + "-poolCount" + ".pkl"
         with open(filename, "wb") as pkl_file:
             pkl.dump(pool_nums, pkl_file)
     plt.figure()
@@ -85,7 +94,7 @@ def main():
     plt.ylabel("#Pools")
     plt.xlabel("Round")
     plt.legend()
-    plt.savefig(figures_dir + "poolCount" + current_run_descriptor + ".png", bbox_inches='tight')
+    plt.savefig(figures_dir + simulation_id + "-poolCount" + ".png", bbox_inches='tight')
 
     pool_sizes_by_step = sim_df["PoolSizes"]  # todo fix
     # print(pool_sizes_by_step)
@@ -117,15 +126,13 @@ def main():
     plt.ylabel("Average pledge")
     plt.xlabel("Round")
     plt.legend()
-    plt.savefig(figures_dir + "avgPledge" + current_run_descriptor + ".png", bbox_inches='tight')
+    plt.savefig(figures_dir + simulation_id + "-avgPledge" + ".png", bbox_inches='tight')
 
-    plt.show()
+    #plt.show()
 
 
-if __name__ == "__main__":
-    main()  # for profiling the code, comment this line and uncomment the ones below
-
-    '''import cProfile
+def main_with_profiling():
+    import cProfile
     from pstats import Stats
 
     pr = cProfile.Profile()
@@ -135,4 +142,10 @@ if __name__ == "__main__":
 
     pr.disable()
     stats = Stats(pr)
-    stats.sort_stats('tottime').print_stats(10)'''
+    stats.sort_stats('tottime').print_stats(10)
+
+
+if __name__ == "__main__":
+    main()  # for profiling the code, comment this line and uncomment the one below
+    #main_with_profiling()
+
