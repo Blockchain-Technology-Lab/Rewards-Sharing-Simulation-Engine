@@ -56,7 +56,7 @@ def main():
     sim = Simulation(n=args.n, k=args.k, alpha=args.alpha,
                      cost_min=args.cost_min, cost_max=args.cost_max, common_cost=args.common_cost,
                      pareto_param=args.pareto_param, inertia_ratio=args.inertia_ratio,
-                     player_activation_order=args.player_activation_order,
+                     player_activation_order=args.player_activation_order.capitalize(),
                      seed=args.seed, min_steps_to_keep_pool=args.min_steps_to_keep_pool,
                      myopic_fraction=args.myopic_fraction, abstaining_fraction=args.abstaining_fraction,
                      pool_splitting=args.pool_splitting, max_iterations=args.max_iterations,

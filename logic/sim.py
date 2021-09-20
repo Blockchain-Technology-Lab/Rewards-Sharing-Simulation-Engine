@@ -14,6 +14,7 @@ from mesa.datacollection import DataCollector
 from mesa.time import BaseScheduler, SimultaneousActivation, RandomActivation
 
 from logic.stakeholder import Stakeholder
+from logic.activations import SemiSimultaneousActivation
 import logic.helper as hlp
 
 MAX_NUM_POOLS = 1000
@@ -98,7 +99,8 @@ class Simulation(Model):
     player_activation_orders = {
         "Random": RandomActivation,
         "Sequential": BaseScheduler,
-        "Simultaneous": SimultaneousActivation
+        "Simultaneous": SimultaneousActivation,
+        "Semisimultaneous": SemiSimultaneousActivation
         # todo during simultaneous activation players apply their moves sequentially which may not be the expected behaviour
 
     }
