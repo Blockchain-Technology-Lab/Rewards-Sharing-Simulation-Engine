@@ -37,7 +37,7 @@ class Stakeholder(Agent):
     def step(self):
         if not self.abstains:
             self.make_move()
-            if self.model.player_activation_order != "Simultaneous":
+            if "simultaneous" not in self.model.player_activation_order.lower():
                 self.advance()
             if self.remaining_min_steps_to_keep_pool > 0:
                 # For players that are recently opened a pool
@@ -105,8 +105,6 @@ class Stakeholder(Agent):
         for pool_id, a in strategy.stake_allocations.items():
             if a <= 0:
                 continue
-                # raise NonPositiveAllocationError(
-                #   "Player tried to allocate zero or less stake to a pool.")  # todo replace with ValueError?
             if pool_id in pools:
                 pool = pools[pool_id]
                 utility += self.calculate_delegator_utility(pool, a)
