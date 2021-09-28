@@ -16,7 +16,7 @@ from interactiveViz.myChartModule import MyChartModule
 
 from logic.sim import MAX_NUM_POOLS
 
-poolsChart = MyChartModule([{"label": "#Pools","title": "Number of pools over time", "xLabel": "Iteration",
+poolsChart = MyChartModule([{"label": "#Pools", "title": "Number of pools over time", "xLabel": "Iteration",
                              "yLabel": "#Pools", "tooltipText": " pools", "color": "Blue"}])
 
 poolDynamicsStackedChart = StackedChartModule([{"Label": "PoolSizes", "tooltipText": " Pool", "xLabel": "Iteration",
@@ -52,9 +52,13 @@ model_params = {
         "slider", "Pareto shape value", 2, 0.1, 5, 0.1,
         description="The parameter that determines the shape of the distribution that the stake will be sampled from"
     ),
-    "inertia_ratio": UserSettableParameter(
-        "slider", "Inertia ratio", 0.1, 0.0, 1, 0.001,
-        description="The utility increase threshold under which moves are disregarded."
+    "relative_utility_threshold": UserSettableParameter(
+        "slider", "Relative utility threshold", 0.1, 0.0, 1, 0.001,
+        description="The relative utility increase threshold under which moves are disregarded."
+    ),
+    "absolute_utility_threshold": UserSettableParameter(
+        "slider", "Absolute utility threshold", 1e-9, 0.0, 00.1, 0.0000001,
+        description="The absolute utility threshold under which moves are disregarded."
     ),
     "player_activation_order": UserSettableParameter("choice", "Player activation order",
                                                      value="Random",
@@ -67,8 +71,8 @@ model_params = {
         description="The number of steps for which a player remains idle after opening a pool."
     ),
     "myopic_fraction": UserSettableParameter(
-            "slider", "Myopic fraction", 0.1, 0.0, 1.0, 0.01,
-            description="The fraction of myopic players in the simulation."
+        "slider", "Myopic fraction", 0.1, 0.0, 1.0, 0.01,
+        description="The fraction of myopic players in the simulation."
     ),
     "abstaining_fraction": UserSettableParameter(
         "slider", "Abstaining fraction", 0.1, 0.0, 1.0, 0.01,
@@ -93,5 +97,5 @@ server = ModularServer(Simulation,
                        "PoS Pooling Games",
                        model_params)
 
-server.port = 8521 # todo change to allow simultaneous runs?
+server.port = 8521
 server.launch()

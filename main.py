@@ -26,8 +26,10 @@ def main():
     parser.add_argument('--pareto_param', type=float, default=2.0,
                         help='The parameter that determines the shape of the distribution that the stake will be '
                              'sampled from. Default is 2.')
-    parser.add_argument('--inertia_ratio', type=float, default=0.1,
+    parser.add_argument('--relative_utility_threshold', type=float, default=0.1,
                         help='The utility increase ratio under which moves are disregarded. Default is 10%%.')
+    parser.add_argument('--absolute_utility_threshold', type=float, default=1e-9,
+                        help='The utility threshold under which moves are disregarded. Default is 1e-9.')
     parser.add_argument('--player_activation_order', type=str, default='Random',
                         help='Player activation order. Default is random.')
     parser.add_argument('--seed', type=int, default=42,
@@ -55,7 +57,8 @@ def main():
     # todo make it possible to run more simulations w/o having to rerun the program (e.g. press any key to continue)
     sim = Simulation(n=args.n, k=args.k, alpha=args.alpha,
                      cost_min=args.cost_min, cost_max=args.cost_max, common_cost=args.common_cost,
-                     pareto_param=args.pareto_param, inertia_ratio=args.inertia_ratio,
+                     pareto_param=args.pareto_param, relative_utility_threshold=args.relative_utility_threshold,
+                     absolute_utility_threshold=args.absolute_utility_threshold,
                      player_activation_order=args.player_activation_order.capitalize(),
                      seed=args.seed, min_steps_to_keep_pool=args.min_steps_to_keep_pool,
                      myopic_fraction=args.myopic_fraction, abstaining_fraction=args.abstaining_fraction,

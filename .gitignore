@@ -2,6 +2,8 @@
 **.py~
 **.csv
 **.spec
+**.tex
+**.sh
 **/dist
 **/build
 **/output

@@ -105,7 +105,8 @@ class Simulation(Model):
 
     }
 
-    def __init__(self, n=100, k=10, alpha=0.3, myopic_fraction=0.1, abstaining_fraction=0.1, inertia_ratio=0.1,
+    def __init__(self, n=100, k=10, alpha=0.3, myopic_fraction=0.1, abstaining_fraction=0.1,
+                 relative_utility_threshold=0.1, absolute_utility_threshold=1e-9,
                  min_steps_to_keep_pool=5, pool_splitting=True, seed=42, pareto_param=2.0, max_iterations=1000,
                  common_cost=1e-4, cost_min=0.001, cost_max=0.002, player_activation_order="Random", total_stake=1,
                  ms=10, simulation_id=''
@@ -122,7 +123,8 @@ class Simulation(Model):
         self.alpha = alpha
         self.myopic_fraction = myopic_fraction
         self.abstaining_fraction = abstaining_fraction
-        self.inertia_ratio = inertia_ratio
+        self.absolute_utility_threshold = absolute_utility_threshold
+        self.relative_utility_threshold = relative_utility_threshold
         self.min_steps_to_keep_pool = min_steps_to_keep_pool
         self.pool_splitting = pool_splitting
         self.common_cost = common_cost

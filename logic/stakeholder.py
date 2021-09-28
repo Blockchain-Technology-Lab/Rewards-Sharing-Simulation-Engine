@@ -56,9 +56,12 @@ class Stakeholder(Agent):
 
     def update_strategy(self):
         current_utility = self.calculate_utility(self.strategy)
+        current_utility_with_inertia = max(
+            (1 + self.model.relative_utility_threshold) * current_utility,
+            current_utility + self.model.absolute_utility_threshold
+        )
         # hold the player's potential moves in a dict, where the values are tuples of (utility, strategy)
-        possible_moves = {"current": (
-            (1 + self.model.inertia_ratio) * current_utility, self.strategy)}
+        possible_moves = {"current": (current_utility_with_inertia, self.strategy)}
 
         # For all players, find a possible delegation strategy and calculate its potential utility
         # unless they are pool operators with recently opened pools (we assume that they will keep them at least for a bit)
@@ -188,9 +191,9 @@ class Stakeholder(Agent):
         potential_profit = hlp.calculate_potential_profit(self.stake, self.cost, alpha, saturation_point)
         if len(current_pools) * saturation_point < self.model.total_stake:
             return potential_profit > 0
-        #potential_pool = Pool(pool_id=-1, cost=self.cost, pledge=self.stake, margin=0, owner=self.unique_id,
-        #alpha=self.model.alpha, beta=self.model.beta, is_private=self.stake >= self.model.beta)
-        #potential_desirability = potential_pool.calculate_desirability()
+        # potential_pool = Pool(pool_id=-1, cost=self.cost, pledge=self.stake, margin=0, owner=self.unique_id,
+        # alpha=self.model.alpha, beta=self.model.beta, is_private=self.stake >= self.model.beta)
+        # potential_desirability = potential_pool.calculate_desirability()
 
         existing_desirabilities = [pool.calculate_desirability() for pool in current_pools]
         # Note that the potential profit is equal to the desirability of a pool with 0 margin,
@@ -299,8 +302,9 @@ class Stakeholder(Agent):
         # first calculate the potential profits of all players
         players = self.model.get_players_dict()
         potential_profits = {player_id:
-            hlp.calculate_potential_profit(player.stake, player.cost, self.model.alpha, self.model.beta)
-            for player_id, player in players.items()}
+                                 hlp.calculate_potential_profit(player.stake, player.cost, self.model.alpha,
+                                                                self.model.beta)
+                             for player_id, player in players.items()}
 
         potential_profit_ranks = hlp.calculate_ranks(potential_profits)
         k = self.model.k
@@ -487,7 +491,8 @@ class Stakeholder(Agent):
             if current_pools[pool_id] is not None:  # todo can't really be none here, right?
                 # add or subtract the relevant stake from the pool if it hasn't closed
                 if allocation_change != 0:
-                    current_pools[pool_id].update_delegation(stake=allocation_changes[pool_id], delegator_id=self.unique_id)
+                    current_pools[pool_id].update_delegation(stake=allocation_changes[pool_id],
+                                                             delegator_id=self.unique_id)
 
     def open_pool(self, pool_id):
         self.model.pools[pool_id] = self.strategy.owned_pools[pool_id]
@@ -516,7 +521,6 @@ class Stakeholder(Agent):
                 # Also remove pool from players' upcoming moves in case of simultenous activation
                 if player.new_strategy is not None:
                     player.new_strategy.stake_allocations.pop(pool_id)
-
 
     def get_status(self):
         print("Agent id: {}, is myopic: {}, stake: {}, cost:{}"
