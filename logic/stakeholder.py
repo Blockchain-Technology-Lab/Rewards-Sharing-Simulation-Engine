@@ -189,7 +189,7 @@ class Stakeholder(Agent):
         current_pools = self.model.get_pools_list()
 
         potential_profit = hlp.calculate_potential_profit(self.stake, self.cost, alpha, saturation_point)
-        if len(current_pools) * saturation_point < self.model.total_stake:
+        if len(current_pools) * saturation_point < self.model.perceived_active_stake: # note that we use active stake instead of total stake
             return potential_profit > 0
         # potential_pool = Pool(pool_id=-1, cost=self.cost, pledge=self.stake, margin=0, owner=self.unique_id,
         # alpha=self.model.alpha, beta=self.model.beta, is_private=self.stake >= self.model.beta)

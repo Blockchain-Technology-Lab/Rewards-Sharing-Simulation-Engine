@@ -7,7 +7,8 @@ Created on Thu Jun 10 12:59:49 2021
 import random
 import csv
 import time
-from pathlib import Path
+import pathlib
+import math
 
 from mesa import Model
 from mesa.datacollection import DataCollector
@@ -105,7 +106,7 @@ class Simulation(Model):
 
     }
 
-    def __init__(self, n=100, k=10, alpha=0.3, myopic_fraction=0.1, abstaining_fraction=0.1,
+    def __init__(self, n=100, k=10, alpha=0.3, myopic_fraction=0.1, abstention_rate=0.1,
                  relative_utility_threshold=0.1, absolute_utility_threshold=1e-9,
                  min_steps_to_keep_pool=5, pool_splitting=True, seed=42, pareto_param=2.0, max_iterations=1000,
                  common_cost=1e-4, cost_min=0.001, cost_max=0.002, player_activation_order="Random", total_stake=1,
@@ -122,15 +123,16 @@ class Simulation(Model):
         self.k = k
         self.alpha = alpha
         self.myopic_fraction = myopic_fraction
-        self.abstaining_fraction = abstaining_fraction
+        self.abstention_rate = abstention_rate
         self.absolute_utility_threshold = absolute_utility_threshold
         self.relative_utility_threshold = relative_utility_threshold
         self.min_steps_to_keep_pool = min_steps_to_keep_pool
         self.pool_splitting = pool_splitting
         self.common_cost = common_cost
         self.max_iterations = max_iterations
-        self.beta = 1 / k
         self.total_stake = total_stake
+        self.perceived_active_stake = total_stake
+        self.beta = total_stake / k
         self.player_activation_order = player_activation_order
         self.simulation_id = simulation_id if simulation_id != '' else \
             "".join(['-' + str(key) + '=' + str(value) for key, value in self.arguments.items()
@@ -142,6 +144,7 @@ class Simulation(Model):
         self.current_step_idle = True
         self.min_consecutive_idle_steps_for_convergence = max(min_steps_to_keep_pool + 1, ms)
         self.pools = dict()
+        self.revision_frequency = 10  # defines how often active stake and expected #pools are revised
         # self.initial_states = {"inactive":0, "maximally_decentralised":1, "nicely_decentralised":2} todo maybe support different initial states
 
         self.initialise_pool_id_seq()  # initialise pool id sequence for the new model run
@@ -168,7 +171,7 @@ class Simulation(Model):
         cost_distribution = hlp.generate_cost_distr(num_agents=self.n, low=cost_min, high=cost_max)
 
         num_myopic_agents = int(self.myopic_fraction * self.n)
-        num_abstaining_agents = int(self.abstaining_fraction * self.n)
+        num_abstaining_agents = int(self.abstention_rate * self.n)
         unique_ids = [i for i in range(self.n)]
         random.shuffle(unique_ids)
         # Create agents
@@ -198,6 +201,9 @@ class Simulation(Model):
         if self.start_time is None:
             self.start_time = time.time()
         self.datacollector.collect(self)
+
+        if self.schedule.steps > 0 and self.schedule.steps % self.revision_frequency == 0:
+            self.revise_beliefs()
 
         if self.schedule.steps >= self.max_iterations:
             self.running = False
@@ -256,8 +262,8 @@ class Simulation(Model):
               "Private" if pool.is_private else "Public"]
              for pool in pools])
 
-        path = Path.cwd() / "output"
-        Path(path).mkdir(parents=True, exist_ok=True)
+        path = pathlib.Path.cwd() / "output"
+        pathlib.Path(path).mkdir(parents=True, exist_ok=True)
         filename = (path / (self.simulation_id + '-final_configuration.csv')) \
             if self.has_converged() else (path / (self.simulation_id + '-intermediate-configuration.csv'))
         with open(filename, 'w', newline='') as file:
@@ -275,3 +281,17 @@ class Simulation(Model):
 
     def get_status(self):
         print("Step {}: {} pools".format(self.schedule.steps, len(self.pools)))
+
+    def revise_beliefs(self):
+        """
+        Revise the perceived active stake and expected number of pools,
+        to reflect the current state of the system
+        The value for the active stake is calculated based on the currently delegated stake
+        Note that this value is an estimate that the players can easily calculate and use with the knowledge they have,
+        it's not necessarily equal to the sum of all active players' stake
+        """
+        # Revise active stake
+        active_stake = sum([pool.stake for pool in self.pools.values()])
+        self.perceived_active_stake = active_stake
+        # Revise expected number of pools, k
+        self.k = math.ceil(active_stake / self.beta)

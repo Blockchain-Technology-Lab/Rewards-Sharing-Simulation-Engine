@@ -74,7 +74,7 @@ model_params = {
         "slider", "Myopic fraction", 0.1, 0.0, 1.0, 0.01,
         description="The fraction of myopic players in the simulation."
     ),
-    "abstaining_fraction": UserSettableParameter(
+    "abstention_rate": UserSettableParameter(
         "slider", "Abstaining fraction", 0.1, 0.0, 1.0, 0.01,
         description="The percentage of players that will abstain from the game in this run."
     ),

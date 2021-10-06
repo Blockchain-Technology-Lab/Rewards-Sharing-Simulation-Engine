@@ -38,7 +38,7 @@ def main():
                         help='The number of steps for which a player remains idle after opening a pool. Default is 5.')
     parser.add_argument('--myopic_fraction', type=float, default=0.1,
                         help='The fraction of myopic players in the simulation. Default is 10%%.')
-    parser.add_argument('--abstaining_fraction', type=float, default=0.1,
+    parser.add_argument('--abstention_rate', type=float, default=0.1,
                         help='The percentage of players that will abstain from the game in this run. Default is 10%%.')
     parser.add_argument('--pool_splitting', type=bool, default=True, action=argparse.BooleanOptionalAction,
                         help='Are individual players allowed to create multiple pools? Default is yes.')
@@ -61,7 +61,7 @@ def main():
                      absolute_utility_threshold=args.absolute_utility_threshold,
                      player_activation_order=args.player_activation_order.capitalize(),
                      seed=args.seed, min_steps_to_keep_pool=args.min_steps_to_keep_pool,
-                     myopic_fraction=args.myopic_fraction, abstaining_fraction=args.abstaining_fraction,
+                     myopic_fraction=args.myopic_fraction, abstention_rate=args.abstention_rate,
                      pool_splitting=args.pool_splitting, max_iterations=args.max_iterations,
                      ms=args.ms, simulation_id=args.simulation_id
                      )
