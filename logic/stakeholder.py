@@ -413,21 +413,22 @@ class Stakeholder(Agent):
 
         # todo should we allow players to delegate to their own pools? makes sense only if we consider that
         #  pledge is locked and delegation is not
-        pools_list = [pool for pool in pools.values() if pool.owner != self.unique_id]
+        pools_list = [pool for pool in pools.values() if pool.owner != self.unique_id and not pool.is_private]
 
         # Only proceed if there are active pools in the system that don't belong to the current player
         if len(pools_list) > 0:
             saturation_point = self.model.beta
             # todo maybe use potential profits instead of current stakes as tie breaker
             if self.isMyopic:
-                desirabilities_n_stakes = {pool.id: (pool.calculate_myopic_desirability(self.model.alpha, saturation_point),
-                                                     pool.stake)
-                                           for pool in pools_list
-                                           if not pool.is_private}
+                desirabilities_n_stakes = {
+                    pool.id: (pool.calculate_myopic_desirability(self.model.alpha, saturation_point), pool.stake)
+                    for pool in pools_list
+                }
             else:
-                desirabilities_n_stakes = {pool.id: (pool.calculate_desirability(), pool.stake)
-                                           for pool in pools_list
-                                           if not pool.is_private}
+                desirabilities_n_stakes = {
+                    pool.id: (pool.calculate_desirability(), pool.stake)
+                    for pool in pools_list
+                }
             # Order the pools based on desirability and stake (to break ties in desirability) and delegate the stake to
             # the first non-saturated pool(s).
             allow_oversaturation = False
@@ -436,7 +437,8 @@ class Stakeholder(Agent):
                                                              key=operator.itemgetter(1), reverse=True):
                     if stake < saturation_point or allow_oversaturation:
                         stake_to_saturation = saturation_point - stake
-                        allocation = stake_to_delegate if allow_oversaturation else min(stake_to_delegate, stake_to_saturation)
+                        allocation = stake_to_delegate if allow_oversaturation else min(stake_to_delegate,
+                                                                                        stake_to_saturation)
                         stake_to_delegate -= allocation
                         allocations[pool_id] = allocation
                     if stake_to_delegate == 0:
