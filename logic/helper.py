@@ -103,14 +103,14 @@ def calculate_pool_stake_NM(pool_id, pools, beta, k):
     """
     Calculate the non-myopic stake of a pool, given the pool and the state of the system (current pools)
     :param pool_id:
-    :param pools:
+    :param pools: dictionary of pools with the pool id as the key
     :param beta:
     :param k:
     :return:
     """
-    desirabilities = {id: pool.calculate_desirability() for id, pool in pools.items()}
-    rank = calculate_ranks(desirabilities)[
-        pool_id]  # todo use potential profit to break ties between desirability ranks
+    desirabilities = {pool_id: pool.calculate_desirability() for pool_id, pool in pools.items()}
+    potential_profits = {pool_id: pool.potential_profit for pool_id, pool in pools.items()}
+    rank = calculate_ranks(desirabilities, potential_profits)[pool_id]
     pool = pools[pool_id]
     return pool.calculate_stake_NM(k, beta, rank)
 
