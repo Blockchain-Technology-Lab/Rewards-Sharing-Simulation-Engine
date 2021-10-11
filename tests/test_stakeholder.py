@@ -35,7 +35,9 @@ def test_calculate_operator_utility():
     model.pools[555] = pool
     player = Stakeholder(unique_id=156, model=model, cost=0.001)
     strategy = Strategy(pledges=[0.1], margins=[0.1], is_pool_operator=True, num_pools=1, owned_pools={555: pool})
+
     utility = player.calculate_operator_utility_by_strategy(strategy)
+
     assert utility == 0.0148638461538461537
 
 

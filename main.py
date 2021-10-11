@@ -76,6 +76,11 @@ def main():
         # No identifier was provided by the user, so we construct one based on the simulation's parameter values
         simulation_id = "".join(['-' + str(key) + '=' + str(value) for key, value in sim_params.items()
                                  if type(value) == bool or type(value) == int or type(value) == float])[:180]
+
+    pickled_simulation_filename = "simulation-object-" + simulation_id + ".pkl"
+    with open(pickled_simulation_filename, "wb") as pkl_file:
+        pkl.dump(sim, pkl_file)
+
     output_dir = "output/"
     figures_dir = "output/figures/"
     path = Path.cwd() / figures_dir
@@ -130,6 +135,17 @@ def main():
     plt.xlabel("Round")
     plt.legend()
     plt.savefig(figures_dir + simulation_id + "-avgPledge" + ".png", bbox_inches='tight')
+
+    mean_abs_diff = sim_df["MeanAbsDiff"]
+    plt.figure()
+    mean_abs_diff.plot(color='g')
+    #if sim.schedule.steps < sim.max_iterations:
+    #    plt.axvline(x=equilibrium_step, label="Equilibrium at step {}".format(equilibrium_step))
+    plt.title("Mean Absolute Difference of Controlled Stake")
+    plt.ylabel("Mean abs diff")
+    plt.xlabel("Round")
+    plt.legend()
+    plt.savefig(figures_dir + simulation_id + "-meanAbsDiff" + ".png", bbox_inches='tight')
 
     #plt.show()
 

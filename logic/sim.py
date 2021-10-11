@@ -9,6 +9,9 @@ import csv
 import time
 import pathlib
 import math
+import collections
+import statistics
+import itertools
 
 from mesa import Model
 from mesa.datacollection import DataCollector
@@ -71,6 +74,27 @@ def get_avg_pools_per_operator(model):
     return current_num_pools / current_num_operators
 
 
+def get_max_pools_per_operator(model):
+    current_pools = model.get_pools_list()
+    current_owners = [pool.owner for pool in current_pools]
+    max_frequency_owner, max_pool_count_per_owner = collections.Counter(current_owners).most_common(1)[0]
+    return max_pool_count_per_owner
+
+
+def get_median_pools_per_operator(model):
+    current_pools = model.get_pools_list()
+    current_owners = [pool.owner for pool in current_pools]
+    sorted_frequencies = sorted(collections.Counter(current_owners).values())
+    return statistics.median(sorted_frequencies)
+
+
+def get_avg_sat_rate(model):
+    sat_point = model.beta
+    current_pools = model.pools
+    sat_rates = [pool.stake / sat_point for pool in current_pools.values()]
+    return sum(sat_rates) / len(current_pools)
+
+
 def get_stakes_n_margins(model):
     players = model.get_players_dict()
     pools = model.get_pools_list()
@@ -90,6 +114,151 @@ def get_total_delegated_stake(model):
                          sum([sum([pledge for pledge in player.strategy.pledges])
                               for player in players])
     return stake_from_pools, stake_from_players
+
+
+# todo deal with undelegated stake
+def get_controlled_stake_mean_abs_diff(model):
+    """
+
+    :param model:
+    :return: the mean value of the absolute differences of the stake the players control
+                (how they started vs how they ended up)
+    """
+    if not model.has_converged():
+        return -1
+    players = model.get_players_dict()
+    pools = model.get_pools_list()
+    if len(pools) == 0:
+        return 0
+    initial_controlled_stake = {player_id: players[player_id].stake for player_id in players}
+    current_controlled_stake = {player_id: 0 for player_id in players}
+    for pool in pools:
+        current_controlled_stake[pool.owner] += pool.stake
+    abs_diff = [abs(current_controlled_stake[player_id] - initial_controlled_stake[player_id])
+                for player_id in players]
+    return sum(abs_diff) / len(abs_diff)
+
+
+def get_nakamoto_coefficient(model):
+    """
+    The Nakamoto coefficient is defined as the minimum number of entities that control more than 50% of the system
+    (and can therefore launch a 51% attack against it). This function returns the nakamoto coefficient for a given
+    simulation instance.
+    :param model: the instance of the simulation
+    :return: the number of players that control more than 50% of the total active stake through their pools
+    """
+    if not model.has_converged():
+        return -1
+    players = model.get_players_dict()
+    active_players = {player_id: players[player_id] for player_id in players if not players[player_id].abstains}
+    pools = model.get_pools_list()
+    if len(pools) == 0:
+        return 0
+
+    final_controlled_stake = {player_id: 0 for player_id in active_players}
+    for pool in pools:
+        final_controlled_stake[pool.owner] += pool.stake
+
+    final_stake = [final_controlled_stake[player_id] for player_id in active_players.keys()]
+    total_active_stake = sum(final_stake)
+
+    sorted_final_stake = sorted(final_stake, reverse=True)
+    majority_control_players = 0
+    majority_control_stake = 0
+    index = 0
+
+    while majority_control_stake <= total_active_stake / 2:
+        majority_control_stake += sorted_final_stake[index]
+        majority_control_players += 1
+        index += 1
+
+    return majority_control_players
+
+
+def get_NCR(model):
+    if not model.has_converged():
+        return -1
+    pools = model.get_pools_list()
+    if len(pools) == 0:
+        return 0
+    independent_pool_owners = {pool.owner for pool in pools}
+    nakamoto_coefficient = get_nakamoto_coefficient(model)
+    return nakamoto_coefficient / len(independent_pool_owners)
+
+
+def powerset(iterable):
+    "powerset([1,2,3]) --> () (1,) (2,) (3,) (1,2) (1,3) (2,3) (1,2,3)"
+    s = list(iterable)
+    return itertools.chain.from_iterable(itertools.combinations(s, r) for r in range(1, len(s) + 1))
+
+
+def get_min_aggregate_pledge(model):
+    if not model.has_converged():
+        return -1
+    pools = model.pools
+    if len(pools) == 0:
+        return 0
+
+    pool_stakes = {pool_id: pool.stake for pool_id, pool in pools.items()}
+    total_active_stake = sum(pool_stakes.values())
+
+    # todo find more efficient way that doesn't require calculating the entire powerset
+    pool_subsets = list(powerset(pool_stakes))
+    majority_pool_subsets = []
+    for subset in pool_subsets:
+        controlled_stake = 0
+        for pool_id in subset:
+            controlled_stake += pool_stakes[pool_id]
+        if controlled_stake >= total_active_stake / 2:
+            majority_pool_subsets.append(subset)
+
+    aggregate_pledges = []
+    for subset in majority_pool_subsets:
+        aggregate_pledge = 0
+        for pool_id in subset:
+            pledge = pools[pool_id].pledge
+            aggregate_pledge += pledge
+        aggregate_pledges.append(aggregate_pledge)
+
+    return min(aggregate_pledges)
+
+
+def get_pledge_rate(model):
+    """
+    Pledge rate is defined as: total_pledge / total_active_stake
+    and can be used as an indication of the system's degree of decentralisation
+    :param model: instance of the simulation
+    :return: the pledge rate of the final configuration (otherwise -1)
+    """
+    if not model.has_converged():
+        return -1
+    pools = model.get_pools_list()
+    if len(pools) == 0:
+        return 0
+    total_active_stake = sum([pool.stake for pool in pools])
+    total_pledge = sum([pool.pledge for pool in pools])
+    return total_pledge / total_active_stake
+
+
+def get_homogeneity_factor(model):
+    """
+    Shows how homogeneous the pools are
+    :param model:
+    :return:
+    """
+    if not model.has_converged():
+        return -1
+    pools = model.get_pools_list()
+    pool_count = len(pools)
+    if pool_count == 0:
+        return 0
+    pool_stakes = [pool.stake for pool in pools]
+    max_stake = max(pool_stakes)
+
+    ideal_area = pool_count * max_stake
+    actual_area = sum(pool_stakes)
+
+    return actual_area / ideal_area
 
 
 class Simulation(Model):
@@ -151,12 +320,22 @@ class Simulation(Model):
         self.initialize_players(cost_min, cost_max, pareto_param)
 
         self.datacollector = DataCollector(
-            model_reporters={"#Pools": get_number_of_pools, "PoolSizes": get_pool_sizes,
-                             "PoolSizesByAgent": get_pool_sizes_by_agent,
-                             "PoolSizesByPool": get_pool_sizes_by_pool,
-                             "DesirabilitiesByAgent": get_desirabilities_by_agent,
-                             "DesirabilitiesByPool": get_desirabilities_by_pool,
-                             "StakePairs": get_stakes_n_margins, "AvgPledge": get_avg_pledge})
+            model_reporters={
+                "#Pools": get_number_of_pools,
+                "PoolSizes": get_pool_sizes,
+                "PoolSizesByAgent": get_pool_sizes_by_agent,
+                "PoolSizesByPool": get_pool_sizes_by_pool,
+                "DesirabilitiesByAgent": get_desirabilities_by_agent,
+                "DesirabilitiesByPool": get_desirabilities_by_pool,
+                "StakePairs": get_stakes_n_margins,
+                "AvgPledge": get_avg_pledge,
+                "MeanAbsDiff": get_controlled_stake_mean_abs_diff,
+                "NakamotoCoefficient": get_nakamoto_coefficient,
+                "NCR": get_NCR,
+                "MinAggregatePledge": get_min_aggregate_pledge,
+                "PledgeRate": get_pledge_rate,
+                "AreaCoverage": get_homogeneity_factor
+            })
 
         self.pool_owner_id_mapping = {}
         self.start_time = None
@@ -241,13 +420,15 @@ class Simulation(Model):
         row_list = [
             ["Owner id", "Pool id", "Pool stake", "Margin", "Perfect margin", "Pledge",
              "Owner stake", "Owner stake rank", "Pool cost", "Owner cost rank", "Pool desirability",
-             "Pool potential profit", "Owner PP rank", "Pool status"]]
+             "Pool potential profit", "Owner PP rank", "Pool desirability rank", "Pool status"]]
         players = self.get_players_dict()
         pools = self.get_pools_list()
         potential_profits = {
             player.unique_id: hlp.calculate_potential_profit(player.stake, player.cost, self.alpha, self.beta) for
             player in players.values()}
         potential_profit_ranks = hlp.calculate_ranks(potential_profits)
+        desirabilities = {pool.id: pool.calculate_desirability() for pool in pools}
+        desirability_ranks = hlp.calculate_ranks(desirabilities)
         stakes = {player_id: player.stake for player_id, player in players.items()}
         stake_ranks = hlp.calculate_ranks(stakes)
         negative_cost_ranks = hlp.calculate_ranks({player_id: -player.cost for player_id, player in players.items()})
@@ -258,7 +439,7 @@ class Simulation(Model):
               round(pool.pledge, decimals), round(players[pool.owner].stake, decimals), stake_ranks[pool.owner],
               round(pool.cost, decimals),
               negative_cost_ranks[pool.owner], round(pool.calculate_desirability(), decimals),
-              round(pool.potential_profit, decimals), potential_profit_ranks[pool.owner],
+              round(pool.potential_profit, decimals), potential_profit_ranks[pool.owner], desirability_ranks[pool.id],
               "Private" if pool.is_private else "Public"]
              for pool in pools])
 
@@ -269,6 +450,9 @@ class Simulation(Model):
         with open(filename, 'w', newline='') as file:
             writer = csv.writer(file)
             writer.writerows(row_list)
+
+        # temporary, used to extract results in latex format for easier reporting
+        hlp.to_latex(row_list)
 
     def get_pools_list(self):
         return list(self.pools.values())

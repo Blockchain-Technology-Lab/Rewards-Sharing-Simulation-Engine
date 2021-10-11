@@ -7,6 +7,7 @@ Created on Sun Jun 13 08:15:26 2021
 import random
 from numpy.random import default_rng
 import csv
+import pandas as pd
 
 TOTAL_EPOCH_REWARDS_R = 1
 
@@ -125,80 +126,12 @@ def calculate_ranks(ranking_dict, secondary_ranking_dict=None):
     return ranks
 
 
-'''
-unused for now but could be useful in the future
-
-# Examine whether a pool leading strategy has the potential to rank the player's pool in the top k
-def check_pool_potential(strategy, model, player_id):
-    alpha = model.alpha
-    beta = model.beta
-    k = model.k
-
-    # to check if the pool's margin is competitive we look at all other players
-    players = model.schedule.agents
-    pools = deepcopy(model.pools)
-
-    pool = Pool(players[player_id].cost, strategy.pledge, player_id,
-                strategy.margin)  # todo create pool constructor that takes strategy as argument
-    potential_profit = calculate_potential_profit(pool.pledge, pool.cost, alpha, beta)
-    pool.calculate_desirability(potential_profit)
-    pools[player_id] = pool
-
-    for i, player in enumerate(players):
-        # we assume that the ones who already run pools will keep running them with the same margin
-        # for players who don't run pools, we assume that they will start a pool with margin m' =(u-(r-c)q)/((r-c)(1-q))
-        if pools[i] is None:
-            u = player.utility
-            s = player.stake
-            c = player.cost
-            sigma = max(s, beta)
-            r = calculate_pool_reward(sigma, s, alpha, beta)
-            q = s / sigma
-            if r <= c:
-                continue  # since the potential reward cannot even cover the cost, player i has no chance for a pool
-            m_prime = max((u - (r - c) * q) / ((r - c) * (1 - q)), 0) if q < 1 else 0
-            # monitor m_prime (is it often 0?)
-            pool = Pool(c, s, i, m_prime)
-            potential_profit = calculate_potential_profit(pool.pledge, pool.cost, alpha, beta)
-            pool.calculate_desirability(potential_profit)
-            pools[i] = pool
-
-    desirabilities = [pool.desirability if pool is not None else 0 for pool in pools]
-    rank = calculate_rank(desirabilities, player_id)
-    result = rank < k
-    return rank < k
-
-def calculate_pool_saturation_prob(desirabilities, pool_index):
-    # todo cache the softmax result to use in other calls?
-    # todo add temperature param to adjust the influence of the desirability on the resulting probability
-    probs = softmax(desirabilities)
-    return probs[pool_index]
-
-
-def calculate_pool_stake_NM_myWay(pool, pools, pool_index, beta):
-    desirabilities = [p.calculate_desirability() if p is not None else 0 for p in pools]
-    if pool is None:
-        pool = pools[pool_index]
-    else:
-        desirability = pool.calculate_desirability()
-        desirabilities[pool_index] = desirability
-    sat_prob = calculate_pool_saturation_prob(desirabilities, pool_index)
-    return pool.calculate_stake_NM_myWay(beta, sat_prob)
-    
-def softmax(vector):
-    np_vector = np.array(vector)
-    e = np.exp(np_vector)
-    return e / np.sum(e)
-
-
-def list_is_flat(l):
-    # assume that the list is homogeneous, so only check the first element
-    return not isinstance(l[0], list)
-
-
-def flatten_list(l):
-    if len(l) == 0:
-        return l
-    if list_is_flat(l):
-        return l
-    return sum(l, [])'''
+def to_latex(row_list):
+    row_list_latex = [row[2:4] + row[5:8] + row[9:10] + row[12:14] for row in row_list]
+    df = pd.DataFrame(row_list_latex[1:], columns=row_list_latex[0])
+    # shift desirability rank column to first position to act as index
+    first_column = df.pop('Pool desirability rank')
+    df.insert(0, 'Pool desirability rank', first_column)
+    sorted_df = df.sort_values(by=['Pool desirability rank'], ascending=True)
+    with open("output/latex/" + self.simulation_id + "-output.tex", 'w', newline='') as file:
+        sorted_df.to_latex(file, index=False)

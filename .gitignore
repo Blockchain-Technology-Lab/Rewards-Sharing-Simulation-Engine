@@ -4,6 +4,7 @@
 **.spec
 **.tex
 **.sh
+**.pkl
 **/dist
 **/build
 **/output
