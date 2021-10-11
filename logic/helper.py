@@ -126,12 +126,12 @@ def calculate_ranks(ranking_dict, secondary_ranking_dict=None):
     return ranks
 
 
-def to_latex(row_list):
+def to_latex(row_list, sim_id):
     row_list_latex = [row[2:4] + row[5:8] + row[9:10] + row[12:14] for row in row_list]
     df = pd.DataFrame(row_list_latex[1:], columns=row_list_latex[0])
     # shift desirability rank column to first position to act as index
     first_column = df.pop('Pool desirability rank')
     df.insert(0, 'Pool desirability rank', first_column)
     sorted_df = df.sort_values(by=['Pool desirability rank'], ascending=True)
-    with open("output/latex/" + self.simulation_id + "-output.tex", 'w', newline='') as file:
+    with open("output/latex/" + sim_id + "-output.tex", 'w', newline='') as file:
         sorted_df.to_latex(file, index=False)

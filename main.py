@@ -1,6 +1,6 @@
-from logic.sim import Simulation
-from pathlib import Path
+import logic.sim as simulation
 
+import pathlib
 import matplotlib.pyplot as plt
 import argparse
 import pickle as pkl
@@ -12,23 +12,23 @@ def main():
     parser = argparse.ArgumentParser(description='Pooling Games')
     parser.add_argument('--n', type=int, default=100,
                         help='The number of players (natural number). Default is 100.')
-    parser.add_argument('--k', type=int, default=10,
+    parser.add_argument('--k', nargs="*", type=int, default=[10],
                         help='The k value of the system (natural number). Default is 10.')
-    parser.add_argument('--alpha', type=float, default=0.3,
+    parser.add_argument('--alpha', nargs="*", type=float, default=[0.3],
                         help='The alpha value of the system (decimal number between 0 and 1). Default is 0.3')
     parser.add_argument('--cost_min', type=float, default=0.001,
                         help='The minimum possible cost for operating a stake pool. Default is 0.001.')
     parser.add_argument('--cost_max', type=float, default=0.002,
                         help='The maximum possible cost for operating a stake pool. Default is 0.002.')
-    parser.add_argument('--common_cost', type=float, default=0.0001,
+    parser.add_argument('--common_cost', nargs="*", type=float, default=[0.0001],
                         help='The additional cost that applies to all players for each pool they operate. '
                              'Default is 0.0001.')
     parser.add_argument('--pareto_param', type=float, default=2.0,
                         help='The parameter that determines the shape of the distribution that the stake will be '
                              'sampled from. Default is 2.')
-    parser.add_argument('--relative_utility_threshold', type=float, default=0.1,
+    parser.add_argument('--relative_utility_threshold', nargs="*", type=float, default=[0.1],
                         help='The utility increase ratio under which moves are disregarded. Default is 10%%.')
-    parser.add_argument('--absolute_utility_threshold', type=float, default=1e-9,
+    parser.add_argument('--absolute_utility_threshold', nargs="*", type=float, default=[1e-9],
                         help='The utility threshold under which moves are disregarded. Default is 1e-9.')
     parser.add_argument('--player_activation_order', type=str, default='Random',
                         help='Player activation order. Default is random.')
@@ -36,9 +36,9 @@ def main():
                         help='Seed for reproducibility. Default is 42.')
     parser.add_argument("--min_steps_to_keep_pool", type=int, default=5,
                         help='The number of steps for which a player remains idle after opening a pool. Default is 5.')
-    parser.add_argument('--myopic_fraction', type=float, default=0.1,
+    parser.add_argument('--myopic_fraction', nargs="*", type=float, default=[0.1],
                         help='The fraction of myopic players in the simulation. Default is 10%%.')
-    parser.add_argument('--abstention_rate', type=float, default=0.1,
+    parser.add_argument('--abstention_rate', nargs="*", type=float, default=[0.1],
                         help='The percentage of players that will abstain from the game in this run. Default is 10%%.')
     parser.add_argument('--pool_splitting', type=bool, default=True, action=argparse.BooleanOptionalAction,
                         help='Are individual players allowed to create multiple pools? Default is yes.')
@@ -55,13 +55,20 @@ def main():
 
     # todo deal with invalid inputs, e.g. negative n
     # todo make it possible to run more simulations w/o having to rerun the program (e.g. press any key to continue)
-    sim = Simulation(n=args.n, k=args.k, alpha=args.alpha,
-                     cost_min=args.cost_min, cost_max=args.cost_max, common_cost=args.common_cost,
-                     pareto_param=args.pareto_param, relative_utility_threshold=args.relative_utility_threshold,
-                     absolute_utility_threshold=args.absolute_utility_threshold,
+
+    adjustable_args = simulation.AdjustableParams(k=args.k,
+                                                  alpha=args.alpha,
+                                                  common_cost=args.common_cost,
+                                                  relative_utility_threshold=args.relative_utility_threshold,
+                                                  absolute_utility_threshold=args.absolute_utility_threshold,
+                                                  myopic_fraction=args.myopic_fraction,
+                                                  abstention_rate=args.abstention_rate)
+
+    sim = simulation.Simulation(adjustable_params=adjustable_args, n=args.n,
+                     cost_min=args.cost_min, cost_max=args.cost_max,
+                     pareto_param=args.pareto_param,
                      player_activation_order=args.player_activation_order.capitalize(),
                      seed=args.seed, min_steps_to_keep_pool=args.min_steps_to_keep_pool,
-                     myopic_fraction=args.myopic_fraction, abstention_rate=args.abstention_rate,
                      pool_splitting=args.pool_splitting, max_iterations=args.max_iterations,
                      ms=args.ms, simulation_id=args.simulation_id
                      )
@@ -70,21 +77,20 @@ def main():
 
     sim_df = sim.datacollector.get_model_vars_dataframe()
 
-    sim_params = sim.arguments
     simulation_id = args.simulation_id
     if simulation_id == '':
         # No identifier was provided by the user, so we construct one based on the simulation's parameter values
-        simulation_id = "".join(['-' + str(key) + '=' + str(value) for key, value in sim_params.items()
+        simulation_id = "".join(['-' + str(key) + '=' + str(value) for key, value in sim.arguments.items()
                                  if type(value) == bool or type(value) == int or type(value) == float])[:180]
 
-    pickled_simulation_filename = "simulation-object-" + simulation_id + ".pkl"
+    '''pickled_simulation_filename = "simulation-object-" + simulation_id + ".pkl"
     with open(pickled_simulation_filename, "wb") as pkl_file:
-        pkl.dump(sim, pkl_file)
+        pkl.dump(sim, pkl_file)'''
 
     output_dir = "output/"
     figures_dir = "output/figures/"
-    path = Path.cwd() / figures_dir
-    Path(path).mkdir(parents=True, exist_ok=True)
+    path = pathlib.Path.cwd() / figures_dir
+    pathlib.Path(path).mkdir(parents=True, exist_ok=True)
 
     pool_nums = sim_df["#Pools"]
     if sim.schedule.steps >= sim.max_iterations:

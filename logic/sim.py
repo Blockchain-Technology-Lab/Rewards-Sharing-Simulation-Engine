@@ -261,6 +261,17 @@ def get_homogeneity_factor(model):
     return actual_area / ideal_area
 
 
+AdjustableParams = collections.namedtuple("AdjustableParams", [
+    'k',
+    'alpha',
+    'myopic_fraction',
+    'abstention_rate',
+    'relative_utility_threshold',
+    'absolute_utility_threshold',
+    'common_cost'
+])
+
+
 class Simulation(Model):
     """
     Simulation of staking behaviour in Proof-of-Stake Blockchains.
@@ -275,37 +286,37 @@ class Simulation(Model):
 
     }
 
-    def __init__(self, n=100, k=10, alpha=0.3, myopic_fraction=0.1, abstention_rate=0.1,
-                 relative_utility_threshold=0.1, absolute_utility_threshold=1e-9,
+    def __init__(self, adjustable_params, n=100,
                  min_steps_to_keep_pool=5, pool_splitting=True, seed=42, pareto_param=2.0, max_iterations=1000,
-                 common_cost=1e-4, cost_min=0.001, cost_max=0.002, player_activation_order="Random", total_stake=1,
+                 cost_min=0.001, cost_max=0.002, player_activation_order="Random", total_stake=1,
                  ms=10, simulation_id=''
                  ):
 
         # todo make sure that the input is valid? n > 0, 0 < k <= n
-
         self.arguments = locals()  # only used for naming the output files appropriately
         if seed is not None:
             random.seed(seed)
 
+        # An era is defined as a time period during which the parameters of the model don't change
+        self.current_era = 0
+        total_eras = 1
+        for attr_name, attr_values_list in zip(adjustable_params._fields, adjustable_params):
+            setattr(self, attr_name, attr_values_list[self.current_era])
+            if len(attr_values_list) > total_eras:
+                total_eras = len(attr_values_list)
+        self.total_eras = total_eras
+        self.adjustable_params = adjustable_params
+
         self.n = n
-        self.k = k
-        self.alpha = alpha
-        self.myopic_fraction = myopic_fraction
-        self.abstention_rate = abstention_rate
-        self.absolute_utility_threshold = absolute_utility_threshold
-        self.relative_utility_threshold = relative_utility_threshold
         self.min_steps_to_keep_pool = min_steps_to_keep_pool
         self.pool_splitting = pool_splitting
-        self.common_cost = common_cost
         self.max_iterations = max_iterations
         self.total_stake = total_stake
-        self.perceived_active_stake = total_stake
-        self.beta = total_stake / k
         self.player_activation_order = player_activation_order
-        self.simulation_id = simulation_id if simulation_id != '' else \
-            "".join(['-' + str(key) + '=' + str(value) for key, value in self.arguments.items()
-                     if type(value) == bool or type(value) == int or type(value) == float])[:147]
+
+        self.perceived_active_stake = total_stake
+        self.beta = total_stake / self.k
+        self.simulation_id = simulation_id if simulation_id != '' else self.generate_simulation_id()
 
         self.running = True  # for batch running and visualisation purposes
         self.schedule = self.player_activation_orders[player_activation_order](self)
@@ -395,9 +406,12 @@ class Simulation(Model):
         if self.current_step_idle:
             self.consecutive_idle_steps += 1
             if self.has_converged():
-                self.running = False
-                print("Model took  {:.2f} seconds to run.".format(time.time() - self.start_time))
-                self.dump_state_to_csv()
+                if self.current_era < self.total_eras - 1:
+                    self.adjust_params()
+                else:
+                    self.running = False
+                    print("Model took  {:.2f} seconds to run.".format(time.time() - self.start_time))
+                    self.dump_state_to_csv()
         else:
             self.consecutive_idle_steps = 0
         self.current_step_idle = True
@@ -452,7 +466,7 @@ class Simulation(Model):
             writer.writerows(row_list)
 
         # temporary, used to extract results in latex format for easier reporting
-        hlp.to_latex(row_list)
+        hlp.to_latex(row_list, self.simulation_id)
 
     def get_pools_list(self):
         return list(self.pools.values())
@@ -465,6 +479,10 @@ class Simulation(Model):
 
     def get_status(self):
         print("Step {}: {} pools".format(self.schedule.steps, len(self.pools)))
+
+    def generate_simulation_id(self):
+        return "".join(['-' + str(key) + '=' + str(value) for key, value in self.arguments.items()
+                        if type(value) == bool or type(value) == int or type(value) == float])[:147]
 
     def revise_beliefs(self):
         """
@@ -479,3 +497,11 @@ class Simulation(Model):
         self.perceived_active_stake = active_stake
         # Revise expected number of pools, k
         self.k = math.ceil(active_stake / self.beta)
+
+    def adjust_params(self):
+        self.current_era += 1
+        for attr_name, attr_values_list in zip(self.adjustable_params._fields, self.adjustable_params):
+            if len(attr_values_list) > self.current_era:
+                setattr(self, attr_name, attr_values_list[self.current_era])
+        # update beta in case the value of k changed
+        self.beta = self.total_stake / self.k
