@@ -67,6 +67,11 @@ def get_avg_pledge(model):
     return sum(current_pool_pledges) / len(current_pool_pledges) if len(current_pool_pledges) > 0 else 0
 
 
+def get_total_pledge(model):
+    current_pool_pledges = [pool.pledge for pool in model.get_pools_list()]
+    return sum(current_pool_pledges)
+
+
 def get_avg_pools_per_operator(model):
     current_pools = model.pools
     current_num_pools = len(current_pools)
@@ -116,7 +121,6 @@ def get_total_delegated_stake(model):
     return stake_from_pools, stake_from_players
 
 
-# todo deal with undelegated stake
 def get_controlled_stake_mean_abs_diff(model):
     """
 
@@ -124,18 +128,16 @@ def get_controlled_stake_mean_abs_diff(model):
     :return: the mean value of the absolute differences of the stake the players control
                 (how they started vs how they ended up)
     """
-    if not model.has_converged():
-        return -1
-    players = model.get_players_dict()
+    active_players = {player_id: player for player_id, player in model.get_players_dict().items() if not player.abstains}
     pools = model.get_pools_list()
     if len(pools) == 0:
         return 0
-    initial_controlled_stake = {player_id: players[player_id].stake for player_id in players}
-    current_controlled_stake = {player_id: 0 for player_id in players}
+    initial_controlled_stake = {player_id: active_players[player_id].stake for player_id in active_players}
+    current_controlled_stake = {player_id: 0 for player_id in active_players}
     for pool in pools:
         current_controlled_stake[pool.owner] += pool.stake
     abs_diff = [abs(current_controlled_stake[player_id] - initial_controlled_stake[player_id])
-                for player_id in players]
+                for player_id in active_players]
     return sum(abs_diff) / len(abs_diff)
 
 
@@ -286,20 +288,32 @@ class Simulation(Model):
 
     }
 
-    def __init__(self, adjustable_params, n=100,
+    def __init__(self, n=100, k=10, alpha=0.3, myopic_fraction=0.1, abstention_rate=0.1,
+                 relative_utility_threshold=0.1, absolute_utility_threshold=1e-9,
                  min_steps_to_keep_pool=5, pool_splitting=True, seed=42, pareto_param=2.0, max_iterations=1000,
-                 cost_min=0.001, cost_max=0.002, player_activation_order="Random", total_stake=1,
+                 common_cost=1e-4, cost_min=0.001, cost_max=0.002, player_activation_order="Random", total_stake=1,
                  ms=10, simulation_id=''
                  ):
 
         # todo make sure that the input is valid? n > 0, 0 < k <= n
-        self.arguments = locals()  # only used for naming the output files appropriately
+        self.arguments = locals() # only used for naming the output files appropriately
         if seed is not None:
             random.seed(seed)
 
         # An era is defined as a time period during which the parameters of the model don't change
         self.current_era = 0
         total_eras = 1
+
+        adjustable_params = AdjustableParams(
+            k=k if type(k) is list else [k],
+            alpha=alpha if type(alpha) is list else [alpha],
+            common_cost=common_cost if type(common_cost) is list else [common_cost],
+            relative_utility_threshold=relative_utility_threshold if type(relative_utility_threshold) is list else [relative_utility_threshold],
+            absolute_utility_threshold=absolute_utility_threshold if type(absolute_utility_threshold) is list else [absolute_utility_threshold],
+            myopic_fraction=myopic_fraction if type(myopic_fraction) is list else [myopic_fraction],
+            abstention_rate=abstention_rate if type(abstention_rate) is list else [abstention_rate]
+        )
+
         for attr_name, attr_values_list in zip(adjustable_params._fields, adjustable_params):
             setattr(self, attr_name, attr_values_list[self.current_era])
             if len(attr_values_list) > total_eras:
@@ -340,6 +354,7 @@ class Simulation(Model):
                 "DesirabilitiesByPool": get_desirabilities_by_pool,
                 "StakePairs": get_stakes_n_margins,
                 "AvgPledge": get_avg_pledge,
+                "TotalPledge": get_total_pledge,
                 "MeanAbsDiff": get_controlled_stake_mean_abs_diff,
                 "NakamotoCoefficient": get_nakamoto_coefficient,
                 "NCR": get_NCR,

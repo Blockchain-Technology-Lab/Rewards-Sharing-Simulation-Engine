@@ -12,23 +12,23 @@ def main():
     parser = argparse.ArgumentParser(description='Pooling Games')
     parser.add_argument('--n', type=int, default=100,
                         help='The number of players (natural number). Default is 100.')
-    parser.add_argument('--k', nargs="*", type=int, default=[10],
+    parser.add_argument('--k', nargs="*", type=int, default=10,
                         help='The k value of the system (natural number). Default is 10.')
-    parser.add_argument('--alpha', nargs="*", type=float, default=[0.3],
+    parser.add_argument('--alpha', nargs="*", type=float, default=0.3,
                         help='The alpha value of the system (decimal number between 0 and 1). Default is 0.3')
     parser.add_argument('--cost_min', type=float, default=0.001,
                         help='The minimum possible cost for operating a stake pool. Default is 0.001.')
     parser.add_argument('--cost_max', type=float, default=0.002,
                         help='The maximum possible cost for operating a stake pool. Default is 0.002.')
-    parser.add_argument('--common_cost', nargs="*", type=float, default=[0.0001],
+    parser.add_argument('--common_cost', nargs="*", type=float, default=0.0001,
                         help='The additional cost that applies to all players for each pool they operate. '
                              'Default is 0.0001.')
     parser.add_argument('--pareto_param', type=float, default=2.0,
                         help='The parameter that determines the shape of the distribution that the stake will be '
                              'sampled from. Default is 2.')
-    parser.add_argument('--relative_utility_threshold', nargs="*", type=float, default=[0.1],
+    parser.add_argument('--relative_utility_threshold', nargs="*", type=float, default=0.1,
                         help='The utility increase ratio under which moves are disregarded. Default is 10%%.')
-    parser.add_argument('--absolute_utility_threshold', nargs="*", type=float, default=[1e-9],
+    parser.add_argument('--absolute_utility_threshold', nargs="*", type=float, default=1e-9,
                         help='The utility threshold under which moves are disregarded. Default is 1e-9.')
     parser.add_argument('--player_activation_order', type=str, default='Random',
                         help='Player activation order. Default is random.')
@@ -56,22 +56,26 @@ def main():
     # todo deal with invalid inputs, e.g. negative n
     # todo make it possible to run more simulations w/o having to rerun the program (e.g. press any key to continue)
 
-    adjustable_args = simulation.AdjustableParams(k=args.k,
-                                                  alpha=args.alpha,
-                                                  common_cost=args.common_cost,
-                                                  relative_utility_threshold=args.relative_utility_threshold,
-                                                  absolute_utility_threshold=args.absolute_utility_threshold,
-                                                  myopic_fraction=args.myopic_fraction,
-                                                  abstention_rate=args.abstention_rate)
-
-    sim = simulation.Simulation(adjustable_params=adjustable_args, n=args.n,
-                     cost_min=args.cost_min, cost_max=args.cost_max,
-                     pareto_param=args.pareto_param,
-                     player_activation_order=args.player_activation_order.capitalize(),
-                     seed=args.seed, min_steps_to_keep_pool=args.min_steps_to_keep_pool,
-                     pool_splitting=args.pool_splitting, max_iterations=args.max_iterations,
-                     ms=args.ms, simulation_id=args.simulation_id
-                     )
+    sim = simulation.Simulation(
+        n=args.n,
+        k=args.k,
+        alpha=args.alpha,
+        cost_min=args.cost_min,
+        cost_max=args.cost_max,
+        common_cost=args.common_cost,
+        pareto_param=args.pareto_param,
+        relative_utility_threshold=args.relative_utility_threshold,
+        absolute_utility_threshold=args.absolute_utility_threshold,
+        player_activation_order=args.player_activation_order.capitalize(),
+        seed=args.seed,
+        min_steps_to_keep_pool=args.min_steps_to_keep_pool,
+        myopic_fraction=args.myopic_fraction,
+        abstention_rate=args.abstention_rate,
+        pool_splitting=args.pool_splitting,
+        max_iterations=args.max_iterations,
+        ms=args.ms,
+        simulation_id=args.simulation_id
+    )
 
     sim.run_model()
 
@@ -102,6 +106,7 @@ def main():
     plt.figure()
     pool_nums.plot()
     if sim.schedule.steps < sim.max_iterations:
+        # todo how about multiple equilibria? show them all or only last one?
         equilibrium_step = len(pool_nums) - sim.min_consecutive_idle_steps_for_convergence
         plt.axvline(x=equilibrium_step, label="Equilibrium at step {}".format(equilibrium_step), c='r')
     plt.title("Number of pools over time")
@@ -142,10 +147,21 @@ def main():
     plt.legend()
     plt.savefig(figures_dir + simulation_id + "-avgPledge" + ".png", bbox_inches='tight')
 
+    total_pledge = sim_df["TotalPledge"]
+    plt.figure()
+    total_pledge.plot(color='purple')
+    if sim.schedule.steps < sim.max_iterations:
+        plt.axvline(x=equilibrium_step, label="Equilibrium at step {}".format(equilibrium_step))
+    plt.title("Total pledge over time")
+    plt.ylabel("Total pledge")
+    plt.xlabel("Round")
+    plt.legend()
+    plt.savefig(figures_dir + simulation_id + "-totalPledge" + ".png", bbox_inches='tight')
+
     mean_abs_diff = sim_df["MeanAbsDiff"]
     plt.figure()
     mean_abs_diff.plot(color='g')
-    #if sim.schedule.steps < sim.max_iterations:
+    # if sim.schedule.steps < sim.max_iterations:
     #    plt.axvline(x=equilibrium_step, label="Equilibrium at step {}".format(equilibrium_step))
     plt.title("Mean Absolute Difference of Controlled Stake")
     plt.ylabel("Mean abs diff")
@@ -153,7 +169,7 @@ def main():
     plt.legend()
     plt.savefig(figures_dir + simulation_id + "-meanAbsDiff" + ".png", bbox_inches='tight')
 
-    #plt.show()
+    # plt.show()
 
 
 def main_with_profiling():
@@ -172,5 +188,4 @@ def main_with_profiling():
 
 if __name__ == "__main__":
     main()  # for profiling the code, comment this line and uncomment the one below
-    #main_with_profiling()
-
+    # main_with_profiling()
