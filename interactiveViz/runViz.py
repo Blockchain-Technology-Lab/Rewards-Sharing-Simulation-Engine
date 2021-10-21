@@ -8,14 +8,14 @@ from mesa.visualization.UserParam import UserSettableParameter
 from mesa.visualization.ModularVisualization import ModularServer
 
 from logic.sim import Simulation
+from logic.helper import MAX_NUM_POOLS
 
 # from myModularVisualization import MyModularServer
 from interactiveViz.stackedChartModule import StackedChartModule
 from interactiveViz.bubbleChartModule import BubbleChartModule
 from interactiveViz.myChartModule import MyChartModule
 
-from logic.sim import MAX_NUM_POOLS
-
+#todo figure out how to add buttons next to the charts for downloading image upon request or sth similar
 poolsChart = MyChartModule([{"label": "#Pools", "title": "Number of pools over time", "xLabel": "Iteration",
                              "yLabel": "#Pools", "tooltipText": " pools", "color": "Blue"}])
 

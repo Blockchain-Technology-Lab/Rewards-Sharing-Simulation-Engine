@@ -10,6 +10,7 @@ import csv
 import pandas as pd
 
 TOTAL_EPOCH_REWARDS_R = 1
+MAX_NUM_POOLS = 1000
 
 
 def generate_stake_distr(num_agents, total_stake=1, pareto_param=None):
@@ -93,7 +94,6 @@ def calculate_current_profit(stake, pledge, cost, alpha, beta):
 
 
 def calculate_pool_reward(stake, pledge, alpha, beta):
-    # use current formula but keep in mind that it may change (e.g. also depend on aggregate values)
     l = min(pledge, beta)
     s = min(stake, beta)
     reward = (TOTAL_EPOCH_REWARDS_R / (1 + alpha)) * (s + (l * alpha * ((s - l * (1 - s / beta)) / beta)))
