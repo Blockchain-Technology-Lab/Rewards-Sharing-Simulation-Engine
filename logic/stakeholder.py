@@ -135,11 +135,12 @@ class Stakeholder(Agent):
                                                                                   beta,
                                                                                   self.model.k
                                                                                   )'''  # assuming there is no myopic play for pool owners
-        pool_stake = hlp.calculate_pool_stake_NM(pool.id,
-                                                 all_pools,
-                                                 beta,
-                                                 self.model.k
-                                                 )
+        pool_stake = hlp.calculate_pool_stake_NM(
+            pool.id,
+            all_pools,
+            beta,
+            self.model.k
+        )
         r = hlp.calculate_pool_reward(pool_stake, pledge, alpha, beta)
         q = stake_allocation / pool_stake
         u_0 = r - self.cost
@@ -226,7 +227,10 @@ class Stakeholder(Agent):
         :return: the margin value of the ones tested that yields the highest expected utility
         """
         new_pool = deepcopy(pool)
-        all_pools = deepcopy(self.model.pools)
+        all_pools = self.model.pools
+        temp_pool = None
+        if new_pool.id in all_pools:
+            temp_pool = deepcopy(all_pools[new_pool.id])
         all_pools[new_pool.id] = new_pool
 
         if current_margin == 0:
@@ -259,6 +263,11 @@ class Stakeholder(Agent):
 
             current_try += 1
             new_margin = (lower_bound + current_margin) / 2
+        # make sure that model fields are left intact
+        if temp_pool is None:
+            all_pools.pop(new_pool.id)
+        else:
+            all_pools[new_pool.id] = temp_pool
         return max(margin_utilities, key=lambda key: margin_utilities[key])
 
     def calculate_margin_simple(self, current_margin=-1):
@@ -268,7 +277,7 @@ class Stakeholder(Agent):
         # player already has a pool
         return max(current_margin - MARGIN_INCREMENT, 0)
 
-    def calculate_margin_increment(self, pool):
+    '''def calculate_margin_increment(self, pool):
         current_margin = pool.margin
         new_pool = deepcopy(pool)
         all_pools = deepcopy(self.model.pools)
@@ -287,7 +296,7 @@ class Stakeholder(Agent):
             if utility > max_utility:
                 max_utility = utility
                 margin = margin_candidate
-        return margin
+        return margin'''
 
     def calculate_margin_perfect_strategy(self):
         """
@@ -403,12 +412,15 @@ class Stakeholder(Agent):
         if stake_to_delegate is None:
             stake_to_delegate = self.stake
 
-        pools = deepcopy(self.model.pools)
+        pools = self.model.pools
+        temp_pools = dict()
+
         allocations = dict()
 
         # Remove the player's stake from the pools in case it's being delegated
         for pool_id, allocation in self.strategy.stake_allocations.items():
             if allocation > 0:
+                temp_pools[pool_id] = deepcopy(pools[pool_id])
                 pools[pool_id].update_delegation(stake=-allocation, delegator_id=self.unique_id)
 
         # todo should we allow players to delegate to their own pools? makes sense only if we consider that
@@ -446,6 +458,9 @@ class Stakeholder(Agent):
                 # there were not enough non-saturated pools for the player to delegate their stake to
                 # so they have to choose a saturated pool
                 allow_oversaturation = True
+
+        for pool_id, pool in temp_pools.items():
+            pools[pool_id] = pool
 
         return Strategy(stake_allocations=allocations, is_pool_operator=False)
 
