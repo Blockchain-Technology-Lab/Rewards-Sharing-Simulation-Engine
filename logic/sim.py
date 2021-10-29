@@ -72,7 +72,7 @@ class Simulation(Model):
         )
 
         for attr_name, attr_values_list in zip(adjustable_params._fields, adjustable_params):
-            setattr(self, attr_name, attr_values_list[self.current_era])
+            setattr(self, attr_name, attr_values_list[self.current_era]) #todo maybe self.abstention_rate not necessary?
             if len(attr_values_list) > total_eras:
                 total_eras = len(attr_values_list)
         self.total_eras = total_eras
@@ -114,7 +114,7 @@ class Simulation(Model):
                 "TotalPledge": get_total_pledge,
                 "MedianPledge":get_median_pledge,
                 "MeanAbsDiff": get_controlled_stake_mean_abs_diff,
-                "StatDiff": get_controlled_stake_distr_stat_diff,
+                "StatisticalDistance": get_controlled_stake_distr_stat_dist,
                 "NakamotoCoefficient": get_nakamoto_coefficient,
                 "NCR": get_NCR,
                 "MinAggregatePledge": get_min_aggregate_pledge,
@@ -281,5 +281,29 @@ class Simulation(Model):
         for attr_name, attr_values_list in zip(self.adjustable_params._fields, self.adjustable_params):
             if len(attr_values_list) > self.current_era:
                 setattr(self, attr_name, attr_values_list[self.current_era])
-        # update beta in case the value of k changed
-        self.beta = self.total_stake / self.k
+                if attr_name == 'k':
+                    # update beta in case the value of k changes
+                    self.beta = self.total_stake / self.k
+                elif attr_name == 'abstention_rate':
+                    # update agent properties in case the abstention rate changes
+                    abstention_change = attr_values_list[self.current_era] - attr_values_list[self.current_era - 1]
+                    new_abstaining_agents = int(abstention_change * self.n)
+                    all_agents = self.schedule.agents
+                    if new_abstaining_agents > 0:
+                        # abstention increased
+                        # todo fix issue when abstention increases
+                        for i, agent in enumerate(all_agents):
+                            if not agent.abstains and agent.remaining_min_steps_to_keep_pool == 0:
+                                agent.abstains = True
+                            new_abstaining_agents -= 1
+                            if new_abstaining_agents == 0:
+                                break
+                    else:
+                        # abstention decreased
+                        for i, agent in enumerate(all_agents):
+                            if agent.abstains:
+                                agent.abstains = False
+                            new_abstaining_agents += 1
+                            if new_abstaining_agents == 0:
+                                break
+

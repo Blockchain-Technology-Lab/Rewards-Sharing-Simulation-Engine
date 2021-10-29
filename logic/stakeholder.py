@@ -35,13 +35,12 @@ class Stakeholder(Agent):
 
     # In every step the agent needs to decide what to do
     def step(self):
-        if not self.abstains:
-            self.make_move()
-            if "simultaneous" not in self.model.player_activation_order.lower():
-                self.advance()
-            if self.remaining_min_steps_to_keep_pool > 0:
-                # For players that are recently opened a pool
-                self.remaining_min_steps_to_keep_pool -= 1
+        self.update_strategy()
+        if "simultaneous" not in self.model.player_activation_order.lower():
+            self.advance()
+        if self.remaining_min_steps_to_keep_pool > 0:
+            # For players that are recently opened a pool
+            self.remaining_min_steps_to_keep_pool -= 1
 
     # When players make moves simultaneously, "step() activates the agent and stages any necessary changes,
     # but does not apply them yet, and advance() then applies the changes"
@@ -51,10 +50,16 @@ class Stakeholder(Agent):
             self.execute_strategy()
             self.model.current_step_idle = False
 
-    def make_move(self):
-        self.update_strategy()
-
     def update_strategy(self):
+        if not self.abstains:
+            self.make_move()
+        else:
+            # player abstains from this round
+            if self.strategy.is_pool_operator or len(self.strategy.stake_allocations) > 0:
+                # player did not abstain in the previous round
+                self.new_strategy = Strategy()
+
+    def make_move(self):
         current_utility = self.calculate_utility(self.strategy)
         current_utility_with_inertia = max(
             (1 + self.model.relative_utility_threshold) * current_utility,

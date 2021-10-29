@@ -1,13 +1,17 @@
 import statistics
 import itertools
+import collections
 
 from logic.helper import MAX_NUM_POOLS
 
 
 def get_number_of_pools(model):
-    #todo fix for last step if we don't have equilibrium (for batch run results)
     return len(model.pools)
 
+def get_final_number_of_pools(model):
+    if not model.has_converged():
+        return -1
+    return len(model.pools)
 
 def get_pool_sizes(model):
     max_pools = MAX_NUM_POOLS - 1  # must be < max defined for the chart
@@ -128,7 +132,7 @@ def get_controlled_stake_mean_abs_diff(model):
     return sum(abs_diff) / len(abs_diff)
 
 
-def get_controlled_stake_distr_stat_diff(model):
+def get_controlled_stake_distr_stat_dist(model):
     """
     :param model:
     :return: the statistical difference of the distributions of the stake that players control

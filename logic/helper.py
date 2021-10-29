@@ -8,6 +8,7 @@ import random
 from numpy.random import default_rng
 import csv
 import pandas as pd
+import pathlib
 
 TOTAL_EPOCH_REWARDS_R = 1
 MAX_NUM_POOLS = 1000
@@ -133,5 +134,9 @@ def to_latex(row_list, sim_id):
     first_column = df.pop('Pool desirability rank')
     df.insert(0, 'Pool desirability rank', first_column)
     sorted_df = df.sort_values(by=['Pool desirability rank'], ascending=True)
-    with open("output/latex/" + sim_id + "-output.tex", 'w', newline='') as file:
+
+    latex_dir = "output/latex/"
+    path = pathlib.Path.cwd() / latex_dir
+    pathlib.Path(path).mkdir(parents=True, exist_ok=True)
+    with open(latex_dir + sim_id + "-output.tex", 'w', newline='') as file:
         sorted_df.to_latex(file, index=False)

@@ -1,6 +1,5 @@
-from multiprocessing import freeze_support
-
-from mesa.batchrunner import BatchRunner
+import argparse
+import multiprocessing
 from mesa.batchrunner import BatchRunnerMP
 import time
 import matplotlib.pyplot as plt
@@ -8,35 +7,38 @@ import pickle as pkl
 
 import logic.sim as sim
 
-if __name__ == '__main__':
-    freeze_support()  # needed for multiprocessing to work on windows systems (comment out line to run on linux / uncomment for windows)
 
-    fixed_params = {"n": 1000, 'k':100, "simulation_id": "temp", "seed": 42}
+def main():
+    # multiprocessing.freeze_support()  # needed for multiprocessing to work on windows systems (comment out line to run on linux / uncomment for windows)
 
-    variable_params = {"abstention_rate": [fraction/100 for fraction in range(1, 87)]}
-    # variable_params = {"k": [k for k in range(2, 31)]}
-    #variable_params = {"alpha": [a / 100 for a in range(49)]}
+    # single value for fixed params and [lower_bound, upper_bound, step] for variable params
+    # note: there needs to be at least one variable parameter
+    parser = argparse.ArgumentParser(description='Pooling Games Batch Run')
+    parser.add_argument('--n', nargs="+", type=int, default=100,
+                        help='The number of players (natural number). Default is 100.')
+    parser.add_argument('--k', nargs="+", type=int, default=[1, 21, 1],
+                        help='The k value of the system (natural number). Default is 10.')
+    parser.add_argument('--alpha', nargs="+", type=float, default=0.3,
+                        help='The alpha value of the system (decimal number between 0 and 1). Default is 0.3')
+    parser.add_argument('--abstention_rate', nargs="+", type=float, default=0.1,
+                        help='The percentage of players that will abstain from the game in this run. Default is 10%%.')
+
+    fixed_params = {"simulation_id": "temp", "seed": 42}
+    variable_params = {}
+    args_dict = vars(parser.parse_args())
+    for arg_name, arg_values in args_dict.items():
+        if type(arg_values) is list:
+            if len(arg_values) > 2:
+                int_range = [int(v*100) for v in arg_values]
+                variable_params[arg_name] = [v//100 for v in range(int_range[0], int_range[1], int_range[2])]
+            else:
+                fixed_params[arg_name] = arg_values[0]
+        else:
+            fixed_params[arg_name] = arg_values
+
+    # variable_params = {"abstention_rate": [fraction/100 for fraction in range(1, 87)]}
+    # variable_params = {"alpha": [a / 100 for a in range(49)]}
     # todo figure out how to run the model with only certain combinations of the variable params
-
-    '''batch_run = BatchRunner(Simulation,
-                            variable_params,
-                            fixed_params,
-                            iterations=1,
-                            max_steps=50,
-                            model_reporters={"#Pools": get_number_of_pools},
-                            display_progress=True)
-    start_time = time.time()
-    batch_run.run_all()
-    print("Batch run without multiprocessing:  {:.2f} seconds".format(time.time() - start_time))
-
-    run_data = batch_run.get_model_vars_dataframe()
-    print(run_data.head())
-    plt.figure()
-    plt.scatter(run_data['alpha'], run_data['#Pools'])
-    plt.xlabel("α")
-    plt.ylabel("#pools")
-    plt.show()'''
-    # only use the non-multiprocessing batch-run (uncomment the lines above and comment the lines below) if the multiprocessing one doesn't work for some reason
 
     batch_run_MP = BatchRunnerMP(sim.Simulation,
                                  nr_processes=12,
@@ -44,17 +46,17 @@ if __name__ == '__main__':
                                  fixed_parameters=fixed_params,
                                  iterations=1,
                                  model_reporters={
-                                     "#Pools": sim.get_number_of_pools,
-                                     "avgPledge": sim.get_avg_pledge,
-                                     "avg_pools_per_operator": sim.get_avg_pools_per_operator,
-                                     "max_pools_per_operator": sim.get_max_pools_per_operator,
-                                     "median_pools_per_operator": sim.get_median_pools_per_operator,
-                                     "avgSatRate": sim.get_avg_sat_rate,
-                                     "nakamotoCoeff": sim.get_nakamoto_coefficient,
-                                     "NCR": sim.get_NCR,
-                                     "MinAggregatePledge": sim.get_min_aggregate_pledge,
-                                     "pledge_rate": sim.get_pledge_rate,
-                                     "homogeneity_factor": sim.get_homogeneity_factor
+                                     "#Pools": sim.get_final_number_of_pools
+                                     # "avgPledge": sim.get_avg_pledge,
+                                     # "avg_pools_per_operator": sim.get_avg_pools_per_operator,
+                                     # "max_pools_per_operator": sim.get_max_pools_per_operator,
+                                     # "median_pools_per_operator": sim.get_median_pools_per_operator,
+                                     # "avgSatRate": sim.get_avg_sat_rate,
+                                     # "nakamotoCoeff": sim.get_nakamoto_coefficient,
+                                     # "NCR": sim.get_NCR,
+                                     # "MinAggregatePledge": sim.get_min_aggregate_pledge,
+                                     # "pledge_rate": sim.get_pledge_rate,
+                                     # "homogeneity_factor": sim.get_homogeneity_factor
                                  })
     start_time = time.time()
     batch_run_MP.run_all()
@@ -70,7 +72,7 @@ if __name__ == '__main__':
 
     figures_dir = "output/figures/"
 
-    plt.figure()
+    '''plt.figure()
     plt.scatter(run_data_MP['abstention_rate'], run_data_MP['#Pools'])
     plt.xlabel("Abstention rate")
     plt.ylabel("Pool count")
@@ -104,12 +106,13 @@ if __name__ == '__main__':
     plt.scatter(run_data_MP['abstention_rate'], run_data_MP['MinAggregatePledge'], c='g')
     plt.xlabel("Abstention rate")
     plt.ylabel("Min Aggregate Pledge")
-    plt.savefig(figures_dir + "min-aggregate-pledge-per-abst-rate.png", bbox_inches='tight')
+    plt.savefig(figures_dir + "min-aggregate-pledge-per-abst-rate.png", bbox_inches='tight')'''
 
-    '''plt.figure()
+    plt.figure()
     plt.scatter(run_data_MP['k'], run_data_MP['#Pools'])
     plt.xlabel("k")
-    plt.ylabel("#pools")'''
+    plt.ylabel("#pools")
+    plt.savefig(figures_dir + "pool-count-per-k.png", bbox_inches='tight')
 
     '''plt.figure()
     plt.scatter(run_data_MP['alpha'], run_data_MP['avgPledge'], c='r')
@@ -165,3 +168,7 @@ if __name__ == '__main__':
     # when α=0.1 and cost_max=0.02 (which happened to be the run with index 1)
     data_collector_agents = batch_run_MP.get_collector_agents()
     data_collector_model = batch_run_MP.get_collector_model()
+
+
+if __name__ == '__main__':
+    main()
