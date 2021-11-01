@@ -99,7 +99,11 @@ class Simulation(Model):
         # self.initial_states = {"inactive":0, "maximally_decentralised":1, "nicely_decentralised":2} todo maybe support different initial states
 
         self.initialise_pool_id_seq()  # initialise pool id sequence for the new model run
+        # Place agents on a network to indicate connections
+        #self.agent_network = hlp.generate_agent_network(n=n, seed=seed)
+        self.agent_network = hlp.generate_directed_scale_free_network(n=n, seed=seed)
         self.initialize_players(cost_min, cost_max, pareto_param)
+        self.nearby_pools = {agent.unique_id: [] for agent in self.schedule.agents}  # dictionary that maps stakeholders to the pool ids of their neighbours
 
         self.datacollector = DataCollector(
             model_reporters={
@@ -127,7 +131,6 @@ class Simulation(Model):
         self.equilibrium_steps = []
 
     def initialize_players(self, cost_min, cost_max, pareto_param):
-
         # Allocate stake to the players, sampling from a Pareto distribution
         stake_distribution = hlp.generate_stake_distr(self.n, total_stake=self.total_stake,
                                                       pareto_param=pareto_param)
@@ -137,7 +140,8 @@ class Simulation(Model):
 
         num_myopic_agents = int(self.myopic_fraction * self.n)
         num_abstaining_agents = int(self.abstention_rate * self.n)
-        unique_ids = [i for i in range(self.n)]
+
+        unique_ids = list(self.agent_network.nodes)
         random.shuffle(unique_ids)
         # Create agents
         for i, unique_id in enumerate(unique_ids):

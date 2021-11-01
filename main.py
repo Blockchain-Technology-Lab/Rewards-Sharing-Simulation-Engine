@@ -87,9 +87,9 @@ def main():
         simulation_id = "".join(['-' + str(key) + '=' + str(value) for key, value in sim.arguments.items()
                                  if type(value) == bool or type(value) == int or type(value) == float])[:180]
 
-    '''pickled_simulation_filename = "simulation-object-" + simulation_id + ".pkl"
+    pickled_simulation_filename = "simulation-object-" + simulation_id + ".pkl"
     with open(pickled_simulation_filename, "wb") as pkl_file:
-        pkl.dump(sim, pkl_file)'''
+        pkl.dump(sim, pkl_file)
 
     output_dir = "output/"
     figures_dir = "output/figures/"
@@ -107,8 +107,11 @@ def main():
     pool_nums.plot()
     if sim.schedule.steps < sim.max_iterations:
         # todo how about multiple equilibria? show them all or only last one?
-        equilibrium_step = len(pool_nums) - sim.min_consecutive_idle_steps_for_convergence
-        plt.axvline(x=equilibrium_step, label="Equilibrium at step {}".format(equilibrium_step), c='r')
+        #equilibrium_step = len(pool_nums) - sim.min_consecutive_idle_steps_for_convergence
+        pivot_step = sim.equilibrium_steps[0]
+        #plt.axvline(x=pivot_step, label="Parameter change at step {}".format(pivot_step), c='r')
+        plt.plot(pivot_step, pool_nums[pivot_step], 'rx', label="Parameter change")
+
     plt.title("Number of pools over time")
     plt.ylabel("#Pools")
     plt.xlabel("Round")
@@ -140,7 +143,8 @@ def main():
     plt.figure()
     avg_pledge.plot(color='r')
     if sim.schedule.steps < sim.max_iterations:
-        plt.axvline(x=equilibrium_step, label="Equilibrium at step {}".format(equilibrium_step))
+        #plt.axvline(x=pivot_step, label="Parameter change at step {}".format(pivot_step))
+        plt.plot(pivot_step, avg_pledge[pivot_step], 'x', label="Parameter change")
     plt.title("Average pledge over time")
     plt.ylabel("Average pledge")
     plt.xlabel("Round")
@@ -151,12 +155,25 @@ def main():
     plt.figure()
     total_pledge.plot(color='purple')
     if sim.schedule.steps < sim.max_iterations:
-        plt.axvline(x=equilibrium_step, label="Equilibrium at step {}".format(equilibrium_step))
+        #plt.axvline(x=pivot_step, label="Equilibrium at step {}".format(pivot_step), c='yellow')
+        plt.plot(pivot_step, total_pledge[pivot_step], 'yx', label="Parameter change".format(pivot_step))
     plt.title("Total pledge over time")
     plt.ylabel("Total pledge")
     plt.xlabel("Round")
     plt.legend()
     plt.savefig(figures_dir + simulation_id + "-totalPledge" + ".png", bbox_inches='tight')
+
+    median_pledge = sim_df["MedianPledge"]
+    plt.figure()
+    median_pledge.plot(color='b')
+    if sim.schedule.steps < sim.max_iterations:
+        # plt.axvline(x=pivot_step, label="Equilibrium at step {}".format(pivot_step), c='yellow')
+        plt.plot(pivot_step, median_pledge[pivot_step], 'rx', label="Parameter change".format(pivot_step))
+    plt.title("Median pledge over time")
+    plt.ylabel("Median pledge")
+    plt.xlabel("Round")
+    plt.legend()
+    plt.savefig(figures_dir + simulation_id + "-medianPledge" + ".png", bbox_inches='tight')
 
     mean_abs_diff = sim_df["MeanAbsDiff"]
     plt.figure()
@@ -168,6 +185,17 @@ def main():
     plt.xlabel("Round")
     plt.legend()
     plt.savefig(figures_dir + simulation_id + "-meanAbsDiff" + ".png", bbox_inches='tight')
+
+    stat_diff = sim_df["StatDiff"]
+    plt.figure()
+    stat_diff.plot(color='c')
+    # if sim.schedule.steps < sim.max_iterations:
+    #    plt.axvline(x=equilibrium_step, label="Equilibrium at step {}".format(equilibrium_step))
+    plt.title("Statistical Difference of Initial and Final Controlled Stake Distributions")
+    plt.ylabel("Statistical diff")
+    plt.xlabel("Round")
+    plt.legend()
+    plt.savefig(figures_dir + simulation_id + "-statDiff" + ".png", bbox_inches='tight')
 
     # plt.show()
 
@@ -188,4 +216,4 @@ def main_with_profiling():
 
 if __name__ == "__main__":
     main()  # for profiling the code, comment this line and uncomment the one below
-    # main_with_profiling()
+    #main_with_profiling()

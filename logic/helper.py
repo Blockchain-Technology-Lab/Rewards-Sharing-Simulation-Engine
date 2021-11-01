@@ -8,9 +8,20 @@ import random
 from numpy.random import default_rng
 import csv
 import pandas as pd
+import networkx as nx
 
 TOTAL_EPOCH_REWARDS_R = 1
 MAX_NUM_POOLS = 1000
+
+
+def generate_agent_network(n=1000, m=4, seed=42):
+    agent_network = nx.barabasi_albert_graph(n, m, seed)
+    return agent_network
+
+
+def generate_directed_scale_free_network(n, seed):
+    agent_network = nx.scale_free_graph(n=n, alpha=0.5, beta=0.49, gamma=0.01, delta_in=0.5, seed=seed)
+    return agent_network
 
 
 def generate_stake_distr(num_agents, total_stake=1, pareto_param=None):

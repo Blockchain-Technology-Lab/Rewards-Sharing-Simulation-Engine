@@ -62,7 +62,7 @@ var StackedChartModule = function(series, canvas_width, canvas_height) {
 
     var chartOptions = {
         responsive: true,
-        animation: {
+        /*animation: {
             onComplete: function() {
                 if (animationComplete) {
                     var a = document.createElement('a');
@@ -75,7 +75,7 @@ var StackedChartModule = function(series, canvas_width, canvas_height) {
                     animationComplete = true
                 }
             }
-        },
+        },*/
         title: {
             display: true,
             text: 'Pool dynamics' //todo make configurable

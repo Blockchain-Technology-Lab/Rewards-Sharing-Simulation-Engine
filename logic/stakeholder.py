@@ -4,6 +4,8 @@ Created on Fri Jun 11 17:14:45 2021
 
 @author: chris
 """
+import random
+
 from mesa import Agent
 from copy import deepcopy
 import operator
@@ -40,7 +42,7 @@ class Stakeholder(Agent):
             if "simultaneous" not in self.model.player_activation_order.lower():
                 self.advance()
             if self.remaining_min_steps_to_keep_pool > 0:
-                # For players that are recently opened a pool
+                # For players that have recently opened a pool
                 self.remaining_min_steps_to_keep_pool -= 1
 
     # When players make moves simultaneously, "step() activates the agent and stages any necessary changes,
@@ -66,7 +68,7 @@ class Stakeholder(Agent):
         # For all players, find a possible delegation strategy and calculate its potential utility
         # unless they are pool operators with recently opened pools (we assume that they will keep them at least for a bit)
         if self.remaining_min_steps_to_keep_pool == 0:
-            delegator_strategy = self.find_delegation_move_desirability()
+            delegator_strategy = self.find_delegation_move()
             delegator_utility = self.calculate_utility(delegator_strategy)
             possible_moves["delegator"] = delegator_utility, delegator_strategy
 
@@ -399,16 +401,22 @@ class Stakeholder(Agent):
         remaining_stake = self.stake - sum(pledges)
         if remaining_stake > 0:
             # in some cases players may not want to allocate their entire stake to their pool (e.g. when stake > β)
-            delegation_strategy = self.find_delegation_move_desirability(stake_to_delegate=remaining_stake)
+            delegation_strategy = self.find_delegation_move(stake_to_delegate=remaining_stake)
             allocations = delegation_strategy.stake_allocations
         return allocations
 
-    def find_delegation_move_desirability(self, stake_to_delegate=None):
+    def find_delegation_move(self, stake_to_delegate=None):
         """
         Choose a delegation move based on the desirability of the existing pools. If two or more pools are tied,
         choose the one with the highest (current) stake, as it offers higher short-term rewards.
         :return:
         """
+
+        # "flip a coin" to decide if the player will consider all pools or only the ones run by their neighbours
+        # todo maybe assign different probabilities to each outcome
+        nearby_pools_only = random.choices(population=[True, False], weights=[99, 1], k=1)[0]
+        # todo maybe undirected graph would make more sense?
+
         if stake_to_delegate is None:
             stake_to_delegate = self.stake
 
@@ -425,21 +433,24 @@ class Stakeholder(Agent):
 
         # todo should we allow players to delegate to their own pools? makes sense only if we consider that
         #  pledge is locked and delegation is not
-        pools_list = [pool for pool in pools.values() if pool.owner != self.unique_id and not pool.is_private]
+        pool_options = [pool for pool in pools.values() if pool.owner != self.unique_id and not pool.is_private]
+        if nearby_pools_only:
+            # player only considers delegating to pools that are run by neighbouring  players
+            pool_options = [pool for pool in pool_options if pool.owner in self.model.nearby_pools[self.unique_id]]
 
         # Only proceed if there are active pools in the system that don't belong to the current player
-        if len(pools_list) > 0:
+        if len(pool_options) > 0:
             saturation_point = self.model.beta
             # todo maybe use potential profits instead of current stakes as tie breaker
             if self.isMyopic:
                 desirabilities_n_stakes = {
                     pool.id: (pool.calculate_myopic_desirability(self.model.alpha, saturation_point), pool.stake)
-                    for pool in pools_list
+                    for pool in pool_options
                 }
             else:
                 desirabilities_n_stakes = {
                     pool.id: (pool.calculate_desirability(), pool.stake)
-                    for pool in pools_list
+                    for pool in pool_options
                 }
             # Order the pools based on desirability and stake (to break ties in desirability) and delegate the stake to
             # the first non-saturated pool(s).
@@ -524,6 +535,10 @@ class Stakeholder(Agent):
     def open_pool(self, pool_id):
         self.model.pools[pool_id] = self.strategy.owned_pools[pool_id]
         self.remaining_min_steps_to_keep_pool = self.model.min_steps_to_keep_pool
+        # add pool to "nearby pools" of all neigbours of the pool owner
+        neighbour_ids = self.model.agent_network.predecessors(self.unique_id)
+        for neighbour_id in neighbour_ids:
+            self.model.nearby_pools[neighbour_id].append(pool_id)
 
     def close_pool(self, pool_id):
         pools = self.model.pools

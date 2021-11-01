@@ -19,7 +19,7 @@ var BubbleChartModule  = function(series, canvas_width, canvas_height) {
 
     var chartOptions = {
         responsive: true,
-        animation: {
+        /*animation: {
             onComplete: function() {
                 if (animationComplete) {
                     var a = document.createElement('a');
@@ -32,7 +32,7 @@ var BubbleChartModule  = function(series, canvas_width, canvas_height) {
                     animationComplete = true
                 }
             }
-        },
+        },*/
         tooltips: {
             displayColors: false,
             callbacks: {

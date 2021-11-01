@@ -11,11 +11,11 @@ import logic.sim as sim
 if __name__ == '__main__':
     freeze_support()  # needed for multiprocessing to work on windows systems (comment out line to run on linux / uncomment for windows)
 
-    fixed_params = {"n": 1000, 'k':100, "simulation_id": "temp", "seed": 42}
+    fixed_params = {"n": 100, "simulation_id": "temp", "seed": 42}
 
-    variable_params = {"abstention_rate": [fraction/100 for fraction in range(1, 87)]}
-    # variable_params = {"k": [k for k in range(2, 31)]}
-    #variable_params = {"alpha": [a / 100 for a in range(49)]}
+    # variable_params = {"abstention_rate": [fraction/100 for fraction in range(1, 87)]}
+    variable_params = {"k": list(range(1, 30))}
+    # variable_params = {"alpha": [a / 100 for a in range(52)]}
     # todo figure out how to run the model with only certain combinations of the variable params
 
     '''batch_run = BatchRunner(Simulation,
@@ -38,24 +38,26 @@ if __name__ == '__main__':
     plt.show()'''
     # only use the non-multiprocessing batch-run (uncomment the lines above and comment the lines below) if the multiprocessing one doesn't work for some reason
 
-    batch_run_MP = BatchRunnerMP(sim.Simulation,
-                                 nr_processes=12,
-                                 variable_parameters=variable_params,
-                                 fixed_parameters=fixed_params,
-                                 iterations=1,
-                                 model_reporters={
-                                     "#Pools": sim.get_number_of_pools,
-                                     "avgPledge": sim.get_avg_pledge,
-                                     "avg_pools_per_operator": sim.get_avg_pools_per_operator,
-                                     "max_pools_per_operator": sim.get_max_pools_per_operator,
-                                     "median_pools_per_operator": sim.get_median_pools_per_operator,
-                                     "avgSatRate": sim.get_avg_sat_rate,
-                                     "nakamotoCoeff": sim.get_nakamoto_coefficient,
-                                     "NCR": sim.get_NCR,
-                                     "MinAggregatePledge": sim.get_min_aggregate_pledge,
-                                     "pledge_rate": sim.get_pledge_rate,
-                                     "homogeneity_factor": sim.get_homogeneity_factor
-                                 })
+    batch_run_MP = BatchRunnerMP(
+        sim.Simulation,
+        variable_parameters=variable_params,
+        fixed_parameters=fixed_params,
+        iterations=1,
+        model_reporters={
+            "#Pools": sim.get_number_of_pools,
+            # "avgPledge": sim.get_avg_pledge,
+            # "avg_pools_per_operator": sim.get_avg_pools_per_operator,
+            # "max_pools_per_operator": sim.get_max_pools_per_operator,
+            # "median_pools_per_operator": sim.get_median_pools_per_operator,
+            # "avgSatRate": sim.get_avg_sat_rate,
+            # "nakamotoCoeff": sim.get_nakamoto_coefficient,
+            # "NCR": sim.get_NCR,
+            # "MinAggregatePledge": sim.get_min_aggregate_pledge,
+            # "pledge_rate": sim.get_pledge_rate,
+            # "homogeneity_factor": sim.get_homogeneity_factor,
+            "stake_mean_abs_diff": sim.get_controlled_stake_mean_abs_diff,
+            "stat_diff": sim.get_controlled_stake_distr_stat_diff
+        })
     start_time = time.time()
     batch_run_MP.run_all()
     print("Batch run with multiprocessing:  {:.2f} seconds".format(time.time() - start_time))
@@ -66,11 +68,11 @@ if __name__ == '__main__':
 
     pickled_batch_run_data = "batch-run-data.pkl"
     with open(pickled_batch_run_data, "wb") as pkl_file:
-        pkl.dump(run_data_MP, pkl_file)
+        pkl.dump(run_data_MP, pkl_file) # todo add id to batch run and include in output file
 
     figures_dir = "output/figures/"
 
-    plt.figure()
+    '''plt.figure()
     plt.scatter(run_data_MP['abstention_rate'], run_data_MP['#Pools'])
     plt.xlabel("Abstention rate")
     plt.ylabel("Pool count")
@@ -104,12 +106,24 @@ if __name__ == '__main__':
     plt.scatter(run_data_MP['abstention_rate'], run_data_MP['MinAggregatePledge'], c='g')
     plt.xlabel("Abstention rate")
     plt.ylabel("Min Aggregate Pledge")
-    plt.savefig(figures_dir + "min-aggregate-pledge-per-abst-rate.png", bbox_inches='tight')
+    plt.savefig(figures_dir + "min-aggregate-pledge-per-abst-rate.png", bbox_inches='tight')'''
 
-    '''plt.figure()
+    plt.figure()
     plt.scatter(run_data_MP['k'], run_data_MP['#Pools'])
     plt.xlabel("k")
-    plt.ylabel("#pools")'''
+    plt.ylabel("#pools")
+
+    plt.figure()
+    plt.scatter(run_data_MP['k'], run_data_MP['stake_mean_abs_diff'], c='magenta')
+    plt.xlabel("k")
+    plt.ylabel("Stake mean absolute difference")
+    plt.savefig(figures_dir + "stake_mean_abs_diff-VS-k.png", bbox_inches='tight')
+
+    plt.figure()
+    plt.scatter(run_data_MP['k'], run_data_MP['stat_diff'], c='c')
+    plt.xlabel("k")
+    plt.ylabel("Stake distributions statistical difference")
+    plt.savefig(figures_dir + "stake_stat_diff-VS-k.png", bbox_inches='tight')
 
     '''plt.figure()
     plt.scatter(run_data_MP['alpha'], run_data_MP['avgPledge'], c='r')

@@ -28,3 +28,25 @@ class Strategy:
         self.pledges = pledges
         self.margins = margins
         self.owned_pools = owned_pools
+
+    def __eq__(self, other):
+        if not isinstance(other, Strategy):
+            return False
+
+        return self.is_pool_operator == other.is_pool_operator and \
+               self.num_pools == other.num_pools and \
+               self.pledges == other.pledges and \
+               self.margins == other.margins and \
+               self.owned_pools == other.owned_pools and \
+               self.stake_allocations == other.stake_allocations
+
+    def __eq__(self, other):
+        if not isinstance(other, Strategy):
+            return True
+
+        return self.is_pool_operator != other.is_pool_operator or \
+               self.num_pools != other.num_pools or \
+               self.pledges != other.pledges or \
+               self.margins != other.margins or \
+               self.owned_pools != other.owned_pools or \
+               self.stake_allocations != other.stake_allocations
