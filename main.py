@@ -87,9 +87,9 @@ def main():
         simulation_id = "".join(['-' + str(key) + '=' + str(value) for key, value in sim.arguments.items()
                                  if type(value) == bool or type(value) == int or type(value) == float])[:180]
 
-    '''pickled_simulation_filename = "simulation-object-" + simulation_id + ".pkl"
+    pickled_simulation_filename = "simulation-object-" + simulation_id + ".pkl"
     with open(pickled_simulation_filename, "wb") as pkl_file:
-        pkl.dump(sim, pkl_file)'''
+        pkl.dump(sim, pkl_file)
 
     output_dir = "output/"
     figures_dir = "output/figures/"
@@ -104,13 +104,11 @@ def main():
         with open(filename, "wb") as pkl_file:
             pkl.dump(pool_nums, pkl_file)
 
+    equilibrium_steps = sim.equilibrium_steps
+    pivot_steps = sim.pivot_steps
 
-
-        # todo how about multiple equilibria? show them all or only last one?
-    equilibrium_step = len(pool_nums) - sim.min_consecutive_idle_steps_for_convergence if sim.schedule.steps < sim.max_iterations else -1
-
-    plot_line(simulation_id, sim_df["#Pools"], 'cyan', "Number of pools over time", "Round",
-              "#Pools", "poolCount", equilibrium_step, True)
+    plot_line(simulation_id, sim_df["#Pools"], 'C0', "Number of pools over time", "Round",
+              "#Pools", "poolCount", equilibrium_steps, pivot_steps, True)
 
     '''pool_sizes_by_step = sim_df["PoolSizes"]  # todo fix
     # print(pool_sizes_by_step)
@@ -133,33 +131,41 @@ def main():
     plt.ylabel("Pool stake")
     plt.savefig(figures_dir + "stakePairs" + current_run_descriptor + ".png", bbox_inches='tight')'''
 
-
     plot_line(simulation_id, sim_df["AvgPledge"], 'red', "Average pledge over time", "Round",
-              "Average pledge", "avgPledge", equilibrium_step, True)
+              "Average pledge", "avgPledge", equilibrium_steps, pivot_steps, True)
 
     plot_line(simulation_id, sim_df["TotalPledge"], 'purple', "Total pledge over time", "Round",
-              "Total pledge", "totalPledge", equilibrium_step, True)
+              "Total pledge", "totalPledge", equilibrium_steps, pivot_steps, True)
 
     plot_line(simulation_id, sim_df["MeanAbsDiff"], 'green', "Mean Absolute Difference of Controlled Stake", "Round",
-              "Mean abs diff", "meanAbsDiff", equilibrium_step)
+              "Mean abs diff", "meanAbsDiff", equilibrium_steps, pivot_steps, False)
 
-def plot_line(simulation_id, data, color, title, x_label, y_label, filename, equilibrium_step, show_equilibrium=False):
+
+def plot_line(simulation_id, data, color, title, x_label, y_label, filename, equilibrium_steps, pivot_steps,
+              show_equilibrium=False):
     figures_dir = "output/figures/"
     path = pathlib.Path.cwd() / figures_dir
     pathlib.Path(path).mkdir(parents=True, exist_ok=True)
 
+    equilibrium_colour = 'mediumseagreen'
+    pivot_colour = 'gold'
+
     plt.figure()
     data.plot(color=color)
     if show_equilibrium:
-        #if sim.schedule.steps < sim.max_iterations:
-        plt.axvline(x=equilibrium_step, label="Equilibrium reached", c='indigo') #todo if it exceeds max iterations??
+        for i, step in enumerate(equilibrium_steps):
+            label = "Equilibrium reached" if i == 0 else ""
+            plt.axvline(x=step, label=label, c=equilibrium_colour)  # todo if it exceeds max iterations??
+    for i, step in enumerate(pivot_steps):
+        label = "Parameter change" if i == 0 else ""
+        plt.plot(step, data[step], 'x', label=label, c=pivot_colour)
     plt.title(title)
     plt.xlabel(x_label)
     plt.ylabel(y_label)
     plt.legend()
     plt.savefig(figures_dir + simulation_id[:10] + "-" + filename + ".png", bbox_inches='tight')
 
-    #plt.show()
+    # plt.show()
 
 
 def main_with_profiling():
@@ -178,4 +184,4 @@ def main_with_profiling():
 
 if __name__ == "__main__":
     main()  # for profiling the code, comment this line and uncomment the one below
-    # main_with_profiling()
+    #main_with_profiling()

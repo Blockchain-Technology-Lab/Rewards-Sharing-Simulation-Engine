@@ -125,6 +125,7 @@ class Simulation(Model):
         self.pool_owner_id_mapping = {}
         self.start_time = None
         self.equilibrium_steps = []
+        self.pivot_steps = []
 
     def initialize_players(self, cost_min, cost_max, pareto_param):
 
@@ -183,7 +184,7 @@ class Simulation(Model):
         if self.current_step_idle:
             self.consecutive_idle_steps += 1
             if self.has_converged():
-                self.equilibrium_steps.append(current_step)
+                self.equilibrium_steps.append(current_step - self.min_consecutive_idle_steps_for_convergence + 1)
                 if self.current_era < self.total_eras - 1:
                     self.adjust_params()
                 else:
@@ -278,9 +279,11 @@ class Simulation(Model):
 
     def adjust_params(self):
         self.current_era += 1
+        change_occured = False
         for attr_name, attr_values_list in zip(self.adjustable_params._fields, self.adjustable_params):
             if len(attr_values_list) > self.current_era:
                 setattr(self, attr_name, attr_values_list[self.current_era])
+                change_occured = True
                 if attr_name == 'k':
                     # update beta in case the value of k changes
                     self.beta = self.total_stake / self.k
@@ -306,4 +309,6 @@ class Simulation(Model):
                             new_abstaining_agents += 1
                             if new_abstaining_agents == 0:
                                 break
+        if change_occured:
+            self.pivot_steps.append(self.schedule.steps)
 
