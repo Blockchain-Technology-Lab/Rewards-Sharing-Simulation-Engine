@@ -470,11 +470,6 @@ class Stakeholder(Agent):
         return Strategy(stake_allocations=allocations, is_pool_operator=False)
 
     def execute_strategy(self):
-        """
-        Execute the player's current strategy
-        :return: void
-
-        """
         current_pools = self.model.pools
 
         old_allocations = self.strategy.stake_allocations
@@ -546,13 +541,14 @@ class Stakeholder(Agent):
         players = self.model.get_players_dict()
         delegators = list(pool.delegators.keys())
         for player_id in delegators:
-            pool.update_delegation(-pool.delegators[player_id], player_id)
+            pool.update_delegation(-pool.delegators[player_id], player_id) #todo is that necessary here?
             player = players[player_id]
             player.strategy.stake_allocations.pop(pool_id)
-            if self.model.player_activation_order == "Simultaneous":
-                # Also remove pool from players' upcoming moves in case of simultenous activation
+        # Also remove pool from players' upcoming moves in case of (semi)simultaneous activation
+        if "simultaneous" in self.model.player_activation_order.lower():
+            for player in players.values(): # todo alternatively save potential delegators somehwere so that we don't go through the whole list of players here
                 if player.new_strategy is not None:
-                    player.new_strategy.stake_allocations.pop(pool_id)
+                    player.new_strategy.stake_allocations.pop(pool_id, None)
 
     def get_status(self):
         print("Agent id: {}, is myopic: {}, stake: {}, cost:{}"
