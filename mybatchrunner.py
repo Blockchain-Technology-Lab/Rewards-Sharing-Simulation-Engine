@@ -31,7 +31,7 @@ class MyBatchRunner(BatchRunnerMP):
 
                 #  Added by LadyChristina
                 print("doooone")
-                pickled_batch_run_results = "batch-run-raw-results.pkl"
+                pickled_batch_run_results = "output/batch-run-raw-results.pkl"
                 with open(pickled_batch_run_results, "wb") as pkl_file:
                     pkl.dump(results, pkl_file)
 

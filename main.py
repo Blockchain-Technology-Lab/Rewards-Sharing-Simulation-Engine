@@ -10,9 +10,9 @@ def main():
     print("Let the Pooling Games begin!")
 
     parser = argparse.ArgumentParser(description='Pooling Games')
-    parser.add_argument('--n', type=int, default=100,
+    parser.add_argument('--n', type=int, default=1000,
                         help='The number of players (natural number). Default is 100.')
-    parser.add_argument('--k', nargs="+", type=int, default=10,
+    parser.add_argument('--k', nargs="+", type=int, default=40,
                         help='The k value of the system (natural number). Default is 10.')
     parser.add_argument('--alpha', nargs="+", type=float, default=0.3,
                         help='The alpha value of the system (decimal number between 0 and 1). Default is 0.3')
@@ -26,7 +26,7 @@ def main():
     parser.add_argument('--pareto_param', type=float, default=2.0,
                         help='The parameter that determines the shape of the distribution that the stake will be '
                              'sampled from. Default is 2.')
-    parser.add_argument('--relative_utility_threshold', nargs="+", type=float, default=0.1,
+    parser.add_argument('--relative_utility_threshold', nargs="+", type=float, default=0,
                         help='The utility increase ratio under which moves are disregarded. Default is 10%%.')
     parser.add_argument('--absolute_utility_threshold', nargs="+", type=float, default=1e-9,
                         help='The utility threshold under which moves are disregarded. Default is 1e-9.')
@@ -36,9 +36,9 @@ def main():
                         help='Seed for reproducibility. Default is 42.')
     parser.add_argument("--min_steps_to_keep_pool", type=int, default=5,
                         help='The number of steps for which a player remains idle after opening a pool. Default is 5.')
-    parser.add_argument('--myopic_fraction', nargs="+", type=float, default=0.1,
+    parser.add_argument('--myopic_fraction', nargs="+", type=float, default=0,
                         help='The fraction of myopic players in the simulation. Default is 10%%.')
-    parser.add_argument('--abstention_rate', nargs="+", type=float, default=0.1,
+    parser.add_argument('--abstention_rate', nargs="+", type=float, default=0,
                         help='The percentage of players that will abstain from the game in this run. Default is 10%%.')
     parser.add_argument('--pool_splitting', type=bool, default=True, action=argparse.BooleanOptionalAction,
                         help='Are individual players allowed to create multiple pools? Default is yes.')
@@ -47,7 +47,7 @@ def main():
     parser.add_argument('--ms', type=int, default=10,
                         help='The minimum consecutive idle steps that are required to declare convergence. '
                              'Default is 10. But if min_steps_to_keep_pool > ms then ms = min_steps_to_keep_pool + 1. ')
-    parser.add_argument('--simulation_id', type=str, default='',
+    parser.add_argument('--simulation_id', type=str, default='unnamed-simulation',
                         help='An optional identifier for the specific simulation run, '
                              'which will be included in the output.')
 
@@ -87,7 +87,7 @@ def main():
         simulation_id = "".join(['-' + str(key) + '=' + str(value) for key, value in sim.arguments.items()
                                  if type(value) == bool or type(value) == int or type(value) == float])[:180]
 
-    pickled_simulation_filename = "simulation-object-" + simulation_id + ".pkl"
+    pickled_simulation_filename = "output/simulation-object-" + simulation_id + ".pkl"
     with open(pickled_simulation_filename, "wb") as pkl_file:
         pkl.dump(sim, pkl_file)
 
@@ -95,6 +95,10 @@ def main():
     figures_dir = "output/figures/"
     path = pathlib.Path.cwd() / figures_dir
     pathlib.Path(path).mkdir(parents=True, exist_ok=True)
+
+    margin_changes = sim_df["MarginChanges"]
+    '''plot_line(simulation_id, sim_df["MarginChanges"], 'C0', "Number of pools over time", "Round",
+              "#Pools", "poolCount", equilibrium_steps=[], pivot_steps=[])'''
 
     pool_nums = sim_df["#Pools"]
     if sim.schedule.steps >= sim.max_iterations:
@@ -110,27 +114,6 @@ def main():
     plot_line(simulation_id, sim_df["#Pools"], 'C0', "Number of pools over time", "Round",
               "#Pools", "poolCount", equilibrium_steps, pivot_steps, True)
 
-    '''pool_sizes_by_step = sim_df["PoolSizes"]  # todo fix
-    # print(pool_sizes_by_step)
-    pool_sizes_by_pool = np.array(list(pool_sizes_by_step)).T
-    print(pool_sizes_by_pool)
-    plt.figure()
-    plt.stackplot(range(len(pool_sizes_by_step)), pool_sizes_by_pool)
-    plt.title("Pool dynamics")
-    plt.xlabel("Iteration")
-    plt.ylabel("Stake")
-    plt.savefig(figures_dir + "poolDynamics.png", bbox_inches='tight')'''
-
-    '''last_stakes = sim_df["StakePairs"].iloc[-1]
-    x = last_stakes['x']
-    y = last_stakes['y']
-    plt.figure()
-    plt.scatter(x, y)
-    plt.title("Owner stake vs pool stake")
-    plt.xlabel("Pool owner stake")
-    plt.ylabel("Pool stake")
-    plt.savefig(figures_dir + "stakePairs" + current_run_descriptor + ".png", bbox_inches='tight')'''
-
     plot_line(simulation_id, sim_df["AvgPledge"], 'red', "Average pledge over time", "Round",
               "Average pledge", "avgPledge", equilibrium_steps, pivot_steps, True)
 
@@ -139,6 +122,17 @@ def main():
 
     plot_line(simulation_id, sim_df["MeanAbsDiff"], 'green', "Mean Absolute Difference of Controlled Stake", "Round",
               "Mean abs diff", "meanAbsDiff", equilibrium_steps, pivot_steps, False)
+
+    '''pool_sizes_by_step = sim_df["PoolSizes"]  # todo fix
+        # print(pool_sizes_by_step)
+        pool_sizes_by_pool = np.array(list(pool_sizes_by_step)).T
+        print(pool_sizes_by_pool)
+        plt.figure()
+        plt.stackplot(range(len(pool_sizes_by_step)), pool_sizes_by_pool)
+        plt.title("Pool dynamics")
+        plt.xlabel("Iteration")
+        plt.ylabel("Stake")
+        plt.savefig(figures_dir + "poolDynamics.png", bbox_inches='tight')'''
 
 
 def plot_line(simulation_id, data, color, title, x_label, y_label, filename, equilibrium_steps, pivot_steps,
@@ -163,7 +157,7 @@ def plot_line(simulation_id, data, color, title, x_label, y_label, filename, equ
     plt.xlabel(x_label)
     plt.ylabel(y_label)
     plt.legend()
-    plt.savefig(figures_dir + simulation_id[:10] + "-" + filename + ".png", bbox_inches='tight')
+    plt.savefig(figures_dir + simulation_id + "-" + filename + ".png", bbox_inches='tight')
 
     # plt.show()
 
@@ -183,5 +177,6 @@ def main_with_profiling():
 
 
 if __name__ == "__main__":
+
     main()  # for profiling the code, comment this line and uncomment the one below
     #main_with_profiling()
