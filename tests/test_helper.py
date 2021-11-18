@@ -94,4 +94,17 @@ def test_calculate_ranks_with_tie_breaking():
     ranks = {5: 3, 3: 4, 1: 5, 12: 2, 8: 1}
     assert hlp.calculate_ranks(desirabilities, potential_profits) == ranks
 
+    desirabilities = {5: 0.2, 3: 0.2, 1: 0.1, 12: 0.9, 8: 0.9}
+    potential_profits = {5: 0.8, 3: 0.7, 1: 0.99, 12: 0.8, 8: 0.8}
+    stakes = {5: 0.8, 3: 0.7, 1: 0.99, 12: 0.8, 8: 0.9}
+    ranks = {5: 3, 3: 4, 1: 5, 12: 2, 8: 1}
+    assert hlp.calculate_ranks(desirabilities, potential_profits, stakes) == ranks
+
+    desirabilities = {5: 0.2, 3: 0.2, 1: 0.1, 12: 0.9, 8: 0.9}
+    potential_profits = {5: 0.8, 3: 0.7, 1: 0.99, 12: 0.8, 8: 0.8}
+    stakes = {5: 0.8, 3: 0.7, 1: 0.99, 12: 0.8, 8: 0.8}
+    ranks = {5: 3, 3: 4, 1: 5, 12: 2, 8: 1}
+    assert hlp.calculate_ranks(desirabilities, potential_profits, stakes, rank_ids=True) == ranks
+
+
 

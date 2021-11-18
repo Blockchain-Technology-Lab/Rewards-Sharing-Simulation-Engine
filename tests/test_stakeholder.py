@@ -103,7 +103,7 @@ def test_close_pool():
 
 
 def test_calculate_margin_semi_perfect_strategy():
-    model = Simulation(k=3)
+    model = Simulation(k=2)
     player156 = Stakeholder(156, model)
     player157 = Stakeholder(157, model)
     player158 = Stakeholder(158, model)
@@ -115,7 +115,7 @@ def test_calculate_margin_semi_perfect_strategy():
     pool557 = Pool(cost=0.001, pledge=0.003, owner=158, alpha=0.3, beta=0.1, pool_id=557)
     model.pools[557] = pool557
     pool558 = Pool(cost=0.001, pledge=0.0001, owner=159, alpha=0.3, beta=0.1, pool_id=558)
-    model.pools[558] = pool557
+    model.pools[558] = pool558
 
     pool555.margin = player156.calculate_margin_semi_perfect_strategy(pool555)
     pool556.margin = player157.calculate_margin_semi_perfect_strategy(pool556)
@@ -128,5 +128,8 @@ def test_calculate_margin_semi_perfect_strategy():
     desirability555 = pool555.calculate_desirability()
     desirability556 = pool556.calculate_desirability()
     desirability557 = pool557.calculate_desirability()
-    assert desirability555 == desirability556 == desirability557
+    desirability558 = pool558.calculate_desirability()
+    assert desirability555 == desirability556 == desirability557 > desirability558 > 0
+
+    #todo test tie breaking
 

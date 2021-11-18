@@ -9,6 +9,7 @@ import time
 import pathlib
 import math
 import collections
+import sys
 
 from mesa import Model
 from mesa.datacollection import DataCollector
@@ -51,6 +52,9 @@ class Simulation(Model):
             ms=10, simulation_id=''
     ):
         # todo make sure that the input is valid? n > 0, 0 < k <= n
+
+        print(sys.version)
+        print([f"{k}, {v}" for k, v in locals().items()])
 
         self.arguments = locals()  # only used for naming the output files appropriately
 
@@ -221,7 +225,6 @@ class Simulation(Model):
         player_potential_profits = {
             player.unique_id: hlp.calculate_potential_profit(player.stake, player.cost, self.alpha, self.beta) for
             player in players.values()}
-        player_potential_profit_ranks = hlp.calculate_ranks(player_potential_profits)
         pool_potential_profits = {pool.id: pool.potential_profit for pool in pools}
         pool_potential_profit_ranks = hlp.calculate_ranks(pool_potential_profits)
         player_potential_profit_ranks = hlp.calculate_ranks(player_potential_profits)
@@ -242,7 +245,8 @@ class Simulation(Model):
               "Private" if pool.is_private else "Public"]
              for pool in pools])
 
-        path = pathlib.Path.cwd() / "output"
+        output_dir = "output/"
+        path = pathlib.Path.cwd() / output_dir
         pathlib.Path(path).mkdir(parents=True, exist_ok=True)
         filename = (path / (self.simulation_id + '-final_configuration.csv')) \
             if self.has_converged() else (path / (self.simulation_id + '-intermediate-configuration.csv'))
@@ -251,7 +255,8 @@ class Simulation(Model):
             writer.writerows(row_list)
 
         # temporary, used to extract results in latex format for easier reporting
-        hlp.to_latex(row_list, self.simulation_id)
+        latex_dir = output_dir + "latex/"
+        hlp.to_latex(row_list, self.simulation_id, latex_dir)
 
     def get_pools_list(self):
         return list(self.pools.values())
@@ -281,7 +286,7 @@ class Simulation(Model):
         active_stake = sum([pool.stake for pool in self.pools.values()])
         self.perceived_active_stake = active_stake
         # Revise expected number of pools, k
-        self.k = math.ceil(active_stake / self.beta)
+        self.k = math.ceil(round(active_stake / self.beta, 12))  # first rounding to 12 decimal digits to avoid floating point errors
 
     def adjust_params(self):
         self.current_era += 1

@@ -114,22 +114,38 @@ def calculate_pool_stake_NM(pool_id, pools, beta, k):
     """
     desirabilities = {pool_id: pool.calculate_desirability() for pool_id, pool in pools.items()}
     potential_profits = {pool_id: pool.potential_profit for pool_id, pool in pools.items()}
-    rank = calculate_ranks(desirabilities, potential_profits)[pool_id]
+    stakes = {pool_id: pool.stake for pool_id, pool in pools.items()}
+    rank = calculate_ranks(desirabilities, potential_profits, stakes, rank_ids=True)[pool_id]
     pool = pools[pool_id]
     return pool.calculate_stake_NM(k, beta, rank)
 
 
-def calculate_ranks(ranking_dict, secondary_ranking_dict=None):
-    if secondary_ranking_dict is None:
-        total_ranking_dict = ranking_dict
-    else:
-        total_ranking_dict = {key: (ranking_dict[key], secondary_ranking_dict[key]) for key in ranking_dict}
-    ranks = {sorted_item[0]: i + 1 for i, sorted_item in
-             enumerate(sorted(total_ranking_dict.items(), key=lambda item: item[1], reverse=True))}
+def calculate_ranks(ranking_dict, *tie_breaking_dicts, rank_ids=True):
+    """
+    Rank the values of a dictionary from highest to lowest (highest value gets rank 1, second highest rank 2 and so on)
+    @param ranking_dict:
+    @param tie_breaking_dicts:
+    @param rank_ids: if True, then the lowest id (e.g. the one corresponding to a pool created earlier) takes precedence
+                    during ties that persist even after the other tie breaking rules have been applied.
+                    If False and ties still exist, then the tie breaking is arbitrary.
+    @return:
+    """
+    if rank_ids:
+        tie_breaking_dicts = list(tie_breaking_dicts)
+        tie_breaking_dicts.append({key: -key for key in ranking_dict.keys()})
+    final_ranking_dict = {
+        key:
+            (ranking_dict[key],) + tuple(tie_breaker_dict[key] for tie_breaker_dict in tie_breaking_dicts)
+        for key in ranking_dict
+    }
+    ranks = {
+        sorted_item[0]: i + 1 for i, sorted_item in
+        enumerate(sorted(final_ranking_dict.items(), key=lambda item: item[1], reverse=True))
+    }
     return ranks
 
 
-def to_latex(row_list, sim_id):
+def to_latex(row_list, sim_id, output_dir):
     row_list_latex = [row[2:4] + row[5:8] + row[9:10] + row[12:14] for row in row_list]
     df = pd.DataFrame(row_list_latex[1:], columns=row_list_latex[0])
     # shift desirability rank column to first position to act as index
@@ -137,8 +153,7 @@ def to_latex(row_list, sim_id):
     df.insert(0, 'Pool desirability rank', first_column)
     sorted_df = df.sort_values(by=['Pool desirability rank'], ascending=True)
 
-    latex_dir = "output/latex/"
-    path = pathlib.Path.cwd() / latex_dir
+    path = pathlib.Path.cwd() / output_dir
     pathlib.Path(path).mkdir(parents=True, exist_ok=True)
-    with open(latex_dir + sim_id + "-output.tex", 'w', newline='') as file:
+    with open(output_dir + sim_id + "-output.tex", 'w', newline='') as file:
         sorted_df.to_latex(file, index=False)

@@ -125,9 +125,10 @@ class Stakeholder(Agent):
     def calculate_operator_utility_by_strategy(self, strategy):
         utility = 0
         potential_pools = strategy.owned_pools
-        all_pools = self.model.pools | potential_pools
+        fixed_pools = {pool_id: pool for pool_id, pool in self.model.pools.items() if pool.owner != self.unique_id}
+        all_considered_pools = fixed_pools | potential_pools
         for pool in potential_pools.values():
-            utility += self.calculate_operator_utility_by_pool(pool, all_pools)
+            utility += self.calculate_operator_utility_by_pool(pool, all_considered_pools)
         return utility
 
     def calculate_operator_utility_by_pool(self, pool, all_pools):
@@ -309,7 +310,7 @@ class Stakeholder(Agent):
         Inspired by "perfect strategies", the player ranks all existing pools based on their potential
         profit and chooses a margin that can guarantee the pool's desirability (non-zero only if the pool
         ranks in the top k)
-        :return: float, the margin that the player will for this new pool
+        :return: float, the margin that the player will set for this pool
         """
         current_pool = deepcopy(pool)
         all_pools = self.model.pools
@@ -318,23 +319,20 @@ class Stakeholder(Agent):
             temp_pool = deepcopy(all_pools[current_pool.id])
         all_pools[current_pool.id] = current_pool
 
-        potential_profits = {pool_id: pool.potential_profit
-                             for pool_id, pool in all_pools.items()}
+        potential_profits = {
+            pool_id: pool.potential_profit
+            for pool_id, pool in all_pools.items()
+        }
 
-        potential_profit_ranks = hlp.calculate_ranks(potential_profits)
+        potential_profit_ranks = hlp.calculate_ranks(potential_profits, rank_ids=True)
         k = self.model.k
         npools = len(all_pools)
         keys = list(potential_profit_ranks.keys())
         values = list(potential_profit_ranks.values())
         # find the pool that is ranked at position k+1, if such pool exists
-        if npools > k:
-            reference_potential_profit = potential_profits[keys[values.index(k + 1)]]
-        else:
-            reference_potential_profit = min(potential_profits.values())
-
+        reference_potential_profit = potential_profits[keys[values.index(k + 1)]] if npools > k else min(potential_profits.values())
         margin = 1 - (reference_potential_profit / potential_profits[current_pool.id]) \
             if potential_profit_ranks[current_pool.id] <= k else 0
-
         # make sure that model fields are left intact
         if temp_pool is None:
             all_pools.pop(current_pool.id)
@@ -356,7 +354,7 @@ class Stakeholder(Agent):
                                                                 self.model.beta)
                              for player_id, player in players.items()}
 
-        potential_profit_ranks = hlp.calculate_ranks(potential_profits)
+        potential_profit_ranks = hlp.calculate_ranks(potential_profits, rank_ids=True)
         k = self.model.k
         n = self.model.n
         keys = list(potential_profit_ranks.keys())
@@ -376,7 +374,7 @@ class Stakeholder(Agent):
             for i in range(retiring_pools_num):
                 # owned_pools.pop(min(owned_pools, key=lambda key: owned_pools[key].stake))
                 desirabilities = {id: pool.calculate_desirability() for id, pool in owned_pools.items()}
-                ranks = hlp.calculate_ranks(desirabilities)
+                ranks = hlp.calculate_ranks(desirabilities, rank_ids=True)
                 # important to use rank and not desirabilities to make sure that the same tie breaking rule is followed
                 owned_pools.pop(max(ranks, key=lambda key: ranks[key]))
         return owned_pools
@@ -475,33 +473,24 @@ class Stakeholder(Agent):
         # Only proceed if there are active pools in the system that don't belong to the current player
         if len(pools_list) > 0:
             saturation_point = self.model.beta
-            # todo maybe use potential profits instead of current stakes as tie breaker
-            if self.isMyopic:
-                pool_data = {
-                    pool.id: (
-                        pool.calculate_myopic_desirability(self.model.alpha, saturation_point),
-                        pool.potential_profit,
-                        pool.stake
-                    )
-                    for pool in pools_list
-                }
-            else:
-                pool_data = {
-                    pool.id: (
-                        pool.calculate_desirability(),
-                        pool.potential_profit,
-                        pool.stake
-                    )
-                    for pool in pools_list
-                }
+            # todo choose based on RANK (result should be the same in practice)
+
+            desirability_dict = {
+                pool.id:
+                    pool.calculate_myopic_desirability(self.model.alpha, saturation_point) if self.isMyopic
+                    else pool.calculate_desirability()
+                for pool in pools_list
+            }
+            pp_dict = {pool.id: pool.potential_profit for pool in pools_list}
+            stake_dict = {pool.id: pool.stake for pool in pools_list}
             # Order the pools based on desirability and stake (to break ties in desirability) and delegate the stake to
             # the first non-saturated pool(s).
+            pool_ranking = hlp.calculate_ranks(desirability_dict, pp_dict, stake_dict, rank_ids=True)
             allow_oversaturation = False
             while stake_to_delegate > 0:
-                for pool_id, (desirability, potential_profit, stake) in sorted(pool_data.items(),
-                                                             key=operator.itemgetter(1), reverse=True):
-                    if stake < saturation_point or allow_oversaturation:
-                        stake_to_saturation = saturation_point - stake
+                for pool_id, rank in sorted(pool_ranking.items(),  key=operator.itemgetter(1)):
+                    if stake_dict[pool_id] < saturation_point or allow_oversaturation:
+                        stake_to_saturation = saturation_point - stake_dict[pool_id]
                         allocation = stake_to_delegate if allow_oversaturation else min(stake_to_delegate,
                                                                                         stake_to_saturation)
                         stake_to_delegate -= allocation
