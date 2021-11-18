@@ -12,12 +12,12 @@ class Pool:
     def __init__(self, pool_id, cost, pledge, owner, alpha, beta, margin=-1, is_private=False):
         self.id = pool_id
         self.margin = margin
+        self.margin_change = 0
         self.cost = cost
         self.pledge = pledge
         self.stake = pledge
         self.owner = owner
         self.is_private = is_private
-        #self.delegators = defaultdict(lambda: 0)
         self.delegators = dict()
         self.set_potential_profit(alpha, beta)
 
@@ -30,15 +30,13 @@ class Pool:
             self.delegators[delegator_id] += stake
         else:
             self.delegators[delegator_id] = stake
-        if self.delegators[delegator_id] == 0:
+        if self.delegators[delegator_id] <= 0:
             self.delegators.pop(delegator_id)
 
     # todo shouldn't a pool's desirability decrease in the case that it gets oversaturated??
     def calculate_desirability(self):
         """
         Note: this follows the paper's approach, where the desirability is always non-negative
-        :param potential_profit:
-        :return:
         """
         return max((1 - self.margin) * self.potential_profit, 0)
 

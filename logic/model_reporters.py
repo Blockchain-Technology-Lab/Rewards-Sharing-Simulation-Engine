@@ -8,10 +8,38 @@ from logic.helper import MAX_NUM_POOLS
 def get_number_of_pools(model):
     return len(model.pools)
 
+
 def get_final_number_of_pools(model):
     if not model.has_converged():
         return -1
     return len(model.pools)
+
+
+def get_margin_changes(model):
+    pools = model.get_pools_list()
+    margin_increase, margin_decrease, margin_abs_change = 0, 0, 0
+    for pool in pools:
+        margin_change = pool.margin_change
+        if margin_change > 0:
+            margin_increase += margin_change
+            margin_abs_change += margin_change
+        else:
+            margin_decrease -= margin_change
+            margin_abs_change -= margin_change
+    return margin_increase, margin_decrease, margin_abs_change
+
+
+def get_avg_margin(model):
+    pools = model.get_pools_list()
+    margins = [pool.margin for pool in pools]
+    return statistics.mean(margins) if len(margins) > 0 else 0
+
+
+def get_median_margin(model):
+    pools = model.get_pools_list()
+    margins = [pool.margin for pool in pools]
+    return statistics.median(margins) if len(margins) > 0 else 0
+
 
 def get_pool_sizes(model):
     max_pools = MAX_NUM_POOLS - 1  # must be < max defined for the chart
@@ -49,7 +77,7 @@ def get_desirabilities_by_pool(model):
 
 def get_avg_pledge(model):
     current_pool_pledges = [pool.pledge for pool in model.get_pools_list()]
-    return sum(current_pool_pledges) / len(current_pool_pledges) if len(current_pool_pledges) > 0 else 0
+    return statistics.mean(current_pool_pledges) if len(current_pool_pledges) > 0 else 0
 
 
 def get_total_pledge(model):
@@ -66,7 +94,7 @@ def get_avg_pools_per_operator(model):
     current_pools = model.pools
     current_num_pools = len(current_pools)
     current_num_operators = len(set([pool.owner for pool in current_pools.values()]))
-    return current_num_pools / current_num_operators
+    return current_num_pools / current_num_operators if current_num_operators > 0 else 0
 
 
 def get_max_pools_per_operator(model):
@@ -87,18 +115,19 @@ def get_avg_sat_rate(model):
     sat_point = model.beta
     current_pools = model.pools
     sat_rates = [pool.stake / sat_point for pool in current_pools.values()]
-    return sum(sat_rates) / len(current_pools)
+    return statistics.mean(sat_rates) if len(sat_rates) > 0 else 0
 
 
 def get_stakes_n_margins(model):
     players = model.get_players_dict()
     pools = model.get_pools_list()
-    return {'x': [players[pool.owner].stake for pool in pools],
-            'y': [pool.stake for pool in pools],
-            'r': [pool.margin for pool in pools],
-            'pool_id': [pool.id for pool in pools],
-            'owner_id': [pool.owner for pool in pools]
-            }
+    return {
+        'x': [players[pool.owner].stake for pool in pools],
+        'y': [pool.stake for pool in pools],
+        'r': [pool.margin for pool in pools],
+        'pool_id': [pool.id for pool in pools],
+        'owner_id': [pool.owner for pool in pools]
+    }
 
 
 def get_total_delegated_stake(model):
@@ -129,7 +158,7 @@ def get_controlled_stake_mean_abs_diff(model):
         current_controlled_stake[pool.owner] += pool.stake
     abs_diff = [abs(current_controlled_stake[player_id] - initial_controlled_stake[player_id])
                 for player_id in active_players]
-    return sum(abs_diff) / len(abs_diff)
+    return statistics.mean(abs_diff)
 
 
 def get_controlled_stake_distr_stat_dist(model):
@@ -176,6 +205,7 @@ def get_nakamoto_coefficient(model):
     total_active_stake = sum(final_stake)
 
     sorted_final_stake = sorted(final_stake, reverse=True)
+    # final_stake.sort(reverse=True) todo figure out if (and why) we get different results with this sorting
     majority_control_players = 0
     majority_control_stake = 0
     index = 0
@@ -272,3 +302,9 @@ def get_homogeneity_factor(model):
     actual_area = sum(pool_stakes)
 
     return actual_area / ideal_area
+
+
+def get_convergence_iterations(model):
+    if not model.has_converged():
+        return -1
+    return model.schedule.steps
