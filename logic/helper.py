@@ -4,7 +4,6 @@ Created on Sun Jun 13 08:15:26 2021
 
 @author: chris
 """
-import random
 from numpy.random import default_rng
 import csv
 import pandas as pd
@@ -14,7 +13,7 @@ TOTAL_EPOCH_REWARDS_R = 1
 MAX_NUM_POOLS = 1000
 
 
-def generate_stake_distr(num_agents, total_stake=1, pareto_param=None):
+def generate_stake_distr(num_agents, total_stake=1, pareto_param=None, seed=156):
     """
     Generate a distribution for the players' initial stake (wealth),
     sampling from a Pareto distribution
@@ -23,17 +22,16 @@ def generate_stake_distr(num_agents, total_stake=1, pareto_param=None):
     :param total_stake:
     :return:
     """
+    rng = default_rng(seed=seed)
     if pareto_param > 0:
         # Sample from a Pareto distribution with the specified shape
-        rng = default_rng(seed=156)
         stake_sample = rng.pareto(pareto_param, num_agents)
     else:
         # Sample from file that contains the (real) stake distribution
         distribution_file = 'stake_distribution_275.csv'
         all_stakes = get_stakes_from_file(distribution_file)
-        stake_sample = random.sample(all_stakes, num_agents)
+        stake_sample = rng.choice(all_stakes, num_agents)
     normalized_stake_sample = normalize_distr(stake_sample, normal_sum=total_stake)
-    random.shuffle(normalized_stake_sample)
     return normalized_stake_sample
 
 
@@ -49,7 +47,7 @@ def get_stakes_from_file(filename):  # todo if we keep this function replace wit
     return stakes
 
 
-def generate_cost_distr(num_agents, low, high):
+def generate_cost_distr(num_agents, low, high, seed=156):
     """
     Generate a distribution for the players' costs of operating pools,
     sampling from a unifrom distribution
@@ -58,21 +56,25 @@ def generate_cost_distr(num_agents, low, high):
     :param high:
     :return:
     """
-    rng = default_rng(seed=156)
+    rng = default_rng(seed=seed)
     costs = rng.uniform(low=low, high=high, size=num_agents)
-    random.shuffle(costs)
     return costs
 
 
-def normalize_distr(distr, normal_sum=1):
+def normalize_distr(dstr, normal_sum=1):
     """
     returns an equivalent distribution where the sum equals 1 (or another value defined by normal_sum)
-    :param distr:
+    :param dstr:
     :param normal_sum:
     :return:
     """
-    s = sum(distr)
-    return [normal_sum * float(i) / s for i in distr] if s != 0 else distr
+    s = sum(dstr)
+    if s == 0:
+        return dstr
+    nrm_dstr = [normal_sum * i / s for i in dstr]
+    flt_error = normal_sum - sum(nrm_dstr)
+    nrm_dstr[-1] += flt_error
+    return nrm_dstr
 
 
 def calculate_potential_profit(pledge, cost, alpha, beta):

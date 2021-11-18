@@ -1,9 +1,9 @@
 import pytest
 
-from pool import Pool
-from sim import Simulation
-from stakeholder import Stakeholder
-from strategy import Strategy
+from logic.pool import Pool
+from logic.sim import Simulation
+from logic.stakeholder import Stakeholder
+from logic.strategy import Strategy
 
 
 # todo add more tests
@@ -81,15 +81,17 @@ def test_open_pool():
 
 def test_close_pool():
     model = Simulation()
+    player = Stakeholder(156, model)
     pool = Pool(cost=0.001, pledge=0.001, owner=156, margin=0.2, alpha=0.3, beta=0.1, pool_id=555)
     model.pools[555] = pool
-    player = Stakeholder(156, model)
+
     player.close_pool(555)
-    assert model.pools[555] is None
+
+    assert 555 not in model.pools.keys()
 
     # try to close the same pool again but get an exception because it doesn't exist anymore
     with pytest.raises(ValueError) as e_info:
-        player.close_pool(55)
+        player.close_pool(555)
     assert str(e_info.value) == 'Given pool id is not valid.'
 
     # try to close another player's pool
@@ -98,3 +100,33 @@ def test_close_pool():
         player = Stakeholder(157, model)
         player.close_pool(555)
     assert str(e_info.value) == "Player tried to close pool that belongs to another player."
+
+
+def test_calculate_margin_semi_perfect_strategy():
+    model = Simulation(k=3)
+    player156 = Stakeholder(156, model)
+    player157 = Stakeholder(157, model)
+    player158 = Stakeholder(158, model)
+    player159 = Stakeholder(159, model)
+    pool555 = Pool(cost=0.001, pledge=0.001, owner=156, alpha=0.3, beta=0.1, pool_id=555)
+    model.pools[555] = pool555
+    pool556 = Pool(cost=0.001, pledge=0.002, owner=157, alpha=0.3, beta=0.1, pool_id=556)
+    model.pools[556] = pool556
+    pool557 = Pool(cost=0.001, pledge=0.003, owner=158, alpha=0.3, beta=0.1, pool_id=557)
+    model.pools[557] = pool557
+    pool558 = Pool(cost=0.001, pledge=0.0001, owner=159, alpha=0.3, beta=0.1, pool_id=558)
+    model.pools[558] = pool557
+
+    pool555.margin = player156.calculate_margin_semi_perfect_strategy(pool555)
+    pool556.margin = player157.calculate_margin_semi_perfect_strategy(pool556)
+    pool557.margin = player158.calculate_margin_semi_perfect_strategy(pool557)
+    pool558.margin = player159.calculate_margin_semi_perfect_strategy(pool558)
+
+    assert pool555.margin == pool558.margin == 0
+    assert pool557.margin > pool556.margin > 0
+
+    desirability555 = pool555.calculate_desirability()
+    desirability556 = pool556.calculate_desirability()
+    desirability557 = pool557.calculate_desirability()
+    assert desirability555 == desirability556 == desirability557
+
