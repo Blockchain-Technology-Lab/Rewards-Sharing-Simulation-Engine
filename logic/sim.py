@@ -4,12 +4,12 @@ Created on Thu Jun 10 12:59:49 2021
 
 @author: chris
 """
-import random
 import csv
 import time
 import pathlib
 import math
 import collections
+import sys
 
 from mesa import Model
 from mesa.datacollection import DataCollector
@@ -39,40 +39,43 @@ class Simulation(Model):
     player_activation_orders = {
         "Random": RandomActivation,
         "Sequential": BaseScheduler,
-        "Simultaneous": SimultaneousActivation,
+        "Simultaneous": SimultaneousActivation, # note that during simultaneous activation players apply their moves sequentially which may not be the expected behaviour
         "Semisimultaneous": SemiSimultaneousActivation
-        # todo during simultaneous activation players apply their moves sequentially which may not be the expected behaviour
 
     }
 
-    def __init__(self, n=100, k=10, alpha=0.3, myopic_fraction=0.1, abstention_rate=0.1,
-                 relative_utility_threshold=0.1, absolute_utility_threshold=1e-9,
-                 min_steps_to_keep_pool=5, pool_splitting=True, seed=42, pareto_param=2.0, max_iterations=1000,
-                 common_cost=1e-4, cost_min=0.001, cost_max=0.002, player_activation_order="Random", total_stake=1,
-                 ms=10, simulation_id=''
-                 ):
-
+    def __init__(
+            self, n=1000, k=100, alpha=0.3, myopic_fraction=0, abstention_rate=0,
+            relative_utility_threshold=0, absolute_utility_threshold=1e-9,
+            min_steps_to_keep_pool=5, pool_splitting=True, seed=42, pareto_param=2.0, max_iterations=1000,
+            common_cost=1e-4, cost_min=0.001, cost_max=0.002, player_activation_order="Random", total_stake=1,
+            ms=10, simulation_id=''
+    ):
         # todo make sure that the input is valid? n > 0, 0 < k <= n
-        self.arguments = locals() # only used for naming the output files appropriately
-        if seed is not None:
-            random.seed(seed)
+
+        print(sys.version)
+        print([f"{k}, {v}" for k, v in locals().items()])
+
+        self.arguments = locals()  # only used for naming the output files appropriately
 
         # An era is defined as a time period during which the parameters of the model don't change
         self.current_era = 0
         total_eras = 1
 
         adjustable_params = AdjustableParams(
-            k=k if type(k) is list else [k],
-            alpha=alpha if type(alpha) is list else [alpha],
-            common_cost=common_cost if type(common_cost) is list else [common_cost],
-            relative_utility_threshold=relative_utility_threshold if type(relative_utility_threshold) is list else [relative_utility_threshold],
-            absolute_utility_threshold=absolute_utility_threshold if type(absolute_utility_threshold) is list else [absolute_utility_threshold],
-            myopic_fraction=myopic_fraction if type(myopic_fraction) is list else [myopic_fraction],
-            abstention_rate=abstention_rate if type(abstention_rate) is list else [abstention_rate]
+            k=k if isinstance(k, list) else [k],
+            alpha=alpha if isinstance(alpha, list) else [alpha],
+            common_cost=common_cost if isinstance(common_cost,list) else [common_cost],
+            relative_utility_threshold=relative_utility_threshold if isinstance(relative_utility_threshold, list)else [
+                relative_utility_threshold],
+            absolute_utility_threshold=absolute_utility_threshold if isinstance(absolute_utility_threshold, list) else [
+                absolute_utility_threshold],
+            myopic_fraction=myopic_fraction if isinstance(myopic_fraction, list) else [myopic_fraction],
+            abstention_rate=abstention_rate if isinstance(abstention_rate, list) else [abstention_rate]
         )
 
         for attr_name, attr_values_list in zip(adjustable_params._fields, adjustable_params):
-            setattr(self, attr_name, attr_values_list[self.current_era])
+            setattr(self, attr_name, attr_values_list[self.current_era]) #todo maybe self.abstention_rate not necessary?
             if len(attr_values_list) > total_eras:
                 total_eras = len(attr_values_list)
         self.total_eras = total_eras
@@ -116,23 +119,27 @@ class Simulation(Model):
                 "StakePairs": get_stakes_n_margins,
                 "AvgPledge": get_avg_pledge,
                 "TotalPledge": get_total_pledge,
-                "MedianPledge":get_median_pledge,
+                "MedianPledge": get_median_pledge,
                 "MeanAbsDiff": get_controlled_stake_mean_abs_diff,
-                "StatDiff": get_controlled_stake_distr_stat_diff,
+                "StatisticalDistance": get_controlled_stake_distr_stat_dist,
                 "NakamotoCoefficient": get_nakamoto_coefficient,
-                "NCR": get_NCR,
-                "MinAggregatePledge": get_min_aggregate_pledge,
-                "PledgeRate": get_pledge_rate,
-                "AreaCoverage": get_homogeneity_factor
+                # "NCR": get_NCR,
+                # "MinAggregatePledge": get_min_aggregate_pledge,
+                # "PledgeRate": get_pledge_rate,
+                "AreaCoverage": get_homogeneity_factor,
+                "MarginChanges": get_margin_changes,
+                "AvgMargin": get_avg_margin,
+                "MedianMargin": get_median_margin
             })
 
-        self.pool_owner_id_mapping = {}
+        self.pool_owner_id_mapping = dict()
         self.start_time = None
         self.equilibrium_steps = []
+        self.pivot_steps = []
 
     def initialize_players(self, cost_min, cost_max, pareto_param):
         # Allocate stake to the players, sampling from a Pareto distribution
-        stake_distribution = hlp.generate_stake_distr(self.n, total_stake=self.total_stake,
+        stake_distribution = hlp.generate_stake_distr(num_agents=self.n, total_stake=self.total_stake,
                                                       pareto_param=pareto_param)
 
         # Allocate cost to the players, sampling from a uniform distribution
@@ -142,7 +149,8 @@ class Simulation(Model):
         num_abstaining_agents = int(self.abstention_rate * self.n)
 
         unique_ids = list(self.agent_network.nodes)
-        random.shuffle(unique_ids)
+        self.random.shuffle(unique_ids)
+
         # Create agents
         for i, unique_id in enumerate(unique_ids):
             agent = Stakeholder(
@@ -187,7 +195,7 @@ class Simulation(Model):
         if self.current_step_idle:
             self.consecutive_idle_steps += 1
             if self.has_converged():
-                self.equilibrium_steps.append(current_step)
+                self.equilibrium_steps.append(current_step - self.min_consecutive_idle_steps_for_convergence + 1)
                 if self.current_era < self.total_eras - 1:
                     self.adjust_params()
                 else:
@@ -219,12 +227,14 @@ class Simulation(Model):
              "Pool potential profit", "Owner PP rank", "Pool desirability rank", "Pool status"]]
         players = self.get_players_dict()
         pools = self.get_pools_list()
-        potential_profits = {
+        player_potential_profits = {
             player.unique_id: hlp.calculate_potential_profit(player.stake, player.cost, self.alpha, self.beta) for
             player in players.values()}
-        potential_profit_ranks = hlp.calculate_ranks(potential_profits)
+        pool_potential_profits = {pool.id: pool.potential_profit for pool in pools}
+        pool_potential_profit_ranks = hlp.calculate_ranks(pool_potential_profits)
+        player_potential_profit_ranks = hlp.calculate_ranks(player_potential_profits)
         desirabilities = {pool.id: pool.calculate_desirability() for pool in pools}
-        desirability_ranks = hlp.calculate_ranks(desirabilities)
+        desirability_ranks = hlp.calculate_ranks(desirabilities, pool_potential_profits)
         stakes = {player_id: player.stake for player_id, player in players.items()}
         stake_ranks = hlp.calculate_ranks(stakes)
         negative_cost_ranks = hlp.calculate_ranks({player_id: -player.cost for player_id, player in players.items()})
@@ -234,12 +244,14 @@ class Simulation(Model):
               round(players[pool.owner].calculate_margin_perfect_strategy(), decimals),
               round(pool.pledge, decimals), round(players[pool.owner].stake, decimals), stake_ranks[pool.owner],
               round(pool.cost, decimals),
-              negative_cost_ranks[pool.owner], round(pool.calculate_desirability(), decimals),
-              round(pool.potential_profit, decimals), potential_profit_ranks[pool.owner], desirability_ranks[pool.id],
+              negative_cost_ranks[pool.owner], round(pool.calculate_desirability(), 10),
+              round(pool.potential_profit, decimals), player_potential_profit_ranks[pool.owner],
+              desirability_ranks[pool.id],
               "Private" if pool.is_private else "Public"]
              for pool in pools])
 
-        path = pathlib.Path.cwd() / "output"
+        output_dir = "output/19-11-21/"
+        path = pathlib.Path.cwd() / output_dir
         pathlib.Path(path).mkdir(parents=True, exist_ok=True)
         filename = (path / (self.simulation_id + '-final_configuration.csv')) \
             if self.has_converged() else (path / (self.simulation_id + '-intermediate-configuration.csv'))
@@ -248,7 +260,8 @@ class Simulation(Model):
             writer.writerows(row_list)
 
         # temporary, used to extract results in latex format for easier reporting
-        hlp.to_latex(row_list, self.simulation_id)
+        latex_dir = output_dir + "latex/"
+        hlp.to_latex(row_list, self.simulation_id, latex_dir)
 
     def get_pools_list(self):
         return list(self.pools.values())
@@ -278,12 +291,39 @@ class Simulation(Model):
         active_stake = sum([pool.stake for pool in self.pools.values()])
         self.perceived_active_stake = active_stake
         # Revise expected number of pools, k
-        self.k = math.ceil(active_stake / self.beta)
+        self.k = math.ceil(round(active_stake / self.beta, 12))  # first rounding to 12 decimal digits to avoid floating point errors
 
     def adjust_params(self):
         self.current_era += 1
+        change_occured = False
         for attr_name, attr_values_list in zip(self.adjustable_params._fields, self.adjustable_params):
             if len(attr_values_list) > self.current_era:
                 setattr(self, attr_name, attr_values_list[self.current_era])
-        # update beta in case the value of k changed
-        self.beta = self.total_stake / self.k
+                change_occured = True
+                if attr_name == 'k':
+                    # update beta in case the value of k changes
+                    self.beta = self.total_stake / self.k
+                elif attr_name == 'abstention_rate':
+                    # update agent properties in case the abstention rate changes
+                    abstention_change = attr_values_list[self.current_era] - attr_values_list[self.current_era - 1]
+                    new_abstaining_agents = int(abstention_change * self.n)
+                    all_agents = self.schedule.agents
+                    if new_abstaining_agents > 0:
+                        # abstention increased
+                        # todo fix issue when abstention increases
+                        for i, agent in enumerate(all_agents):
+                            if not agent.abstains and agent.remaining_min_steps_to_keep_pool == 0:
+                                agent.abstains = True
+                            new_abstaining_agents -= 1
+                            if new_abstaining_agents == 0:
+                                break
+                    else:
+                        # abstention decreased
+                        for i, agent in enumerate(all_agents):
+                            if agent.abstains:
+                                agent.abstains = False
+                            new_abstaining_agents += 1
+                            if new_abstaining_agents == 0:
+                                break
+        if change_occured:
+            self.pivot_steps.append(self.schedule.steps)

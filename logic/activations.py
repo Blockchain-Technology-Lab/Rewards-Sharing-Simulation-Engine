@@ -1,5 +1,3 @@
-import random
-
 from mesa.time import BaseScheduler
 
 
@@ -25,7 +23,7 @@ class SemiSimultaneousActivation(BaseScheduler):
         agent_keys = list(self._agents.keys())
         while len(agent_keys) > 0:
             k = self.simultaneous_moves if self.simultaneous_moves < len(agent_keys) else len(agent_keys)
-            current_agent_keys = random.sample(agent_keys, k=k)
+            current_agent_keys = self.model.random.sample(agent_keys, k=k)
             for agent_key in current_agent_keys:
                 self._agents[agent_key].step()
             for agent_key in current_agent_keys:

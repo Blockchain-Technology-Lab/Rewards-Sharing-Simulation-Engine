@@ -1,10 +1,19 @@
-import helper as hlp
+import logic.helper as hlp
 
 
 # todo add more tests
 
 def test_generate_stake_distr():
-    assert True
+    stk_distr = hlp.generate_stake_distr(num_agents=100, pareto_param=2)
+
+    assert len(stk_distr) == 100
+    assert sum(stk_distr) == 1
+
+    stk_distr = hlp.generate_stake_distr(num_agents=1001, pareto_param=1.5, total_stake=21527)
+
+    assert len(stk_distr) == 1001
+    assert sum(stk_distr) == 21527
+
 
 
 def test_generate_cost_distr():
@@ -12,7 +21,13 @@ def test_generate_cost_distr():
 
 
 def test_normalize_distr():
-    assert True
+    sample_dstr = [10, 8, 5, 5, 1, 0.5, 0.1]
+
+    nrm_dstr = hlp.normalize_distr(sample_dstr)
+    assert sum(nrm_dstr) == 1
+
+    nrm_dstr = hlp.normalize_distr(sample_dstr, normal_sum=156)
+    assert sum(nrm_dstr) == 156
 
 
 def test_calculate_potential_profit():
@@ -78,5 +93,18 @@ def test_calculate_ranks_with_tie_breaking():
     potential_profits = {5: 0.8, 3: 0.7, 1: 0.99, 12: 0.8, 8: 0.9}
     ranks = {5: 3, 3: 4, 1: 5, 12: 2, 8: 1}
     assert hlp.calculate_ranks(desirabilities, potential_profits) == ranks
+
+    desirabilities = {5: 0.2, 3: 0.2, 1: 0.1, 12: 0.9, 8: 0.9}
+    potential_profits = {5: 0.8, 3: 0.7, 1: 0.99, 12: 0.8, 8: 0.8}
+    stakes = {5: 0.8, 3: 0.7, 1: 0.99, 12: 0.8, 8: 0.9}
+    ranks = {5: 3, 3: 4, 1: 5, 12: 2, 8: 1}
+    assert hlp.calculate_ranks(desirabilities, potential_profits, stakes) == ranks
+
+    desirabilities = {5: 0.2, 3: 0.2, 1: 0.1, 12: 0.9, 8: 0.9}
+    potential_profits = {5: 0.8, 3: 0.7, 1: 0.99, 12: 0.8, 8: 0.8}
+    stakes = {5: 0.8, 3: 0.7, 1: 0.99, 12: 0.8, 8: 0.8}
+    ranks = {5: 3, 3: 4, 1: 5, 12: 2, 8: 1}
+    assert hlp.calculate_ranks(desirabilities, potential_profits, stakes, rank_ids=True) == ranks
+
 
 
