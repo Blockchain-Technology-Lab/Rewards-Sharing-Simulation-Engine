@@ -10,9 +10,9 @@ def main():
     print("Let the Pooling Games begin!")
 
     parser = argparse.ArgumentParser(description='Pooling Games')
-    parser.add_argument('--n', type=int, default=1000,
+    parser.add_argument('--n', type=int, default=100,
                         help='The number of players (natural number). Default is 100.')
-    parser.add_argument('--k', nargs="+", type=int, default=40,
+    parser.add_argument('--k', nargs="+", type=int, default=10,
                         help='The k value of the system (natural number). Default is 10.')
     parser.add_argument('--alpha', nargs="+", type=float, default=0.3,
                         help='The alpha value of the system (decimal number between 0 and 1). Default is 0.3')
@@ -91,8 +91,8 @@ def main():
     with open(pickled_simulation_filename, "wb") as pkl_file:
         pkl.dump(sim, pkl_file)
 
-    output_dir = "output/"
-    figures_dir = "output/figures/"
+    output_dir = "output/19-11-21/"
+    figures_dir = output_dir + "figures/"
     path = pathlib.Path.cwd() / figures_dir
     pathlib.Path(path).mkdir(parents=True, exist_ok=True)
 
@@ -112,16 +112,16 @@ def main():
     pivot_steps = sim.pivot_steps
 
     plot_line(simulation_id, sim_df["#Pools"], 'C0', "Number of pools over time", "Round",
-              "#Pools", "poolCount", equilibrium_steps, pivot_steps, True)
+              "#Pools", "poolCount", equilibrium_steps, pivot_steps, figures_dir, True)
 
     plot_line(simulation_id, sim_df["AvgPledge"], 'red', "Average pledge over time", "Round",
-              "Average pledge", "avgPledge", equilibrium_steps, pivot_steps, True)
+              "Average pledge", "avgPledge", equilibrium_steps, pivot_steps, figures_dir, True)
 
     plot_line(simulation_id, sim_df["TotalPledge"], 'purple', "Total pledge over time", "Round",
-              "Total pledge", "totalPledge", equilibrium_steps, pivot_steps, True)
+              "Total pledge", "totalPledge", equilibrium_steps, pivot_steps, figures_dir, True)
 
     plot_line(simulation_id, sim_df["MeanAbsDiff"], 'green', "Mean Absolute Difference of Controlled Stake", "Round",
-              "Mean abs diff", "meanAbsDiff", equilibrium_steps, pivot_steps, False)
+              "Mean abs diff", "meanAbsDiff", equilibrium_steps, pivot_steps, figures_dir, False)
 
     '''pool_sizes_by_step = sim_df["PoolSizes"]  # todo fix
         # print(pool_sizes_by_step)
@@ -136,8 +136,7 @@ def main():
 
 
 def plot_line(simulation_id, data, color, title, x_label, y_label, filename, equilibrium_steps, pivot_steps,
-              show_equilibrium=False):
-    figures_dir = "output/figures/"
+              figures_dir, show_equilibrium=False):
     path = pathlib.Path.cwd() / figures_dir
     pathlib.Path(path).mkdir(parents=True, exist_ok=True)
 
@@ -153,7 +152,7 @@ def plot_line(simulation_id, data, color, title, x_label, y_label, filename, equ
     for i, step in enumerate(pivot_steps):
         label = "Parameter change" if i == 0 else ""
         plt.plot(step, data[step], 'x', label=label, c=pivot_colour)
-    plt.title(title)
+    #plt.title(title)
     plt.xlabel(x_label)
     plt.ylabel(y_label)
     plt.legend()

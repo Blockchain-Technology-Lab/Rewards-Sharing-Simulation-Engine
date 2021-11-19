@@ -164,9 +164,11 @@ def get_controlled_stake_mean_abs_diff(model):
 def get_controlled_stake_distr_stat_dist(model):
     """
     :param model:
-    :return: the statistical difference of the distributions of the stake that players control
+    :return: the statistical distance of the distributions of the stake that players control
                 (how they started vs how they ended up)
     """
+    if not model.has_converged():
+        return -1
     active_players = {player_id: player for player_id, player in model.get_players_dict().items() if
                       not player.abstains}
     pools = model.get_pools_list()

@@ -245,7 +245,7 @@ class Simulation(Model):
               "Private" if pool.is_private else "Public"]
              for pool in pools])
 
-        output_dir = "output/"
+        output_dir = "output/19-11-21/"
         path = pathlib.Path.cwd() / output_dir
         pathlib.Path(path).mkdir(parents=True, exist_ok=True)
         filename = (path / (self.simulation_id + '-final_configuration.csv')) \

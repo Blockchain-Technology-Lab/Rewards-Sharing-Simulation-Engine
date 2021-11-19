@@ -173,7 +173,7 @@ class Stakeholder(Agent):
         m_factor = (1 - pool.margin) * q
         u_0 = (r - pool.cost)
         u = m_factor * u_0
-        utility = max(0, u)
+        utility = u if u > 0 else 0
         return utility
 
     # how does a myopic player decide whether to open a pool or not? -> for now we assume that all players play non-myopically when it comes to pool moves

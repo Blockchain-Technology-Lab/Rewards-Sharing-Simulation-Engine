@@ -19,11 +19,11 @@ def main():
                         help='The identifier of this execution, to be used for naming the output files.')
     parser.add_argument('--seed', default=42,
                         help='Seed for reproducibility (set seed=None if reproducibility is not required). Default is 42.')
-    parser.add_argument('--max_iterations', type=int, default=1000,
+    parser.add_argument('--max_iterations', type=int, default=5000,
                         help='The maximum number of iterations of the system. Default is 1000.')
     parser.add_argument('--n', nargs="+", type=int, default=1000,
                         help='The number of players (natural number). Default is 100.')
-    parser.add_argument('--k', nargs="+", type=int, default=[95, 110, 2],
+    parser.add_argument('--k', nargs="+", type=int, default=[100, 200, 2],
                         help='The k value of the system (natural number). Default is 10.')
     parser.add_argument('--alpha', nargs="+", type=float, default=0.3,
                         help='The alpha value of the system (decimal number between 0 and 1). Default is 0.3')
@@ -66,6 +66,7 @@ def main():
         "median_pools_per_operator": sim.get_median_pools_per_operator,
         "avgSatRate": sim.get_avg_sat_rate,
         "nakamotoCoeff": sim.get_nakamoto_coefficient,
+        "StatisticalDistance": sim.get_controlled_stake_distr_stat_dist,
         # "NCR": sim.get_NCR,
         #"MinAggregatePledge": sim.get_min_aggregate_pledge,
         # "pledge_rate": sim.get_pledge_rate,
@@ -93,7 +94,7 @@ def main():
     run_data_MP = batch_run_MP.get_model_vars_dataframe()
     # print(run_data_MP.head())
 
-    output_dir = "output"
+    output_dir = "output/19-11-21"
     pickled_batch_run_data = output_dir + "/batch-run-data.pkl"
     with open(pickled_batch_run_data, "wb") as pkl_file:
         pkl.dump(run_data_MP, pkl_file)
@@ -101,7 +102,7 @@ def main():
     variable_param = list(variable_params.keys())[0]
     colours = [np.random.rand(3, ) for i in range(len(model_reporters))]
     for i, model_reporter in enumerate(model_reporters):
-        plot_aggregate_data(run_data_MP, variable_param, model_reporter, colours[i], args_dict["execution_id"])
+        plot_aggregate_data(run_data_MP, variable_param, model_reporter, colours[i], args_dict["execution_id"], output_dir)
 
     # ordered dicts with data from each step of each run (the combinations of variable params act as the keys)
     # for example data_collector_model[(0.1, 0.02, 1)] shows the values of the parameters collected at model level
@@ -112,8 +113,8 @@ def main():
     plt.show()
 
 
-def plot_aggregate_data(df, variable_param, model_reporter, color, exec_id):
-    figures_dir = "output/figures/"
+def plot_aggregate_data(df, variable_param, model_reporter, color, exec_id, output_dir):
+    figures_dir = output_dir + "/figures/"
     plt.figure()
     plt.scatter(df[variable_param], df[model_reporter], color=color)
     plt.xlabel(variable_param)

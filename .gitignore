@@ -3,7 +3,6 @@
 **.csv
 **.spec
 **.tex
-**.sh
 **.pkl
 **/dist
 **/build
