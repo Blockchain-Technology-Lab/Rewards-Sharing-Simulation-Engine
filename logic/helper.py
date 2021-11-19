@@ -11,6 +11,7 @@ import pathlib
 
 TOTAL_EPOCH_REWARDS_R = 1
 MAX_NUM_POOLS = 1000
+MIN_STAKE_UNIT = 2.2e-17
 
 
 def generate_stake_distr(num_agents, total_stake=1, pareto_param=None, seed=156):

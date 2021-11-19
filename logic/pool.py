@@ -5,6 +5,7 @@ Created on Fri Jun 11 17:14:16 2021
 @author: chris
 """
 import logic.helper as hlp
+from logic.helper import MIN_STAKE_UNIT
 
 
 class Pool:
@@ -30,7 +31,7 @@ class Pool:
             self.delegators[delegator_id] += stake
         else:
             self.delegators[delegator_id] = stake
-        if self.delegators[delegator_id] <= 0:
+        if self.delegators[delegator_id] <= MIN_STAKE_UNIT:
             self.delegators.pop(delegator_id)
 
     # todo shouldn't a pool's desirability decrease in the case that it gets oversaturated??

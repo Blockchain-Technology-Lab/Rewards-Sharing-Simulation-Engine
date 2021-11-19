@@ -13,6 +13,7 @@ from logic.pool import Pool
 from logic.strategy import Strategy
 from logic.strategy import STARTING_MARGIN
 from logic.strategy import MARGIN_INCREMENT
+from logic.helper import MIN_STAKE_UNIT
 from logic.custom_exceptions import PoolNotFoundError, NonPositiveAllocationError
 
 
@@ -487,10 +488,10 @@ class Stakeholder(Agent):
             # the first non-saturated pool(s).
             pool_ranking = hlp.calculate_ranks(desirability_dict, pp_dict, stake_dict, rank_ids=True)
             allow_oversaturation = False
-            while stake_to_delegate > 0:
+            while stake_to_delegate >= MIN_STAKE_UNIT:
                 for pool_id, rank in sorted(pool_ranking.items(),  key=operator.itemgetter(1)):
-                    if stake_dict[pool_id] < saturation_point or allow_oversaturation:
-                        stake_to_saturation = saturation_point - stake_dict[pool_id]
+                    stake_to_saturation = saturation_point - stake_dict[pool_id]
+                    if stake_to_saturation >= MIN_STAKE_UNIT or allow_oversaturation:
                         allocation = stake_to_delegate if allow_oversaturation else min(stake_to_delegate,
                                                                                         stake_to_saturation)
                         stake_to_delegate -= allocation
