@@ -120,7 +120,7 @@ class Simulation(Model):
                 "StatisticalDistance": get_controlled_stake_distr_stat_dist,
                 "NakamotoCoefficient": get_nakamoto_coefficient,
                 "NCR": get_NCR,
-                "MinAggregatePledge": get_min_aggregate_pledge,
+                # "MinAggregatePledge": get_min_aggregate_pledge,
                 "PledgeRate": get_pledge_rate,
                 "AreaCoverage": get_homogeneity_factor,
                 "MarginChanges": get_margin_changes,
