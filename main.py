@@ -47,7 +47,7 @@ def main():
     parser.add_argument('--ms', type=int, default=10,
                         help='The minimum consecutive idle steps that are required to declare convergence. '
                              'Default is 10. But if min_steps_to_keep_pool > ms then ms = min_steps_to_keep_pool + 1. ')
-    parser.add_argument('--simulation_id', type=str, default='unnamed-simulation',
+    parser.add_argument('--execution_id', type=str, default='unnamed-simulation',
                         help='An optional identifier for the specific simulation run, '
                              'which will be included in the output.')
 
@@ -74,53 +74,53 @@ def main():
         pool_splitting=args.pool_splitting,
         max_iterations=args.max_iterations,
         ms=args.ms,
-        simulation_id=args.simulation_id
+        execution_id=args.execution_id
     )
 
     sim.run_model()
 
     sim_df = sim.datacollector.get_model_vars_dataframe()
 
-    simulation_id = args.simulation_id
-    if simulation_id == '':
+    execution_id = args.execution_id
+    if execution_id == '':
         # No identifier was provided by the user, so we construct one based on the simulation's parameter values
-        simulation_id = "".join(['-' + str(key) + '=' + str(value) for key, value in sim.arguments.items()
+        execution_id = "".join(['-' + str(key) + '=' + str(value) for key, value in sim.arguments.items()
                                  if type(value) == bool or type(value) == int or type(value) == float])[:180]
 
-    pickled_simulation_filename = "output/simulation-object-" + simulation_id + ".pkl"
+    pickled_simulation_filename = "output/simulation-object-" + execution_id + ".pkl"
     with open(pickled_simulation_filename, "wb") as pkl_file:
         pkl.dump(sim, pkl_file)
 
-    output_dir = "output/19-11-21/"
+    output_dir = "output/22-11-21/"
     figures_dir = output_dir + "figures/"
     path = pathlib.Path.cwd() / figures_dir
     pathlib.Path(path).mkdir(parents=True, exist_ok=True)
 
     margin_changes = sim_df["MarginChanges"]
-    '''plot_line(simulation_id, sim_df["MarginChanges"], 'C0', "Number of pools over time", "Round",
+    '''plot_line(execution_id, sim_df["MarginChanges"], 'C0', "Number of pools over time", "Round",
               "#Pools", "poolCount", equilibrium_steps=[], pivot_steps=[])'''
 
     pool_nums = sim_df["#Pools"]
     if sim.schedule.steps >= sim.max_iterations:
         # If the max number of iterations was reached, then we save the data about the pool numbers
         # in order to later analyse the statistic properties of the execution
-        filename = output_dir + simulation_id + "-poolCount" + ".pkl"
+        filename = output_dir + execution_id + "-poolCount" + ".pkl"
         with open(filename, "wb") as pkl_file:
             pkl.dump(pool_nums, pkl_file)
 
     equilibrium_steps = sim.equilibrium_steps
     pivot_steps = sim.pivot_steps
 
-    plot_line(simulation_id, sim_df["#Pools"], 'C0', "Number of pools over time", "Round",
+    plot_line(execution_id, sim_df["#Pools"], 'C0', "Number of pools over time", "Round",
               "#Pools", "poolCount", equilibrium_steps, pivot_steps, figures_dir, True)
 
-    plot_line(simulation_id, sim_df["AvgPledge"], 'red', "Average pledge over time", "Round",
+    plot_line(execution_id, sim_df["AvgPledge"], 'red', "Average pledge over time", "Round",
               "Average pledge", "avgPledge", equilibrium_steps, pivot_steps, figures_dir, True)
 
-    plot_line(simulation_id, sim_df["TotalPledge"], 'purple', "Total pledge over time", "Round",
+    plot_line(execution_id, sim_df["TotalPledge"], 'purple', "Total pledge over time", "Round",
               "Total pledge", "totalPledge", equilibrium_steps, pivot_steps, figures_dir, True)
 
-    plot_line(simulation_id, sim_df["MeanAbsDiff"], 'green', "Mean Absolute Difference of Controlled Stake", "Round",
+    plot_line(execution_id, sim_df["MeanAbsDiff"], 'green', "Mean Absolute Difference of Controlled Stake", "Round",
               "Mean abs diff", "meanAbsDiff", equilibrium_steps, pivot_steps, figures_dir, False)
 
     '''pool_sizes_by_step = sim_df["PoolSizes"]  # todo fix
@@ -135,7 +135,7 @@ def main():
         plt.savefig(figures_dir + "poolDynamics.png", bbox_inches='tight')'''
 
 
-def plot_line(simulation_id, data, color, title, x_label, y_label, filename, equilibrium_steps, pivot_steps,
+def plot_line(execution_id, data, color, title, x_label, y_label, filename, equilibrium_steps, pivot_steps,
               figures_dir, show_equilibrium=False):
     path = pathlib.Path.cwd() / figures_dir
     pathlib.Path(path).mkdir(parents=True, exist_ok=True)
@@ -156,7 +156,7 @@ def plot_line(simulation_id, data, color, title, x_label, y_label, filename, equ
     plt.xlabel(x_label)
     plt.ylabel(y_label)
     plt.legend()
-    plt.savefig(figures_dir + simulation_id + "-" + filename + ".png", bbox_inches='tight')
+    plt.savefig(figures_dir + execution_id + "-" + filename + ".png", bbox_inches='tight')
 
     # plt.show()
 

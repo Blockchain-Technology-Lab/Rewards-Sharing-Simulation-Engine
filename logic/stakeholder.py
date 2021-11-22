@@ -496,7 +496,7 @@ class Stakeholder(Agent):
                                                                                         stake_to_saturation)
                         stake_to_delegate -= allocation
                         allocations[pool_id] = allocation
-                    if stake_to_delegate == 0:
+                    if stake_to_delegate <= MIN_STAKE_UNIT:
                         break
                 # there were not enough non-saturated pools for the player to delegate their stake to
                 # so they have to choose a saturated pool

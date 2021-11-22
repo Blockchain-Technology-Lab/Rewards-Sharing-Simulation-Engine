@@ -31,7 +31,7 @@ def main():
                         help='The percentage of players that will abstain from the game in this run. Default is 10%%.')
 
     fixed_params = {
-        "simulation_id": "temp",
+        "execution_id": "temp",
         "player_activation_order": "Random",
         "relative_utility_threshold": 0,
         "myopic_fraction": 0,
@@ -94,7 +94,7 @@ def main():
     run_data_MP = batch_run_MP.get_model_vars_dataframe()
     # print(run_data_MP.head())
 
-    output_dir = "output/19-11-21"
+    output_dir = "output/22-11-21"
     pickled_batch_run_data = output_dir + "/batch-run-data.pkl"
     with open(pickled_batch_run_data, "wb") as pkl_file:
         pkl.dump(run_data_MP, pkl_file)

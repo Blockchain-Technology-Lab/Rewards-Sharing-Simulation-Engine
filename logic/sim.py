@@ -49,7 +49,7 @@ class Simulation(Model):
             relative_utility_threshold=0, absolute_utility_threshold=1e-9,
             min_steps_to_keep_pool=5, pool_splitting=True, seed=42, pareto_param=2.0, max_iterations=1000,
             common_cost=1e-4, cost_min=0.001, cost_max=0.002, player_activation_order="Random", total_stake=1,
-            ms=10, simulation_id=''
+            ms=10, execution_id=''
     ):
         # todo make sure that the input is valid? n > 0, 0 < k <= n
 
@@ -90,7 +90,7 @@ class Simulation(Model):
 
         self.perceived_active_stake = total_stake
         self.beta = total_stake / self.k
-        self.simulation_id = simulation_id if simulation_id != '' else self.generate_simulation_id()
+        self.execution_id = execution_id if execution_id != '' else self.generate_execution_id()
 
         self.running = True  # for batch running and visualisation purposes
         self.schedule = self.player_activation_orders[player_activation_order](self)
@@ -245,18 +245,18 @@ class Simulation(Model):
               "Private" if pool.is_private else "Public"]
              for pool in pools])
 
-        output_dir = "output/19-11-21/"
+        output_dir = "output/22-11-21/"
         path = pathlib.Path.cwd() / output_dir
         pathlib.Path(path).mkdir(parents=True, exist_ok=True)
-        filename = (path / (self.simulation_id + '-final_configuration.csv')) \
-            if self.has_converged() else (path / (self.simulation_id + '-intermediate-configuration.csv'))
+        filename = (path / (self.execution_id + '-final_configuration.csv')) \
+            if self.has_converged() else (path / (self.execution_id + '-intermediate-configuration.csv'))
         with open(filename, 'w', newline='') as file:
             writer = csv.writer(file)
             writer.writerows(row_list)
 
         # temporary, used to extract results in latex format for easier reporting
         latex_dir = output_dir + "latex/"
-        hlp.to_latex(row_list, self.simulation_id, latex_dir)
+        hlp.to_latex(row_list, self.execution_id, latex_dir)
 
     def get_pools_list(self):
         return list(self.pools.values())
@@ -270,7 +270,7 @@ class Simulation(Model):
     def get_status(self):
         print("Step {}: {} pools".format(self.schedule.steps, len(self.pools)))
 
-    def generate_simulation_id(self):
+    def generate_execution_id(self):
         return "".join(['-' + str(key) + '=' + str(value) for key, value in self.arguments.items()
                         if type(value) == bool or type(value) == int or type(value) == float])[:147]
 
