@@ -68,6 +68,40 @@ def test_calculate_pool_reward_variable_pledge():
 
     assert results[0] < results[1] < results[2]
 
+def test_calculate_pool_reward_variable_stake_alpha_zero():
+    # GIVEN
+    alpha = 0
+    saturation_point = 0.1
+    stakes = [0.01, 0.1, 0.2]
+    pledges = [0.01, 0.01, 0.01]
+
+    # WHEN
+    results = [hlp.calculate_pool_reward(
+        stake=stakes[i],
+        pledge=pledges[i],
+        alpha=alpha,
+        beta=saturation_point
+    ) for i in range(len(stakes))]
+
+    # THEN
+    assert results[0] < results[1] == results[2]
+
+
+def test_calculate_pool_reward_variable_pledge_alpha_zero():
+    alpha = 0
+    saturation_point = 0.1
+    stakes = [0.1, 0.1, 0.1]
+    pledges = [0.01, 0.05, 0.1]
+
+    results = [hlp.calculate_pool_reward(
+        stake=stakes[i],
+        pledge=pledges[i],
+        alpha=alpha,
+        beta=saturation_point
+    ) for i in range(len(stakes))]
+
+    assert results[0] == results[1] == results[2]
+
 
 def test_calculate_pool_saturation_prob():
     assert True

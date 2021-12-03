@@ -1,6 +1,7 @@
 import statistics
 import itertools
 import collections
+from gekko import GEKKO
 
 from logic.helper import MAX_NUM_POOLS
 
@@ -99,6 +100,8 @@ def get_avg_pools_per_operator(model):
 
 def get_max_pools_per_operator(model):
     current_pools = model.get_pools_list()
+    if len(current_pools) == 0:
+        return 0
     current_owners = [pool.owner for pool in current_pools]
     max_frequency_owner, max_pool_count_per_owner = collections.Counter(current_owners).most_common(1)[0]
     return max_pool_count_per_owner
@@ -106,6 +109,8 @@ def get_max_pools_per_operator(model):
 
 def get_median_pools_per_operator(model):
     current_pools = model.get_pools_list()
+    if len(current_pools) == 0:
+        return 0
     current_owners = [pool.owner for pool in current_pools]
     sorted_frequencies = sorted(collections.Counter(current_owners).values())
     return statistics.median(sorted_frequencies)
@@ -114,6 +119,8 @@ def get_median_pools_per_operator(model):
 def get_avg_sat_rate(model):
     sat_point = model.beta
     current_pools = model.pools
+    if len(current_pools) == 0:
+        return 0
     sat_rates = [pool.stake / sat_point for pool in current_pools.values()]
     return statistics.mean(sat_rates) if len(sat_rates) > 0 else 0
 
@@ -169,17 +176,28 @@ def get_controlled_stake_distr_stat_dist(model):
     """
     if not model.has_converged():
         return -1
-    active_players = {player_id: player for player_id, player in model.get_players_dict().items() if
-                      not player.abstains}
+    active_players = {
+        player_id: player
+        for player_id, player in model.get_players_dict().items()
+        if not player.abstains
+    }
     pools = model.get_pools_list()
     if len(pools) == 0:
         return 0
-    initial_controlled_stake = {player_id: active_players[player_id].stake for player_id in active_players}
-    current_controlled_stake = {player_id: 0 for player_id in active_players}
+    initial_controlled_stake = {
+        player_id: active_players[player_id].stake
+        for player_id in active_players
+    }
+    current_controlled_stake = {
+        player_id: 0
+        for player_id in active_players
+    }
     for pool in pools:
         current_controlled_stake[pool.owner] += pool.stake
-    abs_diff = [abs(current_controlled_stake[player_id] - initial_controlled_stake[player_id])
-                for player_id in active_players]
+    abs_diff = [
+        abs(current_controlled_stake[player_id] - initial_controlled_stake[player_id])
+        for player_id in active_players
+    ]
     return sum(abs_diff) / 2
 
 
@@ -231,41 +249,43 @@ def get_NCR(model):
     return nakamoto_coefficient / len(independent_pool_owners)
 
 
-def powerset(iterable):
-    "powerset([1,2,3]) --> () (1,) (2,) (3,) (1,2) (1,3) (2,3) (1,2,3)"
-    s = list(iterable)
-    return itertools.chain.from_iterable(itertools.combinations(s, r) for r in range(1, len(s) + 1))
-
-
 def get_min_aggregate_pledge(model):
+    """
+    Solve optimisation problem using solver
+    @param model:
+    @return:
+    """
     if not model.has_converged():
         return -1
-    pools = model.pools
+
+    pools = model.get_pools_list()
     if len(pools) == 0:
         return 0
+    ids = [pool.id for pool in pools]
+    pledges = [pool.pledge for pool in pools]
+    stakes = [pool.stake for pool in pools]
+    items = len(ids)
 
-    pool_stakes = {pool_id: pool.stake for pool_id, pool in pools.items()}
-    total_active_stake = sum(pool_stakes.values())
+    # Create model
+    m = GEKKO()
+    # Variables
+    x = m.Array(m.Var, len(ids), lb=0, ub=1, integer=True)
+    # Objective
+    m.Minimize(m.sum([pledges[i] * x[i] for i in range(items)]))
+    # Constraint
+    lower_bound = sum(stakes) / 2
+    m.Equation(m.sum([stakes[i] * x[i] for i in range(items)]) >= lower_bound)
+    # Optimize with APOPT
+    m.options.SOLVER = 1
 
-    # todo find more efficient way that doesn't require calculating the entire powerset
-    pool_subsets = list(powerset(pool_stakes))
-    majority_pool_subsets = []
-    for subset in pool_subsets:
-        controlled_stake = 0
-        for pool_id in subset:
-            controlled_stake += pool_stakes[pool_id]
-        if controlled_stake >= total_active_stake / 2:
-            majority_pool_subsets.append(subset)
+    try:
+        m.solve()
+    except Exception:
+        print("Min aggregate pledge not found")
+        return -1
 
-    aggregate_pledges = []
-    for subset in majority_pool_subsets:
-        aggregate_pledge = 0
-        for pool_id in subset:
-            pledge = pools[pool_id].pledge
-            aggregate_pledge += pledge
-        aggregate_pledges.append(aggregate_pledge)
-
-    return min(aggregate_pledges)
+    min_aggr_pledge = m.options.objfcnval
+    return min_aggr_pledge
 
 
 def get_pledge_rate(model):

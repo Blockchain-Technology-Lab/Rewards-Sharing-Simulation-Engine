@@ -4,25 +4,26 @@ import pathlib
 import matplotlib.pyplot as plt
 import argparse
 import pickle as pkl
+import time
 
 
 def main():
     print("Let the Pooling Games begin!")
 
     parser = argparse.ArgumentParser(description='Pooling Games')
-    parser.add_argument('--n', type=int, default=100,
-                        help='The number of players (natural number). Default is 100.')
-    parser.add_argument('--k', nargs="+", type=int, default=10,
-                        help='The k value of the system (natural number). Default is 10.')
+    parser.add_argument('--n', type=int, default=1000,
+                        help='The number of players (natural number). Default is 1000.')
+    parser.add_argument('--k', nargs="+", type=int, default=100,
+                        help='The k value of the system (natural number). Default is 100.')
     parser.add_argument('--alpha', nargs="+", type=float, default=0.3,
                         help='The alpha value of the system (decimal number between 0 and 1). Default is 0.3')
-    parser.add_argument('--cost_min', type=float, default=0.001,
-                        help='The minimum possible cost for operating a stake pool. Default is 0.001.')
-    parser.add_argument('--cost_max', type=float, default=0.002,
-                        help='The maximum possible cost for operating a stake pool. Default is 0.002.')
-    parser.add_argument('--common_cost', nargs="+", type=float, default=0.0001,
+    parser.add_argument('--cost_min', type=float, default=1e-6,
+                        help='The minimum possible cost for operating a stake pool. Default is 1e-6.')
+    parser.add_argument('--cost_max', type=float, default=2e-5,
+                        help='The maximum possible cost for operating a stake pool. Default is 2e-5.')
+    parser.add_argument('--common_cost', nargs="+", type=float, default=5e-7,
                         help='The additional cost that applies to all players for each pool they operate. '
-                             'Default is 0.0001.')
+                             'Default is 5e-7.')
     parser.add_argument('--pareto_param', type=float, default=2.0,
                         help='The parameter that determines the shape of the distribution that the stake will be '
                              'sampled from. Default is 2.')
@@ -32,8 +33,8 @@ def main():
                         help='The utility threshold under which moves are disregarded. Default is 1e-9.')
     parser.add_argument('--player_activation_order', type=str, default='Random',
                         help='Player activation order. Default is random.')
-    parser.add_argument('--seed', type=int, default=42,
-                        help='Seed for reproducibility. Default is 42.')
+    parser.add_argument('--seed', default=None,
+                        help='Seed for reproducibility. Default is None, which means that no seed is given.')
     parser.add_argument("--min_steps_to_keep_pool", type=int, default=5,
                         help='The number of steps for which a player remains idle after opening a pool. Default is 5.')
     parser.add_argument('--myopic_fraction', nargs="+", type=float, default=0,
@@ -91,8 +92,9 @@ def main():
     with open(pickled_simulation_filename, "wb") as pkl_file:
         pkl.dump(sim, pkl_file)
 
-    output_dir = "output/22-11-21/"
-    figures_dir = output_dir + "figures/"
+    day = time.strftime("%d-%m-%Y")
+    output_dir = "output/" + day
+    figures_dir = output_dir + "/figures/"
     path = pathlib.Path.cwd() / figures_dir
     pathlib.Path(path).mkdir(parents=True, exist_ok=True)
 
@@ -103,7 +105,7 @@ def main():
     pool_nums = sim_df["#Pools"]
     if sim.schedule.steps >= sim.max_iterations:
         # If the max number of iterations was reached, then we save the data about the pool numbers
-        # in order to later analyse the statistic properties of the execution
+        # in order to later analyse the statistical properties of the execution
         filename = output_dir + execution_id + "-poolCount" + ".pkl"
         with open(filename, "wb") as pkl_file:
             pkl.dump(pool_nums, pkl_file)

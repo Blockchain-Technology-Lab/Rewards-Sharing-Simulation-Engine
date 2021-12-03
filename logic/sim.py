@@ -47,8 +47,8 @@ class Simulation(Model):
     def __init__(
             self, n=1000, k=100, alpha=0.3, myopic_fraction=0, abstention_rate=0,
             relative_utility_threshold=0, absolute_utility_threshold=1e-9,
-            min_steps_to_keep_pool=5, pool_splitting=True, seed=42, pareto_param=2.0, max_iterations=1000,
-            common_cost=1e-4, cost_min=0.001, cost_max=0.002, player_activation_order="Random", total_stake=1,
+            min_steps_to_keep_pool=5, pool_splitting=True, seed=None, pareto_param=2.0, max_iterations=1000,
+            common_cost=1e-6, cost_min=1.1e-6, cost_max=2e-5, player_activation_order="Random", total_stake=1,
             ms=10, execution_id=''
     ):
         # todo make sure that the input is valid? n > 0, 0 < k <= n
@@ -125,7 +125,8 @@ class Simulation(Model):
                 "AreaCoverage": get_homogeneity_factor,
                 "MarginChanges": get_margin_changes,
                 "AvgMargin": get_avg_margin,
-                "MedianMargin": get_median_margin
+                "MedianMargin": get_median_margin,
+                "Iterations": get_convergence_iterations
             })
 
         self.pool_owner_id_mapping = dict()
@@ -140,7 +141,9 @@ class Simulation(Model):
                                                       pareto_param=pareto_param)
 
         # Allocate cost to the players, sampling from a uniform distribution
-        cost_distribution = hlp.generate_cost_distr(num_agents=self.n, low=cost_min, high=cost_max)
+        #cost_distribution = hlp.generate_cost_distr_unfrm(num_agents=self.n, low=cost_min, high=cost_max)
+        cost_distribution = hlp.generate_cost_distr_bands(num_agents=self.n, low=cost_min, high=cost_max, num_bands=3)
+        #cost_distribution = hlp.generate_cost_distr_nrm(num_agents=self.n, low=cost_min, high=cost_max, mean=5e-6, stddev=5e-1)
 
         num_myopic_agents = int(self.myopic_fraction * self.n)
         num_abstaining_agents = int(self.abstention_rate * self.n)
@@ -233,7 +236,7 @@ class Simulation(Model):
         stakes = {player_id: player.stake for player_id, player in players.items()}
         stake_ranks = hlp.calculate_ranks(stakes)
         negative_cost_ranks = hlp.calculate_ranks({player_id: -player.cost for player_id, player in players.items()})
-        decimals = 4
+        decimals = 8
         row_list.extend(
             [[pool.owner, pool.id, round(pool.stake, decimals), round(pool.margin, decimals),
               round(players[pool.owner].calculate_margin_perfect_strategy(), decimals),
@@ -245,7 +248,8 @@ class Simulation(Model):
               "Private" if pool.is_private else "Public"]
              for pool in pools])
 
-        output_dir = "output/22-11-21/"
+        today = time.strftime("%d-%m-%Y")
+        output_dir = "output/" + today
         path = pathlib.Path.cwd() / output_dir
         pathlib.Path(path).mkdir(parents=True, exist_ok=True)
         filename = (path / (self.execution_id + '-final_configuration.csv')) \
@@ -255,7 +259,7 @@ class Simulation(Model):
             writer.writerows(row_list)
 
         # temporary, used to extract results in latex format for easier reporting
-        latex_dir = output_dir + "latex/"
+        latex_dir = output_dir + "/latex/"
         hlp.to_latex(row_list, self.execution_id, latex_dir)
 
     def get_pools_list(self):

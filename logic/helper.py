@@ -5,6 +5,7 @@ Created on Sun Jun 13 08:15:26 2021
 @author: chris
 """
 from numpy.random import default_rng
+from scipy import stats
 import csv
 import pandas as pd
 import pathlib
@@ -31,7 +32,7 @@ def generate_stake_distr(num_agents, total_stake=1, pareto_param=None, seed=156)
         # Sample from file that contains the (real) stake distribution
         distribution_file = 'stake_distribution_275.csv'
         all_stakes = get_stakes_from_file(distribution_file)
-        stake_sample = rng.choice(all_stakes, num_agents)
+        stake_sample = rng.choice(all_stakes, num_agents, replace=False)
     normalized_stake_sample = normalize_distr(stake_sample, normal_sum=total_stake)
     return normalized_stake_sample
 
@@ -48,10 +49,10 @@ def get_stakes_from_file(filename):  # todo if we keep this function replace wit
     return stakes
 
 
-def generate_cost_distr(num_agents, low, high, seed=156):
+def generate_cost_distr_unfrm(num_agents, low, high, seed=156):
     """
     Generate a distribution for the players' costs of operating pools,
-    sampling from a unifrom distribution
+    sampling from a uniform distribution
     :param num_agents:
     :param low:
     :param high:
@@ -61,6 +62,21 @@ def generate_cost_distr(num_agents, low, high, seed=156):
     costs = rng.uniform(low=low, high=high, size=num_agents)
     return costs
 
+def generate_cost_distr_bands(num_agents, low, high, num_bands, seed=156):
+    rng = default_rng(seed=seed)
+    bands = rng.uniform(low=low, high=high, size=num_bands)
+    costs = rng.choice(bands, num_agents)
+    return costs
+
+def generate_cost_distr_nrm(num_agents, low, high, mean, stddev):
+    """
+    Generate a distribution for the players' costs of operating pools,
+    sampling from a truncated normal distribution
+    """
+    costs = stats.truncnorm.rvs(low, high,
+                                 loc=mean, scale=stddev,
+                                 size=num_agents)
+    return costs
 
 def normalize_distr(dstr, normal_sum=1):
     """
