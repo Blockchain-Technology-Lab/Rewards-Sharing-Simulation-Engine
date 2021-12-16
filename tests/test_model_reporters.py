@@ -75,7 +75,17 @@ def test_get_min_aggregate_pledge(mocker):
     pools_list = [pool1, pool2, pool3]
 
     mocker.patch('logic.sim.Simulation.get_pools_list', return_value=pools_list)
+    mocker.patch('logic.sim.Simulation.has_converged', return_value=True)
 
     min_aggr_pledge = get_min_aggregate_pledge(model)
 
     assert min_aggr_pledge == 0.003
+
+    pools_list = []
+    num_pools = 500
+    stake_per_pool = 0.001
+    for i in range(num_pools):
+        pools_list.append(Pool(owner=i, cost=0.001, pledge=stake_per_pool, margin=0.1, alpha=0.3, beta=0.1, pool_id=100+i))
+    mocker.patch('logic.sim.Simulation.get_pools_list', return_value=pools_list)
+    min_aggr_pledge = get_min_aggregate_pledge(model)
+    assert min_aggr_pledge == num_pools / 2 * stake_per_pool

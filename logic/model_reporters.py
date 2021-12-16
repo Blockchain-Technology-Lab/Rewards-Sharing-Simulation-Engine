@@ -261,6 +261,7 @@ def get_min_aggregate_pledge(model):
     pools = model.get_pools_list()
     if len(pools) == 0:
         return 0
+
     ids = [pool.id for pool in pools]
     pledges = [pool.pledge for pool in pools]
     stakes = [pool.stake for pool in pools]
@@ -279,10 +280,10 @@ def get_min_aggregate_pledge(model):
     m.options.SOLVER = 1
 
     try:
-        m.solve()
+        m.solve(disp=False) # choose disp = True to print details while running
     except Exception:
         print("Min aggregate pledge not found")
-        return -1
+        return -2
 
     min_aggr_pledge = m.options.objfcnval
     return min_aggr_pledge
@@ -326,7 +327,5 @@ def get_homogeneity_factor(model):
     return actual_area / ideal_area
 
 
-def get_convergence_iterations(model):
-    if not model.has_converged():
-        return -1
+def get_iterations(model):
     return model.schedule.steps

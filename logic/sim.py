@@ -126,7 +126,7 @@ class Simulation(Model):
                 "MarginChanges": get_margin_changes,
                 "AvgMargin": get_avg_margin,
                 "MedianMargin": get_median_margin,
-                "Iterations": get_convergence_iterations
+                "Iterations": get_iterations
             })
 
         self.pool_owner_id_mapping = dict()
@@ -141,8 +141,8 @@ class Simulation(Model):
                                                       pareto_param=pareto_param)
 
         # Allocate cost to the players, sampling from a uniform distribution
-        #cost_distribution = hlp.generate_cost_distr_unfrm(num_agents=self.n, low=cost_min, high=cost_max)
-        cost_distribution = hlp.generate_cost_distr_bands(num_agents=self.n, low=cost_min, high=cost_max, num_bands=3)
+        cost_distribution = hlp.generate_cost_distr_unfrm(num_agents=self.n, low=cost_min, high=cost_max)
+        #cost_distribution = hlp.generate_cost_distr_bands(num_agents=self.n, low=cost_min, high=cost_max, num_bands=10)
         #cost_distribution = hlp.generate_cost_distr_nrm(num_agents=self.n, low=cost_min, high=cost_max, mean=5e-6, stddev=5e-1)
 
         num_myopic_agents = int(self.myopic_fraction * self.n)
@@ -222,7 +222,8 @@ class Simulation(Model):
         row_list = [
             ["Owner id", "Pool id", "Pool stake", "Margin", "Perfect margin", "Pledge",
              "Owner stake", "Owner stake rank", "Pool cost", "Owner cost rank", "Pool desirability",
-             "Pool potential profit", "Owner PP rank", "Pool desirability rank", "Pool status"]]
+             "Pool potential profit", "Owner PP rank", "Pool desirability rank", "Pool status"]
+        ]
         players = self.get_players_dict()
         pools = self.get_pools_list()
         player_potential_profits = {

@@ -6,6 +6,7 @@ import random
 from mybatchrunner import MyBatchRunner
 import time
 import matplotlib.pyplot as plt
+import matplotlib.ticker as ticker
 import pickle as pkl
 import numpy as np
 
@@ -18,7 +19,7 @@ def main():
     # single value for fixed params and [lower_bound, upper_bound, step] for variable params
     # note: there needs to be at least one variable parameter
     parser = argparse.ArgumentParser(description='Pooling Games Batch Run')
-    parser.add_argument('--execution_id', type=str, default='console-batch-run',
+    parser.add_argument('--execution_id', type=str, default='unnamed-batch-run',
                         help='The identifier of this execution, to be used for naming the output files.')
     parser.add_argument('--seed', default='None',
                         help='Seed for reproducibility. Default is None, which means that a seed will be generated '
@@ -33,7 +34,13 @@ def main():
                         help='The alpha value of the system (decimal number between 0 and 1). Default is 0.3')
     parser.add_argument('--abstention_rate', nargs="+", type=float, default=0,
                         help='The percentage of players that will abstain from the game in this run. Default is 10%%.')
-
+    parser.add_argument('--cost_min', type=float, default=1e-4,
+                        help='The minimum possible cost for operating a stake pool. Default is 1e-4.')
+    parser.add_argument('--cost_max', type=float, default=1e-3,
+                        help='The maximum possible cost for operating a stake pool. Default is 2e-3.')
+    parser.add_argument('--common_cost', nargs="+", type=float, default=5e-5,
+                        help='The additional cost that applies to all players for each pool they operate. '
+                             'Default is 5e-5.')
     args_dict = vars(parser.parse_args())
 
     batch_run_id = args_dict["execution_id"]
@@ -51,49 +58,47 @@ def main():
         "myopic_fraction": 0,
         "pool_splitting": True,
         "min_steps_to_keep_pool": 5,
-        "seed": seed,
-        "cost_min": 1e-6,
-        "cost_max": 2e-5,
-        "common_cost": 5e-7
+        "seed": seed
     }
     variable_params = {}
 
     for arg_name, arg_values in args_dict.items():
         if isinstance(arg_values, list):
             if len(arg_values) > 2:
-                int_range = [int(v * 100) for v in arg_values]
-                variable_params[arg_name] = [v / 100 for v in range(int_range[0], int_range[1], int_range[2])]
+                if arg_name == 'alpha':
+                    variable_params[arg_name] = list(np.logspace(arg_values[0], arg_values[1], num=int(arg_values[2])))
+                else:
+                    int_range = [int(v * 10000) for v in arg_values]
+                    variable_params[arg_name] = [v / 10000 for v in range(int_range[0], int_range[1], int_range[2])]
             else:
                 fixed_params[arg_name] = arg_values[0]
         else:
             fixed_params[arg_name] = arg_values
-    # specific ranges of alpha that may be useful to check
-    # variable_params['alpha'] = [0] + list(np.logspace(-1, 1.5, num=19))
-    # variable_params['alpha'] = [v / 100 for v in range(51)] + [v/10 for v in range(10, 55, 5)] + [v for v in range(6,11)]
 
     print(fixed_params)
     print('-------------')
     print(variable_params)
 
     model_reporters = {
-        #"#Pools": sim.get_final_number_of_pools,
+        "#Pools": sim.get_final_number_of_pools,
         "avgPledge": sim.get_avg_pledge,
-        "avg_pools_per_operator": sim.get_avg_pools_per_operator,
+        "totalPledge": sim.get_total_pledge,
+        #"avg_pools_per_operator": sim.get_avg_pools_per_operator,
         "max_pools_per_operator": sim.get_max_pools_per_operator,
-        "median_pools_per_operator": sim.get_median_pools_per_operator,
+        #"median_pools_per_operator": sim.get_median_pools_per_operator,
         #"avgSatRate": sim.get_avg_sat_rate,
         "nakamotoCoeff": sim.get_nakamoto_coefficient,
-        "StatisticalDistance": sim.get_controlled_stake_distr_stat_dist
-        # "NCR": sim.get_NCR,
-        # "MinAggregatePledge": sim.get_min_aggregate_pledge,
+        "StatisticalDistance": sim.get_controlled_stake_distr_stat_dist,
+        "NCR": sim.get_NCR,
+        "MinAggregatePledge": sim.get_min_aggregate_pledge,
         # "pledge_rate": sim.get_pledge_rate,
-        #"homogeneity_factor": sim.get_homogeneity_factor,
-        #"iterations": sim.get_convergence_iterations
+        "homogeneity_factor": sim.get_homogeneity_factor,
+        "iterations": sim.get_iterations
     }
 
     batch_run_MP = MyBatchRunner(
         sim.Simulation,
-        # nr_processes=1,
+        # nr_processes=1, # set number of processes to 1 only for debugging purposes
         variable_parameters=variable_params,
         fixed_parameters=fixed_params,
         max_steps=args_dict['max_iterations'],
@@ -104,24 +109,35 @@ def main():
     batch_run_MP.run_all()
     print("Batch run with multiprocessing:  {:.2f} seconds".format(time.time() - start_time))
 
-    '''pickled_batch_run_object = "batch-run-object.pkl"
-    with open(pickled_batch_run_object, "wb") as pkl_file:
-        pkl.dump(batch_run_MP, pkl_file)'''
-
     # Extract data from the batch runner
     run_data_MP = batch_run_MP.get_model_vars_dataframe()
     # print(run_data_MP.head())
 
+    output_dir = "output/"
     day = time.strftime("%d-%m-%Y")
-    output_dir = "output/" + day
-    pickled_batch_run_data = output_dir + "/batch-run-data.pkl"
+    day_output_dir = output_dir + day
+    path = pathlib.Path.cwd() / day_output_dir
+    pathlib.Path(path).mkdir(parents=True, exist_ok=True)
+    pickled_batch_run_data = day_output_dir + "/batch-run-data" + batch_run_id + ".pkl"
     with open(pickled_batch_run_data, "wb") as pkl_file:
         pkl.dump(run_data_MP, pkl_file)
 
+    if 'alpha' in variable_params:
+        # determine which alpha values were good, from the ones that were tried
+        # we define a suitable value for alpha by taking the minimum value that gives NCR >= 3%
+        min_ncr = 0.03
+        min_nc = min_ncr * fixed_params['n']
+        suitable_rows = run_data_MP[run_data_MP.nakamotoCoeff >= min_nc]
+        min_alpha_suitable_row = suitable_rows[suitable_rows.alpha == suitable_rows.alpha.min()][['n','k', 'cost_min', 'alpha']]
+        cost_alpha_csv_file = output_dir + "/cost-alpha.csv"
+        with open(cost_alpha_csv_file, "a") as f:
+            min_alpha_suitable_row.to_csv(f, mode='a', index=False, header=f.tell()==0)
+
     variable_param = list(variable_params.keys())[0]
     colours = [np.random.rand(3, ) for i in range(len(model_reporters))]
+    useLogAxis = True if variable_param == 'alpha' else False
     for i, model_reporter in enumerate(model_reporters):
-        plot_aggregate_data(run_data_MP, variable_param, model_reporter, colours[i], batch_run_id, output_dir)
+        plot_aggregate_data(run_data_MP, variable_param, model_reporter, colours[i], batch_run_id, day_output_dir, logAxis=useLogAxis)
 
     # ordered dicts with data from each step of each run (the combinations of variable params act as the keys)
     # for example data_collector_model[(0.1, 0.02, 1)] shows the values of the parameters collected at model level
@@ -129,19 +145,25 @@ def main():
     #data_collector_agents = batch_run_MP.get_collector_agents()
     #data_collector_model = batch_run_MP.get_collector_model()
 
-    plt.show()
-
-
-def plot_aggregate_data(df, variable_param, model_reporter, color, exec_id, output_dir):
+def plot_aggregate_data(df, variable_param, model_reporter, color, exec_id, output_dir, positive_only=True, logAxis=False):
     figures_dir = output_dir + "/figures/"
     path = pathlib.Path.cwd() / figures_dir
     pathlib.Path(path).mkdir(parents=True, exist_ok=True)
 
     plt.figure()
-    plt.scatter(df[variable_param], df[model_reporter], color=color)
+
+    if positive_only:
+        df = df[df[model_reporter] >= 0]
+    x = df[variable_param]
+    y = df[model_reporter]
+    plt.scatter(x, y, color=color)
     plt.xlabel(variable_param)
     plt.ylabel(model_reporter)
-    plt.savefig(figures_dir + exec_id + "-" + model_reporter + "-per-" + variable_param + ".png", bbox_inches='tight')
+    if logAxis:
+        plt.xscale('log')
+    plt.gca().xaxis.set_major_formatter(ticker.FuncFormatter(lambda x, _: '{:g}'.format(x) if x >=0.1 else "%.e" % x))
+    plt.minorticks_off()
+    plt.savefig(figures_dir + exec_id + "-log-" + model_reporter + "-per-" + variable_param + ".png", bbox_inches='tight')
     plt.show()
 
 

@@ -123,15 +123,24 @@ def calculate_pool_reward(stake, pledge, alpha, beta):
 def calculate_pool_stake_NM(pool_id, pools, beta, k):
     """
     Calculate the non-myopic stake of a pool, given the pool and the state of the system (current pools)
-    :param pool_id:
-    :param pools: dictionary of pools with the pool id as the key
-    :param beta:
-    :param k:
-    :return:
+    :param pool_id: the id of the pool that is examined
+    :param pools: dictionary of pools with the pool id as key and the pool object as value
+    :param beta: the saturation point of the system
+    :param k: the desired number of pools of the system
+    :return: the value of the non-myopic stake of the pool with id pool_id
     """
-    desirabilities = {pool_id: pool.calculate_desirability() for pool_id, pool in pools.items()}
-    potential_profits = {pool_id: pool.potential_profit for pool_id, pool in pools.items()}
-    stakes = {pool_id: pool.stake for pool_id, pool in pools.items()}
+    desirabilities = {
+        pool_id: pool.calculate_desirability()
+        for pool_id, pool in pools.items()
+    }
+    potential_profits = {
+        pool_id: pool.potential_profit
+        for pool_id, pool in pools.items()
+    }
+    stakes = {
+        pool_id: pool.stake
+        for pool_id, pool in pools.items()
+    }
     rank = calculate_ranks(desirabilities, potential_profits, stakes, rank_ids=True)[pool_id]
     pool = pools[pool_id]
     return pool.calculate_stake_NM(k, beta, rank)

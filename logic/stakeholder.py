@@ -151,7 +151,7 @@ class Stakeholder(Agent):
         )
         r = hlp.calculate_pool_reward(pool_stake, pledge, alpha, beta)
         q = stake_allocation / pool_stake
-        u_0 = r - self.cost
+        u_0 = r - pool.cost
         m_factor = m + ((1 - m) * q)
         return u_0 if u_0 <= 0 else u_0 * m_factor
 
@@ -172,7 +172,7 @@ class Stakeholder(Agent):
         r = hlp.calculate_pool_reward(pool_stake, pool.pledge, alpha, beta)
         q = stake_allocation / pool_stake
         m_factor = (1 - pool.margin) * q
-        u_0 = (r - pool.cost)
+        u_0 = r - pool.cost
         u = m_factor * u_0
         utility = u if u > 0 else 0
         return utility
@@ -585,7 +585,7 @@ class Stakeholder(Agent):
             player.strategy.stake_allocations.pop(pool_id)
         # Also remove pool from players' upcoming moves in case of (semi)simultaneous activation
         if "simultaneous" in self.model.player_activation_order.lower():
-            for player in players.values():  # todo alternatively save potential delegators somehwere so that we don't go through the whole list of players here
+            for player in players.values():  # todo alternatively save potential delegators somewhere so that we don't go through the whole list of players here
                 if player.new_strategy is not None:
                     player.new_strategy.stake_allocations.pop(pool_id, None)
 
