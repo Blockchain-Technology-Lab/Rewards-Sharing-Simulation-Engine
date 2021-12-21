@@ -10,6 +10,7 @@ import pathlib
 import math
 import collections
 import sys
+import random
 
 from mesa import Model
 from mesa.datacollection import DataCollector
@@ -44,14 +45,17 @@ class Simulation(Model):
 
     }
 
-    def __init__(
-            self, n=1000, k=100, alpha=0.3, myopic_fraction=0, abstention_rate=0,
-            relative_utility_threshold=0, absolute_utility_threshold=1e-9,
-            min_steps_to_keep_pool=5, pool_splitting=True, seed=None, pareto_param=2.0, max_iterations=1000,
-            common_cost=1e-6, cost_min=1.1e-6, cost_max=2e-5, player_activation_order="Random", total_stake=1,
-            ms=10, execution_id=''
-    ):
+    def __init__(self, n=1000, k=100, alpha=0.3, myopic_fraction=0, abstention_rate=0, relative_utility_threshold=0,
+                 absolute_utility_threshold=1e-9, min_steps_to_keep_pool=5, pool_splitting=True, seed=None,
+                 pareto_param=2.0, max_iterations=1000, common_cost=1e-6, cost_min=1.1e-6, cost_max=2e-5,
+                 player_activation_order="Random", total_stake=1, ms=10, execution_id=''):
         # todo make sure that the input is valid? n > 0, 0 < k <= n
+
+        if seed is None:
+            seed = random.randint(0, 9999999)
+        execution_id += '-seed-' + str(seed)
+        super().__init__(seed=seed)
+
 
         print(sys.version)
         print([f"{k}, {v}" for k, v in locals().items()])
@@ -138,8 +142,8 @@ class Simulation(Model):
 
         # Allocate stake to the players, sampling from a Pareto distribution
         stake_distribution = hlp.generate_stake_distr(num_agents=self.n, total_stake=self.total_stake,
-                                                      pareto_param=pareto_param)
-
+                                                     pareto_param=pareto_param)
+        #stake_distribution = hlp.generate_stake_distr_equal(num_agents=self.n, total_stake=self.total_stake)
         # Allocate cost to the players, sampling from a uniform distribution
         cost_distribution = hlp.generate_cost_distr_unfrm(num_agents=self.n, low=cost_min, high=cost_max)
         #cost_distribution = hlp.generate_cost_distr_bands(num_agents=self.n, low=cost_min, high=cost_max, num_bands=10)
@@ -237,7 +241,7 @@ class Simulation(Model):
         stakes = {player_id: player.stake for player_id, player in players.items()}
         stake_ranks = hlp.calculate_ranks(stakes)
         negative_cost_ranks = hlp.calculate_ranks({player_id: -player.cost for player_id, player in players.items()})
-        decimals = 8
+        decimals = 4
         row_list.extend(
             [[pool.owner, pool.id, round(pool.stake, decimals), round(pool.margin, decimals),
               round(players[pool.owner].calculate_margin_perfect_strategy(), decimals),

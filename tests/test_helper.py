@@ -1,3 +1,7 @@
+import random
+
+import pytest
+
 import logic.helper as hlp
 
 
@@ -13,6 +17,16 @@ def test_generate_stake_distr():
 
     assert len(stk_distr) == 1001
     assert sum(stk_distr) == 21527
+
+
+def test_generate_stake_distr_same():
+    stk_distr = hlp.generate_stake_distr_equal(num_agents=100, total_stake=1)
+
+    rnd_idx = random.randint(1, 100)
+
+    assert pytest.approx(stk_distr[rnd_idx]) == 0.01
+    assert len(stk_distr) == 100
+    assert pytest.approx(sum(stk_distr)) == 1
 
 
 

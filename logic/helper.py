@@ -49,6 +49,10 @@ def get_stakes_from_file(filename):  # todo if we keep this function replace wit
     return stakes
 
 
+def generate_stake_distr_equal(num_agents, total_stake=1):
+    stake_per_agent = total_stake / num_agents if num_agents > 0 else 0
+    return [stake_per_agent for _ in range(num_agents)]
+
 def generate_cost_distr_unfrm(num_agents, low, high, seed=156):
     """
     Generate a distribution for the players' costs of operating pools,

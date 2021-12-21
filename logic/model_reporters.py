@@ -239,14 +239,8 @@ def get_nakamoto_coefficient(model):
 
 
 def get_NCR(model):
-    if not model.has_converged():
-        return -1
-    pools = model.get_pools_list()
-    if len(pools) == 0:
-        return 0
-    independent_pool_owners = {pool.owner for pool in pools}
     nakamoto_coefficient = get_nakamoto_coefficient(model)
-    return nakamoto_coefficient / len(independent_pool_owners)
+    return nakamoto_coefficient / model.n if nakamoto_coefficient >= 0 else -1
 
 
 def get_min_aggregate_pledge(model):

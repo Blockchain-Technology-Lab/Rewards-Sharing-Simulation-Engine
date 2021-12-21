@@ -9,6 +9,7 @@ import matplotlib.pyplot as plt
 import matplotlib.ticker as ticker
 import pickle as pkl
 import numpy as np
+from math import floor, log10
 
 import logic.sim as sim
 
@@ -50,6 +51,7 @@ def main():
     args_dict.pop("seed")
     if seed == "None":
         seed = random.randint(0, 9999999)
+    batch_run_id += '-seed-' + str(seed)
 
     fixed_params = {
         "execution_id": "temp",
@@ -78,23 +80,47 @@ def main():
     print(fixed_params)
     print('-------------')
     print(variable_params)
+    
+    variable_param = list(variable_params.keys())[0]
 
-    model_reporters = {
+    all_model_reporters = {
         "#Pools": sim.get_final_number_of_pools,
         "avgPledge": sim.get_avg_pledge,
         "totalPledge": sim.get_total_pledge,
-        #"avg_pools_per_operator": sim.get_avg_pools_per_operator,
+        "avg_pools_per_operator": sim.get_avg_pools_per_operator,
         "max_pools_per_operator": sim.get_max_pools_per_operator,
-        #"median_pools_per_operator": sim.get_median_pools_per_operator,
-        #"avgSatRate": sim.get_avg_sat_rate,
+        "median_pools_per_operator": sim.get_median_pools_per_operator,
+        "avgSatRate": sim.get_avg_sat_rate,
         "nakamotoCoeff": sim.get_nakamoto_coefficient,
         "StatisticalDistance": sim.get_controlled_stake_distr_stat_dist,
         "NCR": sim.get_NCR,
         "MinAggregatePledge": sim.get_min_aggregate_pledge,
-        # "pledge_rate": sim.get_pledge_rate,
+        "pledge_rate": sim.get_pledge_rate,
         "homogeneity_factor": sim.get_homogeneity_factor,
         "iterations": sim.get_iterations
     }
+
+    model_reporters_relation = {
+        'alpha': [
+            "avgPledge", "totalPledge", "max_pools_per_operator",
+            "median_pools_per_operator",
+            "nakamotoCoeff", "NCR",
+            #"MinAggregatePledge",
+            "iterations"
+        ],
+        'k': [
+            "#Pools", "nakamotoCoeff", "StatisticalDistance", "homogeneity_factor",
+              #"MinAggregatePledge",
+              "iterations"
+        ],
+        'abstention_rate': [
+            "#Pools", "nakamotoCoeff", "StatisticalDistance", "homogeneity_factor", 
+            #"MinAggregatePledge",
+            "iterations"
+        ]
+    }
+    
+    model_reporters = {k: v for k, v in all_model_reporters.items() if k in model_reporters_relation[variable_param]}
 
     batch_run_MP = MyBatchRunner(
         sim.Simulation,
@@ -122,22 +148,23 @@ def main():
     with open(pickled_batch_run_data, "wb") as pkl_file:
         pkl.dump(run_data_MP, pkl_file)
 
-    if 'alpha' in variable_params:
+    if variable_param == 'alpha':
         # determine which alpha values were good, from the ones that were tried
         # we define a suitable value for alpha by taking the minimum value that gives NCR >= 3%
         min_ncr = 0.03
         min_nc = min_ncr * fixed_params['n']
+        if min_nc > fixed_params['k'] :
+            min_nc = int(fixed_params['k']/3)
         suitable_rows = run_data_MP[run_data_MP.nakamotoCoeff >= min_nc]
         min_alpha_suitable_row = suitable_rows[suitable_rows.alpha == suitable_rows.alpha.min()][['n','k', 'cost_min', 'alpha']]
         cost_alpha_csv_file = output_dir + "/cost-alpha.csv"
         with open(cost_alpha_csv_file, "a") as f:
             min_alpha_suitable_row.to_csv(f, mode='a', index=False, header=f.tell()==0)
 
-    variable_param = list(variable_params.keys())[0]
     colours = [np.random.rand(3, ) for i in range(len(model_reporters))]
     useLogAxis = True if variable_param == 'alpha' else False
     for i, model_reporter in enumerate(model_reporters):
-        plot_aggregate_data(run_data_MP, variable_param, model_reporter, colours[i], batch_run_id, day_output_dir, logAxis=useLogAxis)
+        plot_aggregate_data(run_data_MP, variable_param, model_reporter, colours[i], batch_run_id, day_output_dir, log_axis=useLogAxis)
 
     # ordered dicts with data from each step of each run (the combinations of variable params act as the keys)
     # for example data_collector_model[(0.1, 0.02, 1)] shows the values of the parameters collected at model level
@@ -145,7 +172,16 @@ def main():
     #data_collector_agents = batch_run_MP.get_collector_agents()
     #data_collector_model = batch_run_MP.get_collector_model()
 
-def plot_aggregate_data(df, variable_param, model_reporter, color, exec_id, output_dir, positive_only=True, logAxis=False):
+
+def sci_notation(num, decimal_digits=1, precision=None, exponent=None):
+    if exponent is None:
+        exponent = int(floor(log10(abs(num))))
+    coeff = round(num / float(10**exponent), decimal_digits)
+    if precision is None:
+        precision = decimal_digits
+    return r"${0:.{2}f}\cdot10^{{{1:d}}}$".format(coeff, exponent, precision) if coeff > 1 else r"$10^{{{0:d}}}$".format(exponent)
+
+def plot_aggregate_data(df, variable_param, model_reporter, color, exec_id, output_dir, positive_only=True, log_axis=False):
     figures_dir = output_dir + "/figures/"
     path = pathlib.Path.cwd() / figures_dir
     pathlib.Path(path).mkdir(parents=True, exist_ok=True)
@@ -159,11 +195,12 @@ def plot_aggregate_data(df, variable_param, model_reporter, color, exec_id, outp
     plt.scatter(x, y, color=color)
     plt.xlabel(variable_param)
     plt.ylabel(model_reporter)
-    if logAxis:
+    if log_axis:
         plt.xscale('log')
-    plt.gca().xaxis.set_major_formatter(ticker.FuncFormatter(lambda x, _: '{:g}'.format(x) if x >=0.1 else "%.e" % x))
-    plt.minorticks_off()
-    plt.savefig(figures_dir + exec_id + "-log-" + model_reporter + "-per-" + variable_param + ".png", bbox_inches='tight')
+        plt.gca().xaxis.set_major_formatter(ticker.FuncFormatter(lambda t, _: t if t >= 0.1 else sci_notation(t, 0)))
+        plt.minorticks_off()
+
+    plt.savefig(figures_dir + exec_id + "-" + model_reporter + "-per-" + variable_param + ".png", bbox_inches='tight')
     plt.show()
 
 
