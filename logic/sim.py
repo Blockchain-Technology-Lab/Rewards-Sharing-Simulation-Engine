@@ -25,7 +25,6 @@ AdjustableParams = collections.namedtuple("AdjustableParams", [
     'k',
     'alpha',
     'myopic_fraction',
-    'abstention_rate',
     'relative_utility_threshold',
     'absolute_utility_threshold',
     'common_cost'
@@ -47,9 +46,11 @@ class Simulation(Model):
 
     def __init__(self, n=1000, k=100, alpha=0.3, myopic_fraction=0, abstention_rate=0, relative_utility_threshold=0,
                  absolute_utility_threshold=1e-9, min_steps_to_keep_pool=5, pool_splitting=True, seed=None,
-                 pareto_param=2.0, max_iterations=1000, common_cost=1e-6, cost_min=1.1e-6, cost_max=2e-5,
+                 pareto_param=2.0, max_iterations=1000, common_cost=9e-5, cost_min=1e-4, cost_max=1e-3,
                  player_activation_order="Random", total_stake=1, ms=10, execution_id=''):
         # todo make sure that the input is valid? n > 0, 0 < k <= n
+
+        self.arguments = locals()  # only used for naming the output files appropriately
 
         if seed is None:
             seed = random.randint(0, 9999999)
@@ -60,7 +61,6 @@ class Simulation(Model):
         print(sys.version)
         print([f"{k}, {v}" for k, v in locals().items()])
 
-        self.arguments = locals()  # only used for naming the output files appropriately
 
         # An era is defined as a time period during which the parameters of the model don't change
         self.current_era = 0
@@ -74,18 +74,18 @@ class Simulation(Model):
                 relative_utility_threshold],
             absolute_utility_threshold=absolute_utility_threshold if isinstance(absolute_utility_threshold, list) else [
                 absolute_utility_threshold],
-            myopic_fraction=myopic_fraction if isinstance(myopic_fraction, list) else [myopic_fraction],
-            abstention_rate=abstention_rate if isinstance(abstention_rate, list) else [abstention_rate]
+            myopic_fraction=myopic_fraction if isinstance(myopic_fraction, list) else [myopic_fraction]
         )
 
         for attr_name, attr_values_list in zip(adjustable_params._fields, adjustable_params):
-            setattr(self, attr_name, attr_values_list[self.current_era]) #todo maybe self.abstention_rate not necessary?
+            setattr(self, attr_name, attr_values_list[self.current_era])
             if len(attr_values_list) > total_eras:
                 total_eras = len(attr_values_list)
         self.total_eras = total_eras
         self.adjustable_params = adjustable_params
 
         self.n = n
+        self.abstention_rate = abstention_rate
         self.min_steps_to_keep_pool = min_steps_to_keep_pool
         self.pool_splitting = pool_splitting
         self.max_iterations = max_iterations
@@ -108,29 +108,31 @@ class Simulation(Model):
         self.initialise_pool_id_seq()  # initialise pool id sequence for the new model run
         self.initialize_players(cost_min, cost_max, pareto_param)
 
+        # only include reporters that are needed for every STEP
         self.datacollector = DataCollector(
             model_reporters={
                 "#Pools": get_number_of_pools,
                 "PoolSizes": get_pool_sizes,
-                "PoolSizesByAgent": get_pool_sizes_by_agent,
-                "PoolSizesByPool": get_pool_sizes_by_pool,
-                "DesirabilitiesByAgent": get_desirabilities_by_agent,
-                "DesirabilitiesByPool": get_desirabilities_by_pool,
+                #"PoolSizesByAgent": get_pool_sizes_by_agent,
+                #"PoolSizesByPool": get_pool_sizes_by_pool,
+                #"DesirabilitiesByAgent": get_desirabilities_by_agent,
+                #"DesirabilitiesByPool": get_desirabilities_by_pool,
                 "StakePairs": get_stakes_n_margins,
                 "AvgPledge": get_avg_pledge,
-                "TotalPledge": get_total_pledge,
-                "MedianPledge": get_median_pledge,
-                "MeanAbsDiff": get_controlled_stake_mean_abs_diff,
-                "StatisticalDistance": get_controlled_stake_distr_stat_dist,
-                "NakamotoCoefficient": get_nakamoto_coefficient,
+                "TotalPledge": get_total_pledge
+                #"MedianPledge": get_median_pledge,
+                #"MeanAbsDiff": get_controlled_stake_mean_abs_diff,
+                #"StatisticalDistance": get_controlled_stake_distr_stat_dist,
+                #"NakamotoCoefficient": get_nakamoto_coefficient,
                 # "NCR": get_NCR,
                 # "MinAggregatePledge": get_min_aggregate_pledge,
                 # "PledgeRate": get_pledge_rate,
-                "AreaCoverage": get_homogeneity_factor,
-                "MarginChanges": get_margin_changes,
-                "AvgMargin": get_avg_margin,
-                "MedianMargin": get_median_margin,
-                "Iterations": get_iterations
+                #"AreaCoverage": get_homogeneity_factor,
+                #"MarginChanges": get_margin_changes,
+                #"AvgMargin": get_avg_margin,
+                #"MedianMargin": get_median_margin,
+                #"AvgStkRank": get_avg_stk_rnk,
+                #"AvgCostRank": get_avg_cost_rnk
             })
 
         self.pool_owner_id_mapping = dict()
@@ -307,27 +309,5 @@ class Simulation(Model):
                 if attr_name == 'k':
                     # update beta in case the value of k changes
                     self.beta = self.total_stake / self.k
-                elif attr_name == 'abstention_rate':
-                    # update agent properties in case the abstention rate changes
-                    abstention_change = attr_values_list[self.current_era] - attr_values_list[self.current_era - 1]
-                    new_abstaining_agents = int(abstention_change * self.n)
-                    all_agents = self.schedule.agents
-                    if new_abstaining_agents > 0:
-                        # abstention increased
-                        # todo fix issue when abstention increases
-                        for i, agent in enumerate(all_agents):
-                            if not agent.abstains and agent.remaining_min_steps_to_keep_pool == 0:
-                                agent.abstains = True
-                            new_abstaining_agents -= 1
-                            if new_abstaining_agents == 0:
-                                break
-                    else:
-                        # abstention decreased
-                        for i, agent in enumerate(all_agents):
-                            if agent.abstains:
-                                agent.abstains = False
-                            new_abstaining_agents += 1
-                            if new_abstaining_agents == 0:
-                                break
         if change_occured:
             self.pivot_steps.append(self.schedule.steps)

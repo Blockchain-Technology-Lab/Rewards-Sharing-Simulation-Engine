@@ -145,7 +145,9 @@ def calculate_pool_stake_NM(pool_id, pools, beta, k):
         pool_id: pool.stake
         for pool_id, pool in pools.items()
     }
-    rank = calculate_ranks(desirabilities, potential_profits, stakes, rank_ids=True)[pool_id]
+    #todo this exact same calculation is performed for all potential pools. maybe cache results somehow?
+    ranks = calculate_ranks(desirabilities, potential_profits, stakes, rank_ids=True)
+    rank = ranks[pool_id]
     pool = pools[pool_id]
     return pool.calculate_stake_NM(k, beta, rank)
 
@@ -158,7 +160,7 @@ def calculate_ranks(ranking_dict, *tie_breaking_dicts, rank_ids=True):
     @param rank_ids: if True, then the lowest id (e.g. the one corresponding to a pool created earlier) takes precedence
                     during ties that persist even after the other tie breaking rules have been applied.
                     If False and ties still exist, then the tie breaking is arbitrary.
-    @return:
+    @return: dictionary with the item id as the key and the calculated rank as the value
     """
     if rank_ids:
         tie_breaking_dicts = list(tie_breaking_dicts)

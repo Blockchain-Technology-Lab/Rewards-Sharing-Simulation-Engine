@@ -474,7 +474,6 @@ class Stakeholder(Agent):
         # Only proceed if there are active pools in the system that don't belong to the current player
         if len(pools_list) > 0:
             saturation_point = self.model.beta
-            # todo choose based on RANK (result should be the same in practice)
 
             desirability_dict = {
                 pool.id:

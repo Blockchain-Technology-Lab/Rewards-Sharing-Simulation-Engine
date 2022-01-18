@@ -4,6 +4,7 @@ import collections
 from gekko import GEKKO
 
 from logic.helper import MAX_NUM_POOLS
+import logic.helper as hlp
 
 
 def get_number_of_pools(model):
@@ -174,8 +175,6 @@ def get_controlled_stake_distr_stat_dist(model):
     :return: the statistical distance of the distributions of the stake that players control
                 (how they started vs how they ended up)
     """
-    if not model.has_converged():
-        return -1
     active_players = {
         player_id: player
         for player_id, player in model.get_players_dict().items()
@@ -209,8 +208,6 @@ def get_nakamoto_coefficient(model):
     :param model: the instance of the simulation
     :return: the number of players that control more than 50% of the total active stake through their pools
     """
-    if not model.has_converged():
-        return -1
     players = model.get_players_dict()
     active_players = {player_id: players[player_id] for player_id in players if not players[player_id].abstains}
     pools = model.get_pools_list()
@@ -249,8 +246,6 @@ def get_min_aggregate_pledge(model):
     @param model:
     @return:
     """
-    if not model.has_converged():
-        return -1
 
     pools = model.get_pools_list()
     if len(pools) == 0:
@@ -290,8 +285,6 @@ def get_pledge_rate(model):
     :param model: instance of the simulation
     :return: the pledge rate of the final configuration (otherwise -1)
     """
-    if not model.has_converged():
-        return -1
     pools = model.get_pools_list()
     if len(pools) == 0:
         return 0
@@ -306,8 +299,6 @@ def get_homogeneity_factor(model):
     :param model:
     :return:
     """
-    if not model.has_converged():
-        return -1
     pools = model.get_pools_list()
     pool_count = len(pools)
     if pool_count == 0:
@@ -323,3 +314,23 @@ def get_homogeneity_factor(model):
 
 def get_iterations(model):
     return model.schedule.steps
+
+
+def get_avg_stk_rnk(model):
+    pools = model.get_pools_list()
+    all_players = model.get_players_dict()
+    pool_owner_ids = {pool.owner for pool in pools}
+    stakes = {player_id: player.stake for player_id, player in all_players.items()}
+    stake_ranks = hlp.calculate_ranks(stakes)
+    pool_owner_stk_ranks = [stake_ranks[pool_owner] for pool_owner in pool_owner_ids]
+    return statistics.mean(pool_owner_stk_ranks)
+
+
+def get_avg_cost_rnk(model):
+    pools = model.get_pools_list()
+    all_players = model.get_players_dict()
+    pool_owner_ids = {pool.owner for pool in pools}
+    negative_cost_ranks = hlp.calculate_ranks({player_id: -player.cost for player_id, player in all_players.items()})
+    pool_owner_cost_ranks = [negative_cost_ranks[pool_owner] for pool_owner in pool_owner_ids]
+
+    return statistics.mean(pool_owner_cost_ranks)

@@ -7,7 +7,6 @@ from mybatchrunner import MyBatchRunner
 import time
 import matplotlib.pyplot as plt
 import matplotlib.ticker as ticker
-import pickle as pkl
 import numpy as np
 from math import floor, log10
 
@@ -25,7 +24,7 @@ def main():
     parser.add_argument('--seed', default='None',
                         help='Seed for reproducibility. Default is None, which means that a seed will be generated '
                              'randomly and then used for al executions of the batch run.')
-    parser.add_argument('--max_iterations', type=int, default=5000,
+    parser.add_argument('--max_iterations', type=int, default=2000,
                         help='The maximum number of iterations of the system. Default is 1000.')
     parser.add_argument('--n', nargs="+", type=int, default=1000,
                         help='The number of players (natural number). Default is 100.')
@@ -70,16 +69,17 @@ def main():
                 if arg_name == 'alpha':
                     variable_params[arg_name] = list(np.logspace(arg_values[0], arg_values[1], num=int(arg_values[2])))
                 else:
-                    int_range = [int(v * 10000) for v in arg_values]
-                    variable_params[arg_name] = [v / 10000 for v in range(int_range[0], int_range[1], int_range[2])]
+                    scale_factor = 100000
+                    int_range = [int(v * scale_factor) for v in arg_values]
+                    variable_params[arg_name] = [v / scale_factor for v in range(int_range[0], int_range[1], int_range[2])]
             else:
                 fixed_params[arg_name] = arg_values[0]
         else:
             fixed_params[arg_name] = arg_values
 
-    print(fixed_params)
+    print("Fixed params: ", fixed_params)
     print('-------------')
-    print(variable_params)
+    print("Variable params: ", variable_params)
     
     variable_param = list(variable_params.keys())[0]
 
@@ -97,7 +97,9 @@ def main():
         "MinAggregatePledge": sim.get_min_aggregate_pledge,
         "pledge_rate": sim.get_pledge_rate,
         "homogeneity_factor": sim.get_homogeneity_factor,
-        "iterations": sim.get_iterations
+        "iterations": sim.get_iterations,
+        "avgStkRank": sim.get_avg_stk_rnk,
+        "avgCostRank": sim.get_avg_cost_rnk
     }
 
     model_reporters_relation = {
@@ -106,7 +108,8 @@ def main():
             "median_pools_per_operator",
             "nakamotoCoeff", "NCR",
             #"MinAggregatePledge",
-            "iterations"
+            "iterations",
+            "avgStkRank", "avgCostRank"
         ],
         'k': [
             "#Pools", "nakamotoCoeff", "StatisticalDistance", "homogeneity_factor",
@@ -115,6 +118,11 @@ def main():
         ],
         'abstention_rate': [
             "#Pools", "nakamotoCoeff", "StatisticalDistance", "homogeneity_factor", 
+            #"MinAggregatePledge",
+            "iterations"
+        ],
+        'common_cost': [
+            "#Pools", "nakamotoCoeff", "StatisticalDistance", "homogeneity_factor",
             #"MinAggregatePledge",
             "iterations"
         ]
@@ -129,7 +137,8 @@ def main():
         fixed_parameters=fixed_params,
         max_steps=args_dict['max_iterations'],
         iterations=1,
-        model_reporters=model_reporters
+        model_reporters=model_reporters,
+        execution_id=batch_run_id
     )
     start_time = time.time()
     batch_run_MP.run_all()
@@ -137,16 +146,15 @@ def main():
 
     # Extract data from the batch runner
     run_data_MP = batch_run_MP.get_model_vars_dataframe()
-    # print(run_data_MP.head())
 
     output_dir = "output/"
     day = time.strftime("%d-%m-%Y")
     day_output_dir = output_dir + day
     path = pathlib.Path.cwd() / day_output_dir
     pathlib.Path(path).mkdir(parents=True, exist_ok=True)
-    pickled_batch_run_data = day_output_dir + "/batch-run-data" + batch_run_id + ".pkl"
-    with open(pickled_batch_run_data, "wb") as pkl_file:
-        pkl.dump(run_data_MP, pkl_file)
+
+    batch_run_data = day_output_dir + "/batch-run-data-" + batch_run_id + ".csv"
+    run_data_MP.to_csv(batch_run_data, index=False)
 
     if variable_param == 'alpha':
         # determine which alpha values were good, from the ones that were tried
