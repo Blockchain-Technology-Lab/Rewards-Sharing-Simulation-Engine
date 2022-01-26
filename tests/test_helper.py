@@ -29,7 +29,6 @@ def test_generate_stake_distr_same():
     assert pytest.approx(sum(stk_distr)) == 1
 
 
-
 def test_generate_cost_distr():
     assert True
 
@@ -81,6 +80,7 @@ def test_calculate_pool_reward_variable_pledge():
     ) for i in range(len(stakes))]
 
     assert results[0] < results[1] < results[2]
+
 
 def test_calculate_pool_reward_variable_stake_alpha_zero():
     # GIVEN
@@ -155,4 +155,14 @@ def test_calculate_ranks_with_tie_breaking():
     assert hlp.calculate_ranks(desirabilities, potential_profits, stakes, rank_ids=True) == ranks
 
 
+def test_calculate_cost_per_pool():
+    num_pools = 4
+    initial_cost = 1
+    cost_factor = 0.6
+    expected_cost_per_pool = 0.544
+    expected_total_cost = 2.176
 
+    cost_per_pool = hlp.calculate_cost_per_pool(num_pools, initial_cost, cost_factor)
+
+    assert cost_per_pool == expected_cost_per_pool
+    assert cost_per_pool * num_pools == expected_total_cost

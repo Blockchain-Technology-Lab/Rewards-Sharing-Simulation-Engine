@@ -41,6 +41,9 @@ def main():
     parser.add_argument('--common_cost', nargs="+", type=float, default=5e-5,
                         help='The additional cost that applies to all players for each pool they operate. '
                              'Default is 5e-5.')
+    parser.add_argument('--cost_factor', nargs="+", type=float, default=0.6,
+                        help='The factor that determines how much an additional pool costs. '
+                             'Default is 60%.')
     args_dict = vars(parser.parse_args())
 
     batch_run_id = args_dict["execution_id"]
@@ -69,7 +72,7 @@ def main():
                 if arg_name == 'alpha':
                     variable_params[arg_name] = list(np.logspace(arg_values[0], arg_values[1], num=int(arg_values[2])))
                 else:
-                    scale_factor = 100000
+                    scale_factor = 1e6
                     int_range = [int(v * scale_factor) for v in arg_values]
                     variable_params[arg_name] = [v / scale_factor for v in range(int_range[0], int_range[1], int_range[2])]
             else:
@@ -124,6 +127,11 @@ def main():
         'common_cost': [
             "#Pools", "nakamotoCoeff", "StatisticalDistance", "homogeneity_factor",
             #"MinAggregatePledge",
+            "iterations"
+        ],
+        'cost_factor': [
+            "#Pools", "nakamotoCoeff", "StatisticalDistance", "homogeneity_factor",
+            # "MinAggregatePledge",
             "iterations"
         ]
     }

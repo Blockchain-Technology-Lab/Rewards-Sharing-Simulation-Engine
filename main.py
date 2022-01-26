@@ -17,34 +17,37 @@ def main():
                         help='The k value of the system (natural number). Default is 100.')
     parser.add_argument('--alpha', nargs="+", type=float, default=0.3,
                         help='The alpha value of the system (decimal number between 0 and 1). Default is 0.3')
-    parser.add_argument('--cost_min', type=float, default=1e-6,
-                        help='The minimum possible cost for operating a stake pool. Default is 1e-6.')
-    parser.add_argument('--cost_max', type=float, default=2e-5,
-                        help='The maximum possible cost for operating a stake pool. Default is 2e-5.')
-    parser.add_argument('--common_cost', nargs="+", type=float, default=5e-7,
+    parser.add_argument('--cost_min', type=float, default=1e-4,
+                        help='The minimum possible cost for operating a stake pool. Default is 1e-4.')
+    parser.add_argument('--cost_max', type=float, default=1e-3,
+                        help='The maximum possible cost for operating a stake pool. Default is 1e-3.')
+    parser.add_argument('--common_cost', nargs="+", type=float, default=3e-5,
                         help='The additional cost that applies to all players for each pool they operate. '
                              'Default is 5e-7.')
+    parser.add_argument('--cost_factor', nargs="+", type=float, default=0.7,
+                        help='The factor that determines how much an additional pool costs. '
+                             'Default is 70%.')
     parser.add_argument('--pareto_param', type=float, default=2.0,
                         help='The parameter that determines the shape of the distribution that the stake will be '
                              'sampled from. Default is 2.')
     parser.add_argument('--relative_utility_threshold', nargs="+", type=float, default=0,
-                        help='The utility increase ratio under which moves are disregarded. Default is 10%%.')
+                        help='The utility increase ratio under which moves are disregarded. Default is 0%.')
     parser.add_argument('--absolute_utility_threshold', nargs="+", type=float, default=1e-9,
                         help='The utility threshold under which moves are disregarded. Default is 1e-9.')
     parser.add_argument('--player_activation_order', type=str, default='Random',
                         help='Player activation order. Default is random.')
-    parser.add_argument('--seed', default=None,
+    parser.add_argument('--seed', default=42,#None,
                         help='Seed for reproducibility. Default is None, which means that no seed is given.')
     parser.add_argument("--min_steps_to_keep_pool", type=int, default=5,
                         help='The number of steps for which a player remains idle after opening a pool. Default is 5.')
     parser.add_argument('--myopic_fraction', nargs="+", type=float, default=0,
-                        help='The fraction of myopic players in the simulation. Default is 10%%.')
+                        help='The fraction of myopic players in the simulation. Default is 0%.')
     parser.add_argument('--abstention_rate', nargs="+", type=float, default=0,
-                        help='The percentage of players that will abstain from the game in this run. Default is 10%%.')
+                        help='The percentage of players that will abstain from the game in this run. Default is 0%%.')
     parser.add_argument('--pool_splitting', type=bool, default=True, action=argparse.BooleanOptionalAction,
                         help='Are individual players allowed to create multiple pools? Default is yes.')
-    parser.add_argument('--max_iterations', type=int, default=1000,
-                        help='The maximum number of iterations of the system. Default is 1000.')
+    parser.add_argument('--max_iterations', type=int, default=2000,
+                        help='The maximum number of iterations of the system. Default is 2000.')
     parser.add_argument('--ms', type=int, default=10,
                         help='The minimum consecutive idle steps that are required to declare convergence. '
                              'Default is 10. But if min_steps_to_keep_pool > ms then ms = min_steps_to_keep_pool + 1. ')
@@ -81,25 +84,22 @@ def main():
     sim.run_model()
 
     sim_df = sim.datacollector.get_model_vars_dataframe()
-
-    execution_id = args.execution_id
-    if execution_id == '':
-        # No identifier was provided by the user, so we construct one based on the simulation's parameter values
-        execution_id = "".join(['-' + str(key) + '=' + str(value) for key, value in sim.arguments.items()
-                                 if type(value) == bool or type(value) == int or type(value) == float])[:180]
-
-    pickled_simulation_filename = "output/simulation-object-" + execution_id + ".pkl"
-    with open(pickled_simulation_filename, "wb") as pkl_file:
-        pkl.dump(sim, pkl_file)
+    execution_id = sim.execution_id
 
     day = time.strftime("%d-%m-%Y")
-    output_dir = "output/" + day
-    figures_dir = output_dir + "/figures/"
+    output_dir = "output/" + day + "/"
+
+    '''pickled_simulation_filename = output_dir + "simulation-object-" + execution_id + ".pkl"
+    with open(pickled_simulation_filename, "wb") as pkl_file:
+        pkl.dump(sim, pkl_file)'''
+
+
+    figures_dir = output_dir + "figures/"
     path = pathlib.Path.cwd() / figures_dir
     pathlib.Path(path).mkdir(parents=True, exist_ok=True)
 
-    margin_changes = sim_df["MarginChanges"]
-    '''plot_line(execution_id, sim_df["MarginChanges"], 'C0', "Number of pools over time", "Round",
+    '''margin_changes = sim_df["MarginChanges"]
+    plot_line(execution_id, sim_df["MarginChanges"], 'C0', "Number of pools over time", "Round",
               "#Pools", "poolCount", equilibrium_steps=[], pivot_steps=[])'''
 
     pool_nums = sim_df["#Pools"]
@@ -121,9 +121,6 @@ def main():
 
     plot_line(execution_id, sim_df["TotalPledge"], 'purple', "Total pledge over time", "Round",
               "Total pledge", "totalPledge", equilibrium_steps, pivot_steps, figures_dir, True)
-
-    plot_line(execution_id, sim_df["MeanAbsDiff"], 'green', "Mean Absolute Difference of Controlled Stake", "Round",
-              "Mean abs diff", "meanAbsDiff", equilibrium_steps, pivot_steps, figures_dir, False)
 
     '''pool_sizes_by_step = sim_df["PoolSizes"]  # todo fix
         # print(pool_sizes_by_step)

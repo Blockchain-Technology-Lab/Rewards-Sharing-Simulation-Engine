@@ -189,3 +189,27 @@ def to_latex(row_list, sim_id, output_dir):
     pathlib.Path(path).mkdir(parents=True, exist_ok=True)
     with open(output_dir + sim_id + "-output.tex", 'w', newline='') as file:
         sorted_df.to_latex(file, index=False)
+
+
+def generate_execution_id(args_dict):
+    num_args_to_use = 4
+    max_characters = 100
+    return "".join([str(key) + '-' + str(value) + '-' for key, value in list(args_dict.items())[:num_args_to_use]
+                    if type(value) == bool or type(value) == int or type(value) == float])[:max_characters]
+
+
+def calculate_cost_per_pool(num_pools, initial_cost, cost_factor):
+    """
+    Calculate the average cost of an agent's pools, assuming that any additional pool costs less than the previous one
+    Specifically if the first pool costs c1 and we use a factor of 0.6 then a second pool would cost c2 = 0.6 * c1,
+    a third pool would cost c3 = 0.6 * c2 = 0.6^2 * c1, and so on
+    @param num_pools:
+    @param initial_cost:
+    @param cost_factor:
+    @return:
+    """
+    total_cost = 0
+    for i in range(num_pools):
+        c_i = cost_factor**i * initial_cost
+        total_cost += c_i
+    return total_cost / num_pools if num_pools > 0 else 0

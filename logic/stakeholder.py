@@ -409,7 +409,7 @@ class Stakeholder(Agent):
         pledges = self.calculate_pledges(num_pools)
         margins = []
 
-        cost_per_pool = self.model.common_cost + self.cost / num_pools if num_pools > 1 else self.cost  # we only apply the additional (common) cost in case of > 1 pools
+        cost_per_pool = hlp.calculate_cost_per_pool(num_pools, self.cost, self.model.cost_factor)
         for i, (pool_id, pool) in enumerate(owned_pools.items()):
             # For pools that already exist, modify them to match the new strategy
             pool.stake -= pool.pledge - pledges[i]

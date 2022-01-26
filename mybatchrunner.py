@@ -3,6 +3,15 @@ from tqdm import tqdm
 import pandas as pd
 import csv
 
+
+def write_to_csv(filepath, header, row):
+    with open(filepath, 'a', newline='') as f:
+        writer = csv.writer(f)
+        if f.tell()==0:
+            writer.writerow(header)
+        writer.writerow(row)
+
+
 class MyBatchRunner(BatchRunnerMP):
     """
     Child class of BatchRunnerMP, modified to save intermediate output (after every run) to file
@@ -39,12 +48,10 @@ class MyBatchRunner(BatchRunnerMP):
         row = [param for param in params]
         row.extend([value for value in current_model_vars.values()])
 
-        batch_run_online_results = "output/" + self.execution_id + "-intermediate-results.csv"
-        with open(batch_run_online_results, 'a', newline='') as f:
-            writer = csv.writer(f)
-            if f.tell()==0:
-                writer.writerow(header)
-            writer.writerow(row)
+        this_batch_run_intermediate_results = "output/" + self.execution_id + "-intermediate-results.csv"
+        all_batch_run_intermediate_results = "output/batch-run-all-intermediate-results.csv"
+        write_to_csv(this_batch_run_intermediate_results, header, row)
+        write_to_csv(all_batch_run_intermediate_results, header, row)
 
     def _result_prep_mp(self, results):
         """
@@ -142,3 +149,4 @@ class MyBatchRunner(BatchRunnerMP):
         ordered = df[index_cols + list(sorted(rest_cols))]
         #ordered.sort_values(by="Run", inplace=True)
         return ordered
+

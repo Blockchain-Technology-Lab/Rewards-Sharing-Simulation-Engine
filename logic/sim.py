@@ -27,7 +27,8 @@ AdjustableParams = collections.namedtuple("AdjustableParams", [
     'myopic_fraction',
     'relative_utility_threshold',
     'absolute_utility_threshold',
-    'common_cost'
+    'common_cost',
+    'cost_factor'
 ])
 
 
@@ -46,15 +47,22 @@ class Simulation(Model):
 
     def __init__(self, n=1000, k=100, alpha=0.3, myopic_fraction=0, abstention_rate=0, relative_utility_threshold=0,
                  absolute_utility_threshold=1e-9, min_steps_to_keep_pool=5, pool_splitting=True, seed=None,
-                 pareto_param=2.0, max_iterations=1000, common_cost=9e-5, cost_min=1e-4, cost_max=1e-3,
+                 pareto_param=2.0, max_iterations=1000, common_cost=9e-5, cost_min=1e-4, cost_max=1e-3, cost_factor=0.7,
                  player_activation_order="Random", total_stake=1, ms=10, execution_id=''):
         # todo make sure that the input is valid? n > 0, 0 < k <= n
 
         self.arguments = locals()  # only used for naming the output files appropriately
 
-        if seed is None:
-            seed = random.randint(0, 9999999)
-        execution_id += '-seed-' + str(seed)
+        if execution_id == '':
+            # No identifier was provided by the user, so we construct one based on the simulation's parameter values
+            execution_id = hlp.generate_execution_id(self.arguments)
+
+        seed = str(seed) # to maintain consistency among seeds, because command line arguments are parsed as strings
+        if seed == 'None':
+            seed = str(random.randint(0, 9999999))
+
+        execution_id += '-seed-' + seed
+
         super().__init__(seed=seed)
 
 
@@ -70,6 +78,7 @@ class Simulation(Model):
             k=k if isinstance(k, list) else [k],
             alpha=alpha if isinstance(alpha, list) else [alpha],
             common_cost=common_cost if isinstance(common_cost,list) else [common_cost],
+            cost_factor=cost_factor if isinstance(cost_factor, list) else [cost_factor],
             relative_utility_threshold=relative_utility_threshold if isinstance(relative_utility_threshold, list)else [
                 relative_utility_threshold],
             absolute_utility_threshold=absolute_utility_threshold if isinstance(absolute_utility_threshold, list) else [
@@ -94,7 +103,7 @@ class Simulation(Model):
 
         self.perceived_active_stake = total_stake
         self.beta = total_stake / self.k
-        self.execution_id = execution_id if execution_id != '' else self.generate_execution_id()
+        self.execution_id = execution_id
 
         self.running = True  # for batch running and visualisation purposes
         self.schedule = self.player_activation_orders[player_activation_order](self)
@@ -135,7 +144,7 @@ class Simulation(Model):
                 #"AvgCostRank": get_avg_cost_rnk
             })
 
-        self.pool_owner_id_mapping = dict()
+        self.pool_owner_id_mapping = dict() # todo probably useless
         self.start_time = None
         self.equilibrium_steps = []
         self.pivot_steps = []
@@ -280,10 +289,6 @@ class Simulation(Model):
 
     def get_status(self):
         print("Step {}: {} pools".format(self.schedule.steps, len(self.pools)))
-
-    def generate_execution_id(self):
-        return "".join(['-' + str(key) + '=' + str(value) for key, value in self.arguments.items()
-                        if type(value) == bool or type(value) == int or type(value) == float])[:147]
 
     def revise_beliefs(self):
         """
