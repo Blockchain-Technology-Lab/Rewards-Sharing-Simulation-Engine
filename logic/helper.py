@@ -13,6 +13,7 @@ import pathlib
 TOTAL_EPOCH_REWARDS_R = 1
 MAX_NUM_POOLS = 1000
 MIN_STAKE_UNIT = 2.2e-17
+MIN_COST_PER_POOL = 1e-6
 
 
 def generate_stake_distr(num_agents, total_stake=1, pareto_param=None, seed=156):
@@ -202,14 +203,14 @@ def calculate_cost_per_pool(num_pools, initial_cost, cost_factor):
     """
     Calculate the average cost of an agent's pools, assuming that any additional pool costs less than the previous one
     Specifically if the first pool costs c1 and we use a factor of 0.6 then a second pool would cost c2 = 0.6 * c1,
-    a third pool would cost c3 = 0.6 * c2 = 0.6^2 * c1, and so on
+    a third pool would cost c3 = 0.6 * c2 = 0.6^2 * c1, and so on. Can be calculated using the sum of a geometrical sequence.
     @param num_pools:
     @param initial_cost:
     @param cost_factor:
     @return:
     """
-    total_cost = 0
-    for i in range(num_pools):
-        c_i = cost_factor**i * initial_cost
-        total_cost += c_i
-    return total_cost / num_pools if num_pools > 0 else 0
+    if cost_factor < 1:
+        return max((initial_cost * (1 - cost_factor ** num_pools) / (1 - cost_factor)) / num_pools, MIN_COST_PER_POOL)
+    else:
+        return initial_cost
+

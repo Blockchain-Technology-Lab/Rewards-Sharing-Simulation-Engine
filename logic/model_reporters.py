@@ -323,7 +323,7 @@ def get_avg_stk_rnk(model):
     stakes = {player_id: player.stake for player_id, player in all_players.items()}
     stake_ranks = hlp.calculate_ranks(stakes)
     pool_owner_stk_ranks = [stake_ranks[pool_owner] for pool_owner in pool_owner_ids]
-    return statistics.mean(pool_owner_stk_ranks)
+    return statistics.mean(pool_owner_stk_ranks) if len(pool_owner_stk_ranks) > 0 else 0
 
 
 def get_avg_cost_rnk(model):
@@ -333,4 +333,4 @@ def get_avg_cost_rnk(model):
     negative_cost_ranks = hlp.calculate_ranks({player_id: -player.cost for player_id, player in all_players.items()})
     pool_owner_cost_ranks = [negative_cost_ranks[pool_owner] for pool_owner in pool_owner_ids]
 
-    return statistics.mean(pool_owner_cost_ranks)
+    return statistics.mean(pool_owner_cost_ranks) if len(pool_owner_cost_ranks) > 0 else 0

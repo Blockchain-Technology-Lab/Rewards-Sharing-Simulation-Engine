@@ -86,6 +86,7 @@ def main():
     
     variable_param = list(variable_params.keys())[0]
 
+    # note that any new model reporters should be added to the end, to maintain the colour allocation
     all_model_reporters = {
         "#Pools": sim.get_final_number_of_pools,
         "avgPledge": sim.get_avg_pledge,
@@ -105,8 +106,13 @@ def main():
         "avgCostRank": sim.get_avg_cost_rnk
     }
 
+    rng = np.random.default_rng(seed=156)
+    random_colours = rng.random((len(all_model_reporters), 3))
+    all_reporter_colours = dict(zip(all_model_reporters.keys(), random_colours))
+
     model_reporters_relation = {
         'alpha': [
+            "#Pools",
             "avgPledge", "totalPledge", "max_pools_per_operator",
             "median_pools_per_operator",
             "nakamotoCoeff", "NCR",
@@ -136,7 +142,9 @@ def main():
         ]
     }
     
-    model_reporters = {k: v for k, v in all_model_reporters.items() if k in model_reporters_relation[variable_param]}
+    model_reporters = {
+        k: all_model_reporters[k] for k in model_reporters_relation[variable_param]
+    }
 
     batch_run_MP = MyBatchRunner(
         sim.Simulation,
@@ -177,10 +185,9 @@ def main():
         with open(cost_alpha_csv_file, "a") as f:
             min_alpha_suitable_row.to_csv(f, mode='a', index=False, header=f.tell()==0)
 
-    colours = [np.random.rand(3, ) for i in range(len(model_reporters))]
     useLogAxis = True if variable_param == 'alpha' else False
     for i, model_reporter in enumerate(model_reporters):
-        plot_aggregate_data(run_data_MP, variable_param, model_reporter, colours[i], batch_run_id, day_output_dir, log_axis=useLogAxis)
+        plot_aggregate_data(run_data_MP, variable_param, model_reporter, all_reporter_colours[model_reporter], batch_run_id, day_output_dir, log_axis=useLogAxis)
 
     # ordered dicts with data from each step of each run (the combinations of variable params act as the keys)
     # for example data_collector_model[(0.1, 0.02, 1)] shows the values of the parameters collected at model level
