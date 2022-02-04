@@ -409,7 +409,8 @@ class Stakeholder(Agent):
         pledges = self.calculate_pledges(num_pools)
         margins = []
 
-        cost_per_pool = hlp.calculate_cost_per_pool(num_pools, self.cost, self.model.cost_factor)
+        cost_per_pool = hlp.calculate_cost_per_pool_fixed_fraction(num_pools, self.cost, self.model.cost_factor) if \
+            self.model.extra_cost_type == 'fixed_fraction' else hlp.calculate_cost_per_pool(num_pools, self.cost, self.model.cost_factor)
         for i, (pool_id, pool) in enumerate(owned_pools.items()):
             # For pools that already exist, modify them to match the new strategy
             pool.stake -= pool.pledge - pledges[i]

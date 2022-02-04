@@ -16,7 +16,7 @@ MIN_STAKE_UNIT = 2.2e-17
 MIN_COST_PER_POOL = 1e-6
 
 
-def generate_stake_distr(num_agents, total_stake=1, pareto_param=None, seed=156):
+def generate_stake_distr_pareto(num_agents, total_stake=1, pareto_param=None, seed=156):
     """
     Generate a distribution for the players' initial stake (wealth),
     sampling from a Pareto distribution
@@ -50,7 +50,7 @@ def get_stakes_from_file(filename):  # todo if we keep this function replace wit
     return stakes
 
 
-def generate_stake_distr_equal(num_agents, total_stake=1):
+def generate_stake_distr_flat(num_agents, total_stake=1):
     stake_per_agent = total_stake / num_agents if num_agents > 0 else 0
     return [stake_per_agent for _ in range(num_agents)]
 
@@ -214,3 +214,5 @@ def calculate_cost_per_pool(num_pools, initial_cost, cost_factor):
     else:
         return initial_cost
 
+def calculate_cost_per_pool_fixed_fraction(num_pools, initial_cost, cost_factor):
+    return (initial_cost + (num_pools - 1) * cost_factor * initial_cost) / num_pools

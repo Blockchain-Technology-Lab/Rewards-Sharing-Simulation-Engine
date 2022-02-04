@@ -21,9 +21,6 @@ def main():
                         help='The minimum possible cost for operating a stake pool. Default is 1e-4.')
     parser.add_argument('--cost_max', type=float, default=1e-3,
                         help='The maximum possible cost for operating a stake pool. Default is 1e-3.')
-    parser.add_argument('--common_cost', nargs="+", type=float, default=3e-5,
-                        help='The additional cost that applies to all players for each pool they operate. '
-                             'Default is 5e-7.')
     parser.add_argument('--cost_factor', nargs="+", type=float, default=0.7,
                         help='The factor that determines how much an additional pool costs. '
                              'Default is 70%.')
@@ -50,7 +47,11 @@ def main():
                         help='The maximum number of iterations of the system. Default is 2000.')
     parser.add_argument('--ms', type=int, default=10,
                         help='The minimum consecutive idle steps that are required to declare convergence. '
-                             'Default is 10. But if min_steps_to_keep_pool > ms then ms = min_steps_to_keep_pool + 1. ')
+                             'Default is 10. But if min_steps_to_keep_pool > ms then ms = min_steps_to_keep_pool + 1.')
+    parser.add_argument('--stake_distr_type', type=str, default='Pareto',
+                        help='The distribution type to use for the initial allocation of stake to the players.')
+    parser.add_argument('--extra_cost_type', type=str, default='fixed_fraction',
+                        help='The method used to calculate the cost of any additional pool.')
     parser.add_argument('--execution_id', type=str, default='unnamed-simulation',
                         help='An optional identifier for the specific simulation run, '
                              'which will be included in the output.')
@@ -66,7 +67,7 @@ def main():
         alpha=args.alpha,
         cost_min=args.cost_min,
         cost_max=args.cost_max,
-        common_cost=args.common_cost,
+        cost_factor=args.cost_factor,
         pareto_param=args.pareto_param,
         relative_utility_threshold=args.relative_utility_threshold,
         absolute_utility_threshold=args.absolute_utility_threshold,
@@ -78,6 +79,8 @@ def main():
         pool_splitting=args.pool_splitting,
         max_iterations=args.max_iterations,
         ms=args.ms,
+        stake_distr_type=args.stake_distr_type,
+        extra_cost_type=args.extra_cost_type,
         execution_id=args.execution_id
     )
 

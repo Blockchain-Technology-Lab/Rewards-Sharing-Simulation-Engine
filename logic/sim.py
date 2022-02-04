@@ -27,7 +27,6 @@ AdjustableParams = collections.namedtuple("AdjustableParams", [
     'myopic_fraction',
     'relative_utility_threshold',
     'absolute_utility_threshold',
-    'common_cost',
     'cost_factor'
 ])
 
@@ -47,8 +46,9 @@ class Simulation(Model):
 
     def __init__(self, n=1000, k=100, alpha=0.3, myopic_fraction=0, abstention_rate=0, relative_utility_threshold=0,
                  absolute_utility_threshold=1e-9, min_steps_to_keep_pool=5, pool_splitting=True, seed=None,
-                 pareto_param=2.0, max_iterations=1000, common_cost=9e-5, cost_min=1e-4, cost_max=1e-3, cost_factor=0.7,
-                 player_activation_order="Random", total_stake=1, ms=10, execution_id=''):
+                 pareto_param=2.0, max_iterations=1000, cost_min=1e-4, cost_max=1e-3, cost_factor=0.7,
+                 player_activation_order="Random", total_stake=1, ms=10, stake_distr_type='Pareto',
+                 extra_cost_type='fixed_fraction', execution_id=''):
         # todo make sure that the input is valid? n > 0, 0 < k <= n
 
         self.arguments = locals()  # only used for naming the output files appropriately
@@ -100,6 +100,7 @@ class Simulation(Model):
         self.max_iterations = max_iterations
         self.total_stake = total_stake
         self.player_activation_order = player_activation_order
+        self.extra_cost_type = extra_cost_type
 
         self.perceived_active_stake = total_stake
         self.beta = total_stake / self.k
@@ -115,7 +116,7 @@ class Simulation(Model):
         # self.initial_states = {"inactive":0, "maximally_decentralised":1, "nicely_decentralised":2} todo maybe support different initial states
 
         self.initialise_pool_id_seq()  # initialise pool id sequence for the new model run
-        self.initialize_players(cost_min, cost_max, pareto_param)
+        self.initialize_players(cost_min, cost_max, pareto_param, stake_distr_type)
 
         # only include reporters that are needed for every STEP
         self.datacollector = DataCollector(
@@ -149,12 +150,14 @@ class Simulation(Model):
         self.equilibrium_steps = []
         self.pivot_steps = []
 
-    def initialize_players(self, cost_min, cost_max, pareto_param):
-
-        # Allocate stake to the players, sampling from a Pareto distribution
-        stake_distribution = hlp.generate_stake_distr(num_agents=self.n, total_stake=self.total_stake,
-                                                     pareto_param=pareto_param)
-        #stake_distribution = hlp.generate_stake_distr_equal(num_agents=self.n, total_stake=self.total_stake)
+    def initialize_players(self, cost_min, cost_max, pareto_param, stake_distr_type):
+        if stake_distr_type.lower() == 'flat':
+            # Distribute the total stake of the system evenly to all players
+            stake_distribution = hlp.generate_stake_distr_flat(num_agents=self.n, total_stake=self.total_stake)
+        else:
+            # Allocate stake to the players, sampling from a Pareto distribution
+            stake_distribution = hlp.generate_stake_distr_pareto(num_agents=self.n, total_stake=self.total_stake,
+                                                                 pareto_param=pareto_param)
         # Allocate cost to the players, sampling from a uniform distribution
         cost_distribution = hlp.generate_cost_distr_unfrm(num_agents=self.n, low=cost_min, high=cost_max)
         #cost_distribution = hlp.generate_cost_distr_bands(num_agents=self.n, low=cost_min, high=cost_max, num_bands=10)

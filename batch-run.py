@@ -9,6 +9,7 @@ import matplotlib.pyplot as plt
 import matplotlib.ticker as ticker
 import numpy as np
 from math import floor, log10
+from collections import defaultdict
 
 import logic.sim as sim
 
@@ -38,12 +39,13 @@ def main():
                         help='The minimum possible cost for operating a stake pool. Default is 1e-4.')
     parser.add_argument('--cost_max', type=float, default=1e-3,
                         help='The maximum possible cost for operating a stake pool. Default is 2e-3.')
-    parser.add_argument('--common_cost', nargs="+", type=float, default=5e-5,
-                        help='The additional cost that applies to all players for each pool they operate. '
-                             'Default is 5e-5.')
     parser.add_argument('--cost_factor', nargs="+", type=float, default=0.6,
                         help='The factor that determines how much an additional pool costs. '
                              'Default is 60%.')
+    parser.add_argument('--stake_distr_type', type=str, default='Pareto',
+                        help='The distribution type to use for the initial allocation of stake to the players.')
+    parser.add_argument('--extra_cost_type', type=str, default='fixed_fraction',
+                        help='The method used to calculate the cost of any additional pool.')
     args_dict = vars(parser.parse_args())
 
     batch_run_id = args_dict["execution_id"]
@@ -88,62 +90,40 @@ def main():
 
     # note that any new model reporters should be added to the end, to maintain the colour allocation
     all_model_reporters = {
-        "#Pools": sim.get_final_number_of_pools,
-        "avgPledge": sim.get_avg_pledge,
-        "totalPledge": sim.get_total_pledge,
-        "avg_pools_per_operator": sim.get_avg_pools_per_operator,
-        "max_pools_per_operator": sim.get_max_pools_per_operator,
-        "median_pools_per_operator": sim.get_median_pools_per_operator,
-        "avgSatRate": sim.get_avg_sat_rate,
-        "nakamotoCoeff": sim.get_nakamoto_coefficient,
-        "StatisticalDistance": sim.get_controlled_stake_distr_stat_dist,
-        "NCR": sim.get_NCR,
-        "MinAggregatePledge": sim.get_min_aggregate_pledge,
-        "pledge_rate": sim.get_pledge_rate,
-        "homogeneity_factor": sim.get_homogeneity_factor,
-        "iterations": sim.get_iterations,
-        "avgStkRank": sim.get_avg_stk_rnk,
-        "avgCostRank": sim.get_avg_cost_rnk
+        "Pool count": sim.get_final_number_of_pools,
+        "Average pledge": sim.get_avg_pledge,
+        "Total pledge": sim.get_total_pledge,
+        "Average pools per operator": sim.get_avg_pools_per_operator,
+        "Max pools per operator": sim.get_max_pools_per_operator,
+        "Median pools per operator": sim.get_median_pools_per_operator,
+        "Average saturation rate": sim.get_avg_sat_rate,
+        "Nakamoto coefficient": sim.get_nakamoto_coefficient,
+        "Statistical distance": sim.get_controlled_stake_distr_stat_dist,
+        "Nakamoto coefficient rate": sim.get_NCR,
+        "Min aggregate pledge": sim.get_min_aggregate_pledge,
+        "Pledge rate": sim.get_pledge_rate,
+        "Homogeneity factor": sim.get_homogeneity_factor,
+        "Iterations": sim.get_iterations,
+        "Average stake rank": sim.get_avg_stk_rnk,
+        "Average cost rank": sim.get_avg_cost_rnk
     }
 
     rng = np.random.default_rng(seed=156)
     random_colours = rng.random((len(all_model_reporters), 3))
     all_reporter_colours = dict(zip(all_model_reporters.keys(), random_colours))
 
-    model_reporters_relation = {
-        'alpha': [
-            "#Pools",
-            "avgPledge", "totalPledge", "max_pools_per_operator",
-            "median_pools_per_operator",
-            "nakamotoCoeff", "NCR",
-            #"MinAggregatePledge",
-            "iterations",
-            "avgStkRank", "avgCostRank"
-        ],
-        'k': [
-            "#Pools", "nakamotoCoeff", "StatisticalDistance", "homogeneity_factor",
-              #"MinAggregatePledge",
-              "iterations"
-        ],
-        'abstention_rate': [
-            "#Pools", "nakamotoCoeff", "StatisticalDistance", "homogeneity_factor", 
-            #"MinAggregatePledge",
-            "iterations"
-        ],
-        'common_cost': [
-            "#Pools", "nakamotoCoeff", "StatisticalDistance", "homogeneity_factor",
-            #"MinAggregatePledge",
-            "iterations"
-        ],
-        'cost_factor': [
-            "#Pools", "nakamotoCoeff", "StatisticalDistance", "homogeneity_factor",
-            # "MinAggregatePledge",
-            "iterations"
+    default_model_reporters = ["Pool count", "Nakamoto coefficient", "Iterations"] #, "MinAggregatePledge"]
+    additional_model_reporters = defaultdict(lambda: [])
+    additional_model_reporters['alpha'] = [
+            "Average pledge", "Total pledge", "Max pools per operator", "Median pools per operator",
+            "Average stake rank", "Average cost rank"
         ]
-    }
+    additional_model_reporters['k'] = ["Statistical distance", "Homogeneity factor"]
+    additional_model_reporters['abstention_rate'] = ["Statistical distance", "Homogeneity factor"]
+
     
     model_reporters = {
-        k: all_model_reporters[k] for k in model_reporters_relation[variable_param]
+        k: all_model_reporters[k] for k in set(default_model_reporters + additional_model_reporters[variable_param])
     }
 
     batch_run_MP = MyBatchRunner(
@@ -179,7 +159,7 @@ def main():
         min_nc = min_ncr * fixed_params['n']
         if min_nc > fixed_params['k'] :
             min_nc = int(fixed_params['k']/3)
-        suitable_rows = run_data_MP[run_data_MP.nakamotoCoeff >= min_nc]
+        suitable_rows = run_data_MP[run_data_MP['Nakamoto coefficient'] >= min_nc]
         min_alpha_suitable_row = suitable_rows[suitable_rows.alpha == suitable_rows.alpha.min()][['n','k', 'cost_min', 'alpha']]
         cost_alpha_csv_file = output_dir + "/cost-alpha.csv"
         with open(cost_alpha_csv_file, "a") as f:
