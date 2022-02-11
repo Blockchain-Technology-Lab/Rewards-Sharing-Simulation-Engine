@@ -85,7 +85,20 @@ def test_get_min_aggregate_pledge(mocker):
     num_pools = 500
     stake_per_pool = 0.001
     for i in range(num_pools):
-        pools_list.append(Pool(owner=i, cost=0.001, pledge=stake_per_pool, margin=0.1, alpha=0.3, beta=0.1, pool_id=100+i))
+        pools_list.append(
+            Pool(owner=i, cost=0.001, pledge=stake_per_pool, margin=0.1, alpha=0.3, beta=0.1, pool_id=100 + i))
     mocker.patch('logic.sim.Simulation.get_pools_list', return_value=pools_list)
     min_aggr_pledge = get_min_aggregate_pledge(model)
     assert min_aggr_pledge == num_pools / 2 * stake_per_pool
+
+
+def test_get_optimal_min_aggregate_pledge(mocker):
+    model = logic.sim.Simulation(k=10)
+    players = [Stakeholder(unique_id=x, model=model, stake=x) for x in range(1,101)]
+    mocker.patch('logic.sim.Simulation.get_players_list', return_value=players)
+    optimal_min_aggr_pledge = get_optimal_min_aggregate_pledge(model)
+    assert optimal_min_aggr_pledge == (95 + 94 + 93 + 92 + 91)
+
+    model = logic.sim.Simulation(k=11)
+    optimal_min_aggr_pledge = get_optimal_min_aggregate_pledge(model)
+    assert optimal_min_aggr_pledge == (95 + 94 + 93 + 92 + 91 + 90)

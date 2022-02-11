@@ -10,14 +10,14 @@ from mesa.visualization.ModularVisualization import ModularServer
 from logic.sim import Simulation
 from logic.helper import MAX_NUM_POOLS
 
-# from myModularVisualization import MyModularServer
+#from myModularVisualization import MyModularServer
 from interactiveViz.stackedChartModule import StackedChartModule
 from interactiveViz.bubbleChartModule import BubbleChartModule
 from interactiveViz.myChartModule import MyChartModule
 
 #todo figure out how to add buttons next to the charts for downloading image upon request or sth similar
 poolsChart = MyChartModule([{"label": "#Pools", "title": "Number of pools over time", "xLabel": "Iteration",
-                             "yLabel": "#Pools", "tooltipText": " pools", "color": "Blue"}])
+                             "yLabel": "Pool count", "tooltipText": " pools", "color": "Blue"}])
 
 poolDynamicsStackedChart = StackedChartModule([{"Label": "PoolSizes", "tooltipText": " Pool", "xLabel": "Iteration",
                                                 "yLabel": "Pool size (stake)", "Num_pools": MAX_NUM_POOLS}])
@@ -53,7 +53,7 @@ model_params = {
         description="The parameter that determines the shape of the distribution that the stake will be sampled from"
     ),
     "relative_utility_threshold": UserSettableParameter(
-        "slider", "Relative utility threshold", 0.1, 0.0, 1, 0.001,
+        "slider", "Relative utility threshold", 0, 0.0, 1, 0.001,
         description="The relative utility increase threshold under which moves are disregarded."
     ),
     "absolute_utility_threshold": UserSettableParameter(
@@ -71,7 +71,7 @@ model_params = {
         description="The number of steps for which a player remains idle after opening a pool."
     ),
     "myopic_fraction": UserSettableParameter(
-        "slider", "Myopic fraction", 0.1, 0.0, 1.0, 0.01,
+        "slider", "Myopic fraction", 0, 0.0, 1.0, 0.01,
         description="The fraction of myopic players in the simulation."
     ),
     "abstention_rate": UserSettableParameter(
@@ -79,10 +79,10 @@ model_params = {
         description="The percentage of players that will abstain from the game in this run."
     ),
     "pool_splitting": UserSettableParameter(
-        "checkbox", "Allow pool splitting", True
+        "checkbox", "Allow pool splitting", False
     ),
-    "common_cost": UserSettableParameter(
-        "slider", "Common cost per pool", 0.0001, 0.0, 0.001, 0.0001
+    "cost_factor": UserSettableParameter(
+        "slider", "Cost factor", 0.4, 0.0, 1, 0.01
     ),
     "max_iterations": UserSettableParameter(
         "slider", "Max iterations", 500, 1, 500, 1,
@@ -93,7 +93,8 @@ model_params = {
 # figure out why MyModularServer was not working at some point
 # figured out: it only works when I use the ModularServer first so it probably caches some necessary files
 server = ModularServer(Simulation,
-                       [poolsChart, poolDynamicsStackedChart, poolScatterChart, pledgeChart],
+                       [poolsChart, poolDynamicsStackedChart, poolScatterChart,
+                        pledgeChart],
                        "PoS Pooling Games",
                        model_params)
 

@@ -6,7 +6,6 @@ from gekko import GEKKO
 from logic.helper import MAX_NUM_POOLS
 import logic.helper as hlp
 
-
 def get_number_of_pools(model):
     return len(model.pools)
 
@@ -239,12 +238,24 @@ def get_NCR(model):
     nakamoto_coefficient = get_nakamoto_coefficient(model)
     return nakamoto_coefficient / model.n if nakamoto_coefficient >= 0 else -1
 
+def get_optimal_min_aggregate_pledge(model):
+    """
+    In the optimal scenario (pledge-wise) there are k pools
+    operated by the k richest agents (the ones who can pledge the highest amounts)
+    and having 1/k stake each.
+    In that case, any k/2 pools control half of the total stake,
+    therefore the k/2 pools controlled by the k/2 (or k/2 + 1 for odd k) "poorest" agents (among the k richest)
+    should define the optimal min-aggregate pledge.
+    Potential caveat: maybe doesn't generalise to when we have abstention
+    """
+    k = model.k
+    all_stakes = [player.stake for player in model.get_players_list()]
+    relevant_stakes = sorted(all_stakes, reverse=True)[int(k/2):k]
+    return sum(relevant_stakes)
 
 def get_min_aggregate_pledge(model):
     """
     Solve optimisation problem using solver
-    @param model:
-    @return:
     """
 
     pools = model.get_pools_list()
@@ -334,3 +345,47 @@ def get_avg_cost_rnk(model):
     pool_owner_cost_ranks = [negative_cost_ranks[pool_owner] for pool_owner in pool_owner_ids]
 
     return statistics.mean(pool_owner_cost_ranks) if len(pool_owner_cost_ranks) > 0 else 0
+
+
+def get_median_stk_rnk(model):
+    pools = model.get_pools_list()
+    all_players = model.get_players_dict()
+    pool_owner_ids = {pool.owner for pool in pools}
+    stakes = {player_id: player.stake for player_id, player in all_players.items()}
+    stake_ranks = hlp.calculate_ranks(stakes)
+    pool_owner_stk_ranks = [stake_ranks[pool_owner] for pool_owner in pool_owner_ids]
+    return statistics.median(pool_owner_stk_ranks) if len(pool_owner_stk_ranks) > 0 else 0
+
+
+def get_median_cost_rnk(model):
+    pools = model.get_pools_list()
+    all_players = model.get_players_dict()
+    pool_owner_ids = {pool.owner for pool in pools}
+    negative_cost_ranks = hlp.calculate_ranks({player_id: -player.cost for player_id, player in all_players.items()})
+    pool_owner_cost_ranks = [negative_cost_ranks[pool_owner] for pool_owner in pool_owner_ids]
+
+    return statistics.median(pool_owner_cost_ranks) if len(pool_owner_cost_ranks) > 0 else 0
+
+
+# note that any new model reporters should be added to the end, to maintain the colour allocation
+all_model_reporters = {
+    "Pool count": get_final_number_of_pools,
+    "Average pledge": get_avg_pledge,
+    "Total pledge": get_total_pledge,
+    "Average pools per operator": get_avg_pools_per_operator,
+    "Max pools per operator": get_max_pools_per_operator,
+    "Median pools per operator": get_median_pools_per_operator,
+    "Average saturation rate": get_avg_sat_rate,
+    "Nakamoto coefficient": get_nakamoto_coefficient,
+    "Statistical distance": get_controlled_stake_distr_stat_dist,
+    "Nakamoto coefficient rate": get_NCR,
+    "Min-aggregate pledge": get_min_aggregate_pledge,
+    "Pledge rate": get_pledge_rate,
+    "Homogeneity factor": get_homogeneity_factor,
+    "Iterations": get_iterations,
+    "Average stake rank": get_avg_stk_rnk,
+    "Average cost rank": get_avg_cost_rnk,
+    "Median stake rank": get_median_stk_rnk,
+    "Median cost rank": get_median_cost_rnk,
+    "Opt min aggr pledge": get_optimal_min_aggregate_pledge
+}

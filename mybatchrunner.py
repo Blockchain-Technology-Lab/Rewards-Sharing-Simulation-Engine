@@ -49,7 +49,7 @@ class MyBatchRunner(BatchRunnerMP):
         row.extend([value for value in current_model_vars.values()])
 
         this_batch_run_intermediate_results = "output/" + self.execution_id + "-intermediate-results.csv"
-        all_batch_run_intermediate_results = "output/batch-run-all-intermediate-results.csv"
+        all_batch_run_intermediate_results = "output/batch-run-all-intermediate-results-v2.csv"
         write_to_csv(this_batch_run_intermediate_results, header, row)
         write_to_csv(all_batch_run_intermediate_results, header, row)
 

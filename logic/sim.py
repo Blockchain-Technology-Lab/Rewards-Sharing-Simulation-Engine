@@ -77,7 +77,6 @@ class Simulation(Model):
         adjustable_params = AdjustableParams(
             k=k if isinstance(k, list) else [k],
             alpha=alpha if isinstance(alpha, list) else [alpha],
-            common_cost=common_cost if isinstance(common_cost,list) else [common_cost],
             cost_factor=cost_factor if isinstance(cost_factor, list) else [cost_factor],
             relative_utility_threshold=relative_utility_threshold if isinstance(relative_utility_threshold, list)else [
                 relative_utility_threshold],
@@ -102,6 +101,8 @@ class Simulation(Model):
         self.player_activation_order = player_activation_order
         self.extra_cost_type = extra_cost_type
 
+        self.k = int(self.k / (1 - self.abstention_rate))  # todo remove
+
         self.perceived_active_stake = total_stake
         self.beta = total_stake / self.k
         self.execution_id = execution_id
@@ -116,6 +117,7 @@ class Simulation(Model):
         # self.initial_states = {"inactive":0, "maximally_decentralised":1, "nicely_decentralised":2} todo maybe support different initial states
 
         self.initialise_pool_id_seq()  # initialise pool id sequence for the new model run
+        #cost_max = 10 * cost_min
         self.initialize_players(cost_min, cost_max, pareto_param, stake_distr_type)
 
         # only include reporters that are needed for every STEP

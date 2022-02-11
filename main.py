@@ -92,9 +92,9 @@ def main():
     day = time.strftime("%d-%m-%Y")
     output_dir = "output/" + day + "/"
 
-    '''pickled_simulation_filename = output_dir + "simulation-object-" + execution_id + ".pkl"
+    pickled_simulation_filename = "output/simulation-object-" + execution_id + ".pkl"
     with open(pickled_simulation_filename, "wb") as pkl_file:
-        pkl.dump(sim, pkl_file)'''
+        pkl.dump(sim, pkl_file)
 
 
     figures_dir = output_dir + "figures/"
@@ -115,9 +115,11 @@ def main():
 
     equilibrium_steps = sim.equilibrium_steps
     pivot_steps = sim.pivot_steps
+    print('equilibrium steps: ', equilibrium_steps)
+    print('pivot steps: ', pivot_steps)
 
     plot_line(execution_id, sim_df["#Pools"], 'C0', "Number of pools over time", "Round",
-              "#Pools", "poolCount", equilibrium_steps, pivot_steps, figures_dir, True)
+              "Pool count", "poolCount", equilibrium_steps, pivot_steps, figures_dir, True)
 
     plot_line(execution_id, sim_df["AvgPledge"], 'red', "Average pledge over time", "Round",
               "Average pledge", "avgPledge", equilibrium_steps, pivot_steps, figures_dir, True)

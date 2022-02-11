@@ -35,13 +35,27 @@ def generate_stake_distr_pareto(num_agents, total_stake=1, pareto_param=None, se
         all_stakes = get_stakes_from_file(distribution_file)
         stake_sample = rng.choice(all_stakes, num_agents, replace=False)
     normalized_stake_sample = normalize_distr(stake_sample, normal_sum=total_stake)
+    with open('stk-distr.csv', 'w', newline='') as f:
+        x = []
+        for n in normalized_stake_sample:
+            if n < 0.01:
+                x.append([n])
+            else:
+                s = n
+                while s >= 0.01:
+                    x.append([0.01])
+                    s -= 0.01
+                x.append([s])
+        writer = csv.writer(f)
+        writer.writerows(x)
     return normalized_stake_sample
 
 
-def get_stakes_from_file(filename):  # todo if we keep this function replace with sth more efficient (e.g. pandas)
+def get_stakes_from_file(filename):
     stakes = []
     with open(filename) as file:
         reader = csv.reader(file)
+        # todo replace with sth more efficient (e.g. pandas)
         for i, row in enumerate(reader):
             if i > 0:  # skip header row
                 stake = float(row[-1])  # the last column represents the wallet's stake
