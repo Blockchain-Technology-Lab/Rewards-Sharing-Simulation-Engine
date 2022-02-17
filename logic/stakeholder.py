@@ -108,7 +108,7 @@ class Stakeholder(Agent):
         utility = 0
         # Calculate utility of operating pools
         if strategy.is_pool_operator:
-            utility += self.calculate_operator_utility_by_strategy(strategy)
+            utility += self.calculate_operator_utility_from_strategy(strategy)
 
         pools = self.model.pools
         # Calculate utility of delegating to other pools
@@ -117,27 +117,25 @@ class Stakeholder(Agent):
                 continue
             if pool_id in pools:
                 pool = pools[pool_id]
-                utility += self.calculate_delegator_utility(pool, a)
+                utility += self.calculate_delegator_utility_from_pool(pool, a)
             else:
                 raise PoolNotFoundError("Player {} considered delegating to a non-existing pool ({})!"
                                         .format(self.unique_id, pool_id))
         return utility
 
-    def calculate_operator_utility_by_strategy(self, strategy):
+    def calculate_operator_utility_from_strategy(self, strategy):
         utility = 0
         potential_pools = strategy.owned_pools
         fixed_pools = {pool_id: pool for pool_id, pool in self.model.pools.items() if pool.owner != self.unique_id}
         all_considered_pools = fixed_pools | potential_pools
         for pool in potential_pools.values():
-            utility += self.calculate_operator_utility_by_pool(pool, all_considered_pools)
+            utility += self.calculate_operator_utility_from_pool(pool, all_considered_pools)
         return utility
 
-    def calculate_operator_utility_by_pool(self, pool, all_pools):
+    def calculate_operator_utility_from_pool(self, pool, all_pools):
         alpha = self.model.alpha
         beta = self.model.beta
         pledge = pool.pledge
-        stake_allocation = pledge  # todo change if we allow pool owners to allocate stake to their pool separate to the pledge
-        m = pool.margin
         '''pool_stake = pool.stake if self.isMyopic else hlp.calculate_pool_stake_NM(pool.id,
                                                                                   all_pools,
                                                                                   beta,
@@ -150,12 +148,11 @@ class Stakeholder(Agent):
             self.model.k
         )
         r = hlp.calculate_pool_reward(pool_stake, pledge, alpha, beta)
+        stake_allocation = pool.pledge  # todo change if we allow pool owners to allocate stake to their pool separate to the pledge
         q = stake_allocation / pool_stake
-        u_0 = r - pool.cost
-        m_factor = m + ((1 - m) * q)
-        return u_0 if u_0 <= 0 else u_0 * m_factor
+        return hlp.calculate_operator_reward_from_pool(pool, r, q)
 
-    def calculate_delegator_utility(self, pool, stake_allocation):
+    def calculate_delegator_utility_from_pool(self, pool, stake_allocation):
         alpha = self.model.alpha
         beta = self.model.beta
 
@@ -170,12 +167,9 @@ class Stakeholder(Agent):
                                current_stake)
         pool_stake = current_stake if self.isMyopic else non_myopic_stake
         r = hlp.calculate_pool_reward(pool_stake, pool.pledge, alpha, beta)
+
         q = stake_allocation / pool_stake
-        m_factor = (1 - pool.margin) * q
-        u_0 = r - pool.cost
-        u = m_factor * u_0
-        utility = u if u > 0 else 0
-        return utility
+        return hlp.calculate_delegator_reward_from_pool(pool, r, q)
 
     # how does a myopic player decide whether to open a pool or not? -> for now we assume that all players play non-myopically when it comes to pool moves
     def has_potential_for_pool(self):
@@ -247,7 +241,7 @@ class Stakeholder(Agent):
         upper_bound = min(2 * current_margin - lower_bound, 1)
 
         new_pool.margin = current_margin
-        current_utility = self.calculate_operator_utility_by_pool(new_pool, all_pools)
+        current_utility = self.calculate_operator_utility_from_pool(new_pool, all_pools)
         margin_utilities = {current_margin: current_utility}
         new_margin = (lower_bound + current_margin) / 2
 
@@ -256,7 +250,7 @@ class Stakeholder(Agent):
 
         while current_try < max_tries and new_margin != current_margin:
             new_pool.margin = new_margin
-            new_utility = self.calculate_operator_utility_by_pool(new_pool, all_pools)
+            new_utility = self.calculate_operator_utility_from_pool(new_pool, all_pools)
             margin_utilities[new_margin] = new_utility
 
             if new_utility >= current_utility:
@@ -266,7 +260,7 @@ class Stakeholder(Agent):
 
             current_margin = (lower_bound + upper_bound) / 2
             new_pool.margin = current_margin
-            current_utility = self.calculate_operator_utility_by_pool(new_pool, all_pools)
+            current_utility = self.calculate_operator_utility_from_pool(new_pool, all_pools)
             margin_utilities[current_margin] = current_utility
 
             current_try += 1

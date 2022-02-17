@@ -9,6 +9,7 @@ from scipy import stats
 import csv
 import pandas as pd
 import pathlib
+from math import sqrt
 
 TOTAL_EPOCH_REWARDS_R = 1
 MAX_NUM_POOLS = 1000
@@ -68,6 +69,7 @@ def generate_stake_distr_flat(num_agents, total_stake=1):
     stake_per_agent = total_stake / num_agents if num_agents > 0 else 0
     return [stake_per_agent for _ in range(num_agents)]
 
+
 def generate_cost_distr_unfrm(num_agents, low, high, seed=156):
     """
     Generate a distribution for the players' costs of operating pools,
@@ -81,11 +83,13 @@ def generate_cost_distr_unfrm(num_agents, low, high, seed=156):
     costs = rng.uniform(low=low, high=high, size=num_agents)
     return costs
 
+
 def generate_cost_distr_bands(num_agents, low, high, num_bands, seed=156):
     rng = default_rng(seed=seed)
     bands = rng.uniform(low=low, high=high, size=num_bands)
     costs = rng.choice(bands, num_agents)
     return costs
+
 
 def generate_cost_distr_nrm(num_agents, low, high, mean, stddev):
     """
@@ -93,9 +97,10 @@ def generate_cost_distr_nrm(num_agents, low, high, mean, stddev):
     sampling from a truncated normal distribution
     """
     costs = stats.truncnorm.rvs(low, high,
-                                 loc=mean, scale=stddev,
-                                 size=num_agents)
+                                loc=mean, scale=stddev,
+                                size=num_agents)
     return costs
+
 
 def normalize_distr(dstr, normal_sum=1):
     """
@@ -132,11 +137,48 @@ def calculate_current_profit(stake, pledge, cost, alpha, beta):
     return reward - cost
 
 
+def calculate_pool_reward_old(stake, pledge, alpha, beta):
+    pledge_ = min(pledge, beta)
+    stake_ = min(stake, beta)
+    r = (TOTAL_EPOCH_REWARDS_R / (1 + alpha)) * (stake_ + (pledge_ * alpha * ((stake_ - pledge_ * (1 - stake_ / beta)) / beta)))
+    return r
+
+
 def calculate_pool_reward(stake, pledge, alpha, beta):
-    l = min(pledge, beta)
-    s = min(stake, beta)
-    reward = (TOTAL_EPOCH_REWARDS_R / (1 + alpha)) * (s + (l * alpha * ((s - l * (1 - s / beta)) / beta)))
-    return reward
+    pledge_ = min(pledge, beta)
+    stake_ = min(stake, beta)
+    r = (TOTAL_EPOCH_REWARDS_R / (1 + alpha)) * stake_ * (1 + (alpha * pledge_ / beta))
+    return r
+
+
+def calculate_pool_reward_alternative_1(stake, pledge, alpha, beta):
+    """
+    community-proposed reward sharing function
+    """
+    pledge_ = min(pledge, beta)
+    stake_ = min(stake, beta)
+    r = (TOTAL_EPOCH_REWARDS_R / (1 + alpha)) * (stake_ + alpha * pledge_)
+    return r
+
+
+def calculate_pool_reward_alternative_2(stake, pledge, alpha, beta):
+    pledge_ = min(pledge, beta)
+    stake_ = min(stake, beta)
+    r = (TOTAL_EPOCH_REWARDS_R / (1 + alpha)) * stake_ * (1 + (alpha * sqrt(pledge_) / beta))
+    return r
+
+
+def calculate_delegator_reward_from_pool(pool, pool_reward, delegator_stake_fraction):
+    margin_factor = (1 - pool.margin) * delegator_stake_fraction
+    pool_profit = pool_reward - pool.cost
+    r_d = margin_factor * pool_profit if pool_profit > 0 else 0
+    return r_d
+
+
+def calculate_operator_reward_from_pool(pool, pool_reward, operator_stake_fraction):
+    margin_factor = pool.margin + ((1 - pool.margin) * operator_stake_fraction)
+    pool_profit = pool_reward - pool.cost
+    return pool_profit if pool_profit <= 0 else pool_profit * margin_factor
 
 
 def calculate_pool_stake_NM(pool_id, pools, beta, k):
@@ -160,7 +202,7 @@ def calculate_pool_stake_NM(pool_id, pools, beta, k):
         pool_id: pool.stake
         for pool_id, pool in pools.items()
     }
-    #todo this exact same calculation is performed for all potential pools. maybe cache results somehow?
+    # todo this exact same calculation is performed for all potential pools. maybe cache results somehow?
     ranks = calculate_ranks(desirabilities, potential_profits, stakes, rank_ids=True)
     rank = ranks[pool_id]
     pool = pools[pool_id]
@@ -227,6 +269,7 @@ def calculate_cost_per_pool(num_pools, initial_cost, cost_factor):
         return max((initial_cost * (1 - cost_factor ** num_pools) / (1 - cost_factor)) / num_pools, MIN_COST_PER_POOL)
     else:
         return initial_cost
+
 
 def calculate_cost_per_pool_fixed_fraction(num_pools, initial_cost, cost_factor):
     return (initial_cost + (num_pools - 1) * cost_factor * initial_cost) / num_pools
