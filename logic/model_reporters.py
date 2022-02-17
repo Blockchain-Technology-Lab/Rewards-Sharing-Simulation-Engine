@@ -367,6 +367,29 @@ def get_median_cost_rnk(model):
     return statistics.median(pool_owner_cost_ranks) if len(pool_owner_cost_ranks) > 0 else 0
 
 
+def get_pool_splitter_count(model):
+    pools = model.get_pools_list()
+    if len(pools) == 0:
+        return 0
+
+    pool_operators = [pool.owner for pool in pools]
+
+    cnt = collections.Counter(pool_operators)
+    pool_splitters = [k for k, v in cnt.items() if v > 1]
+
+    return len(pool_splitters)
+
+def get_cost_efficient_count(model):
+    all_players = model.get_players_list()
+    potential_profits = [
+        hlp.calculate_potential_profit(player.stake, player.cost, model.alpha, model.beta, model.reward_function_option)
+        for player in all_players
+    ]
+    positive_potential_profits = [pp for pp in potential_profits if pp > 0]
+    return len(positive_potential_profits)
+
+
+
 # note that any new model reporters should be added to the end, to maintain the colour allocation
 all_model_reporters = {
     "Pool count": get_final_number_of_pools,
@@ -387,5 +410,7 @@ all_model_reporters = {
     "Average cost rank": get_avg_cost_rnk,
     "Median stake rank": get_median_stk_rnk,
     "Median cost rank": get_median_cost_rnk,
-    "Opt min aggr pledge": get_optimal_min_aggregate_pledge
+    "Opt min aggr pledge": get_optimal_min_aggregate_pledge,
+    "Number of pool splitters": get_pool_splitter_count,
+    "Cost efficient stakeholders": get_cost_efficient_count
 }

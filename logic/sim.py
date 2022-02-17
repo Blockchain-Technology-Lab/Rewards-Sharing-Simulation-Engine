@@ -48,7 +48,7 @@ class Simulation(Model):
                  absolute_utility_threshold=1e-9, min_steps_to_keep_pool=5, pool_splitting=True, seed=None,
                  pareto_param=2.0, max_iterations=1000, cost_min=1e-4, cost_max=1e-3, cost_factor=0.7,
                  player_activation_order="Random", total_stake=1, ms=10, stake_distr_type='Pareto',
-                 extra_cost_type='fixed_fraction', execution_id=''):
+                 extra_cost_type='fixed_fraction', reward_function_option=0, execution_id=''):
         # todo make sure that the input is valid? n > 0, 0 < k <= n
 
         self.arguments = locals()  # only used for naming the output files appropriately
@@ -100,6 +100,7 @@ class Simulation(Model):
         self.total_stake = total_stake
         self.player_activation_order = player_activation_order
         self.extra_cost_type = extra_cost_type
+        self.reward_function_option = reward_function_option
 
         self.k = int(self.k / (1 - self.abstention_rate))  # todo remove
 
@@ -247,7 +248,7 @@ class Simulation(Model):
         players = self.get_players_dict()
         pools = self.get_pools_list()
         player_potential_profits = {
-            player.unique_id: hlp.calculate_potential_profit(player.stake, player.cost, self.alpha, self.beta) for
+            player.unique_id: hlp.calculate_potential_profit(player.stake, player.cost, self.alpha, self.beta, self.reward_function_option) for
             player in players.values()}
         pool_potential_profits = {pool.id: pool.potential_profit for pool in pools}
         pool_potential_profit_ranks = hlp.calculate_ranks(pool_potential_profits)

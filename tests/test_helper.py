@@ -59,7 +59,8 @@ def test_calculate_pool_reward_variable_stake():
         stake=stakes[i],
         pledge=pledges[i],
         alpha=alpha,
-        beta=saturation_point
+        beta=saturation_point,
+        reward_function_option=0
     ) for i in range(len(stakes))]
 
     # THEN
@@ -76,7 +77,8 @@ def test_calculate_pool_reward_variable_pledge():
         stake=stakes[i],
         pledge=pledges[i],
         alpha=alpha,
-        beta=saturation_point
+        beta=saturation_point,
+        reward_function_option=0
     ) for i in range(len(stakes))]
 
     assert results[0] < results[1] < results[2]
@@ -94,7 +96,8 @@ def test_calculate_pool_reward_variable_stake_alpha_zero():
         stake=stakes[i],
         pledge=pledges[i],
         alpha=alpha,
-        beta=saturation_point
+        beta=saturation_point,
+        reward_function_option=0
     ) for i in range(len(stakes))]
 
     # THEN
@@ -111,7 +114,8 @@ def test_calculate_pool_reward_variable_pledge_alpha_zero():
         stake=stakes[i],
         pledge=pledges[i],
         alpha=alpha,
-        beta=saturation_point
+        beta=saturation_point,
+        reward_function_option=0
     ) for i in range(len(stakes))]
 
     assert results[0] == results[1] == results[2]

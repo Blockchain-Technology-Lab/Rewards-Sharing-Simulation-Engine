@@ -45,6 +45,9 @@ def main():
                         help='The distribution type to use for the initial allocation of stake to the players.')
     parser.add_argument('--extra_cost_type', type=str, default='fixed_fraction',
                         help='The method used to calculate the cost of any additional pool.')
+    parser.add_argument('--reward_function_option', type=int, default=0,
+                        help='The reward function to use in the simulation. 0 for the old function, 1 for the new one, '
+                             '2 for alternative-1 and 3 for alternative-2.')
     args_dict = vars(parser.parse_args())
 
     batch_run_id = args_dict["execution_id"]
@@ -86,14 +89,14 @@ def main():
     print("Variable params: ", variable_params)
 
 
-    default_model_reporters = ["Iterations", "Pool count", "Nakamoto coefficient"]#,  "Min-aggregate pledge"] #"Opt min aggr pledge"]#,
+    default_model_reporters = ["Iterations", "Pool count", "Nakamoto coefficient", "Number of pool splitters", "Cost efficient stakeholders"]#,  "Min-aggregate pledge"] #"Opt min aggr pledge"]#,
     additional_model_reporters = defaultdict(lambda: [])
     '''additional_model_reporters['alpha'] = [
             "Average pledge", "Total pledge", "Max pools per operator", "Median pools per operator",
             "Average stake rank", "Average cost rank", "Median stake rank", "Median cost rank"
-        ]'''
+        ]
     additional_model_reporters['k'] = ["Statistical distance", "Homogeneity factor"]
-    additional_model_reporters['abstention_rate'] = ["Statistical distance", "Homogeneity factor"]
+    additional_model_reporters['abstention_rate'] = ["Statistical distance", "Homogeneity factor"]'''
 
     variable_param =  list(variable_params.keys())[0]
     model_reporters = {

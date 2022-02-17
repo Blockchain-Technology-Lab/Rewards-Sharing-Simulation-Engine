@@ -147,7 +147,7 @@ class Stakeholder(Agent):
             beta,
             self.model.k
         )
-        r = hlp.calculate_pool_reward(pool_stake, pledge, alpha, beta)
+        r = hlp.calculate_pool_reward(pool_stake, pledge, alpha, beta, self.model.reward_function_option)
         stake_allocation = pool.pledge  # todo change if we allow pool owners to allocate stake to their pool separate to the pledge
         q = stake_allocation / pool_stake
         return hlp.calculate_operator_reward_from_pool(pool, r, q)
@@ -159,14 +159,17 @@ class Stakeholder(Agent):
         previous_allocation_to_pool = self.strategy.stake_allocations[pool.id] \
             if pool.id in self.strategy.stake_allocations else 0
         current_stake = pool.stake - previous_allocation_to_pool + stake_allocation
-        non_myopic_stake = max(hlp.calculate_pool_stake_NM(pool.id,
-                                                           self.model.pools,
-                                                           self.model.beta,
-                                                           self.model.k
-                                                           ),
-                               current_stake)
+        non_myopic_stake = max(
+            hlp.calculate_pool_stake_NM(
+                pool.id,
+                self.model.pools,
+                self.model.beta,
+                self.model.k
+            ),
+            current_stake
+        )
         pool_stake = current_stake if self.isMyopic else non_myopic_stake
-        r = hlp.calculate_pool_reward(pool_stake, pool.pledge, alpha, beta)
+        r = hlp.calculate_pool_reward(pool_stake, pool.pledge, alpha, beta, self.model.reward_function_option)
 
         q = stake_allocation / pool_stake
         return hlp.calculate_delegator_reward_from_pool(pool, r, q)
@@ -193,7 +196,7 @@ class Stakeholder(Agent):
         alpha = self.model.alpha
         current_pools = self.model.get_pools_list()
 
-        potential_profit = hlp.calculate_potential_profit(self.stake, self.cost, alpha, saturation_point)
+        potential_profit = hlp.calculate_potential_profit(self.stake, self.cost, alpha, saturation_point, self.model.reward_function_option)
         if len(current_pools) * saturation_point < self.model.perceived_active_stake:  # note that we use active stake instead of total stake
             return potential_profit > 0
 
@@ -346,7 +349,7 @@ class Stakeholder(Agent):
         players = self.model.get_players_dict()
         potential_profits = {player_id:
                                  hlp.calculate_potential_profit(player.stake, player.cost, self.model.alpha,
-                                                                self.model.beta)
+                                                                self.model.beta, self.model.reward_function_option)
                              for player_id, player in players.items()}
 
         potential_profit_ranks = hlp.calculate_ranks(potential_profits, rank_ids=True)
@@ -411,7 +414,7 @@ class Stakeholder(Agent):
             pool.pledge = pledges[i]
             pool.is_private = pool.pledge >= self.model.beta
             pool.cost = cost_per_pool
-            pool.set_potential_profit(self.model.alpha, self.model.beta)
+            pool.set_potential_profit(self.model.alpha, self.model.beta, self.model.reward_function_option)
             pool.margin = self.calculate_margin_semi_perfect_strategy(pool)
             margins.append(pool.margin)
             owned_pools[pool.id] = pool
@@ -422,7 +425,8 @@ class Stakeholder(Agent):
             self.model.pool_owner_id_mapping[pool_id] = self.unique_id
             pool = Pool(pool_id=pool_id, cost=cost_per_pool,
                         pledge=pledges[i], owner=self.unique_id, alpha=self.model.alpha,
-                        beta=self.model.beta, is_private=pledges[i] >= self.model.beta)
+                        beta=self.model.beta, is_private=pledges[i] >= self.model.beta,
+                        reward_function_option=self.model.reward_function_option)
             # private pools have margin 0 but don't allow delegations
             pool.margin = self.calculate_margin_semi_perfect_strategy(pool)
             margins.append(pool.margin)
@@ -540,7 +544,7 @@ class Stakeholder(Agent):
             if current_pools[pool_id].is_private:
                 # undelegate stake in case the pool turned from public to private
                 self.remove_delegations(pool_id)
-            current_pools[pool_id].set_potential_profit(self.model.alpha, self.model.beta)
+            current_pools[pool_id].set_potential_profit(self.model.alpha, self.model.beta, self.model.reward_function_option)
 
         self.strategy = self.new_strategy
         self.new_strategy = None

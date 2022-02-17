@@ -29,9 +29,10 @@ def test_calculate_utility():
     assert False
 
 
+#todo review failing test
 def test_calculate_operator_utility():
     model = Simulation()
-    pool = Pool(cost=0.001, pledge=0.01, owner=156, margin=0.1, alpha=0.3, beta=0.1, pool_id=555)
+    pool = Pool(cost=0.001, pledge=0.01, owner=156, margin=0.1, alpha=0.3, beta=0.1, pool_id=555, reward_function_option=0)
     model.pools[555] = pool
     player = Stakeholder(unique_id=156, model=model, cost=0.001)
     strategy = Strategy(pledges=[0.1], margins=[0.1], is_pool_operator=True, num_pools=1, owned_pools={555: pool})
@@ -82,7 +83,7 @@ def test_open_pool():
 def test_close_pool():
     model = Simulation()
     player = Stakeholder(156, model)
-    pool = Pool(cost=0.001, pledge=0.001, owner=156, margin=0.2, alpha=0.3, beta=0.1, pool_id=555)
+    pool = Pool(cost=0.001, pledge=0.001, owner=156, margin=0.2, alpha=0.3, beta=0.1, pool_id=555, reward_function_option=0)
     model.pools[555] = pool
 
     player.close_pool(555)
@@ -108,13 +109,13 @@ def test_calculate_margin_semi_perfect_strategy():
     player157 = Stakeholder(157, model)
     player158 = Stakeholder(158, model)
     player159 = Stakeholder(159, model)
-    pool555 = Pool(cost=0.001, pledge=0.001, owner=156, alpha=0.3, beta=0.1, pool_id=555)
+    pool555 = Pool(cost=0.001, pledge=0.001, owner=156, alpha=0.3, beta=0.1, pool_id=555, reward_function_option=0)
     model.pools[555] = pool555
-    pool556 = Pool(cost=0.001, pledge=0.002, owner=157, alpha=0.3, beta=0.1, pool_id=556)
+    pool556 = Pool(cost=0.001, pledge=0.002, owner=157, alpha=0.3, beta=0.1, pool_id=556, reward_function_option=0)
     model.pools[556] = pool556
-    pool557 = Pool(cost=0.001, pledge=0.003, owner=158, alpha=0.3, beta=0.1, pool_id=557)
+    pool557 = Pool(cost=0.001, pledge=0.003, owner=158, alpha=0.3, beta=0.1, pool_id=557, reward_function_option=0)
     model.pools[557] = pool557
-    pool558 = Pool(cost=0.001, pledge=0.0001, owner=159, alpha=0.3, beta=0.1, pool_id=558)
+    pool558 = Pool(cost=0.001, pledge=0.0001, owner=159, alpha=0.3, beta=0.1, pool_id=558, reward_function_option=0)
     model.pools[558] = pool558
 
     pool555.margin = player156.calculate_margin_semi_perfect_strategy(pool555)

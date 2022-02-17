@@ -21,14 +21,14 @@ def main():
                         help='The minimum possible cost for operating a stake pool. Default is 1e-4.')
     parser.add_argument('--cost_max', type=float, default=1e-3,
                         help='The maximum possible cost for operating a stake pool. Default is 1e-3.')
-    parser.add_argument('--cost_factor', nargs="+", type=float, default=0.7,
+    parser.add_argument('--cost_factor', nargs="+", type=float, default=0.4,
                         help='The factor that determines how much an additional pool costs. '
-                             'Default is 70%.')
+                             'Default is 40%%.')
     parser.add_argument('--pareto_param', type=float, default=2.0,
                         help='The parameter that determines the shape of the distribution that the stake will be '
                              'sampled from. Default is 2.')
     parser.add_argument('--relative_utility_threshold', nargs="+", type=float, default=0,
-                        help='The utility increase ratio under which moves are disregarded. Default is 0%.')
+                        help='The utility increase ratio under which moves are disregarded. Default is 0%%.')
     parser.add_argument('--absolute_utility_threshold', nargs="+", type=float, default=1e-9,
                         help='The utility threshold under which moves are disregarded. Default is 1e-9.')
     parser.add_argument('--player_activation_order', type=str, default='Random',
@@ -38,7 +38,7 @@ def main():
     parser.add_argument("--min_steps_to_keep_pool", type=int, default=5,
                         help='The number of steps for which a player remains idle after opening a pool. Default is 5.')
     parser.add_argument('--myopic_fraction', nargs="+", type=float, default=0,
-                        help='The fraction of myopic players in the simulation. Default is 0%.')
+                        help='The fraction of myopic players in the simulation. Default is 0%%.')
     parser.add_argument('--abstention_rate', nargs="+", type=float, default=0,
                         help='The percentage of players that will abstain from the game in this run. Default is 0%%.')
     parser.add_argument('--pool_splitting', type=bool, default=True, action=argparse.BooleanOptionalAction,
@@ -55,7 +55,9 @@ def main():
     parser.add_argument('--execution_id', type=str, default='unnamed-simulation',
                         help='An optional identifier for the specific simulation run, '
                              'which will be included in the output.')
-
+    parser.add_argument('--reward_function_option', type=int, default=0,
+                        help='The reward function to use in the simulation. 0 for the old function, 1 for the new one, '
+                             '2 for alternative-1 and 3 for alternative-2.')
     args = parser.parse_args()
 
     # todo deal with invalid inputs, e.g. negative n
@@ -81,6 +83,7 @@ def main():
         ms=args.ms,
         stake_distr_type=args.stake_distr_type,
         extra_cost_type=args.extra_cost_type,
+        reward_function_option = args.reward_function_option,
         execution_id=args.execution_id
     )
 

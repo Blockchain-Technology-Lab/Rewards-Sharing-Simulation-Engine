@@ -118,7 +118,7 @@ def normalize_distr(dstr, normal_sum=1):
     return nrm_dstr
 
 
-def calculate_potential_profit(pledge, cost, alpha, beta):
+def calculate_potential_profit(pledge, cost, alpha, beta, reward_function_option):
     """
     Calculate a pool's potential profit, which can be defined as the profit it would get at saturation level
 
@@ -128,13 +128,25 @@ def calculate_potential_profit(pledge, cost, alpha, beta):
     :param beta:
     :return: float, the maximum possible profit that this pool can yield
     """
-    potential_reward = calculate_pool_reward(beta, pledge, alpha, beta)
+    potential_reward = calculate_pool_reward(beta, pledge, alpha, beta, reward_function_option)
     return potential_reward - cost
 
 
-def calculate_current_profit(stake, pledge, cost, alpha, beta):
-    reward = calculate_pool_reward(stake, pledge, alpha, beta)
+def calculate_current_profit(stake, pledge, cost, alpha, beta, reward_function_option):
+    reward = calculate_pool_reward(stake, pledge, alpha, beta, reward_function_option)
     return reward - cost
+
+def calculate_pool_reward(stake, pledge, alpha, beta, reward_function_option):
+    if reward_function_option == 0:
+        return calculate_pool_reward_old(stake, pledge, alpha, beta)
+    elif reward_function_option == 1:
+        return calculate_pool_reward_new(stake, pledge, alpha, beta)
+    elif reward_function_option == 2:
+        return calculate_pool_reward_alternative_1(stake, pledge, alpha, beta)
+    elif reward_function_option == 3:
+        return calculate_pool_reward_alternative_2(stake, pledge, alpha, beta)
+    else:
+        raise ValueError("Invalid option for reward function.")
 
 
 def calculate_pool_reward_old(stake, pledge, alpha, beta):
@@ -144,7 +156,7 @@ def calculate_pool_reward_old(stake, pledge, alpha, beta):
     return r
 
 
-def calculate_pool_reward(stake, pledge, alpha, beta):
+def calculate_pool_reward_new(stake, pledge, alpha, beta):
     pledge_ = min(pledge, beta)
     stake_ = min(stake, beta)
     r = (TOTAL_EPOCH_REWARDS_R / (1 + alpha)) * stake_ * (1 + (alpha * pledge_ / beta))
