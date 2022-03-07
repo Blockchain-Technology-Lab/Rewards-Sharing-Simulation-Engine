@@ -22,7 +22,7 @@ class Stakeholder(Agent):
     def __init__(self, unique_id, model, stake=0, is_myopic=False, is_abstainer=False,
                  cost=0, strategy=None):
         super().__init__(unique_id, model)
-        self.cost = cost  # the player's individual cost of running one or more pools
+        self.cost = cost  # the player's individual cost of running one pool
         self.stake = stake
         self.isMyopic = is_myopic
         self.abstains = is_abstainer

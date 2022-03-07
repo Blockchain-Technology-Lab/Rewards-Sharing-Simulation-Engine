@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 import argparse
 import pickle as pkl
 import time
+import numpy as np
 
 
 def main():
@@ -17,9 +18,9 @@ def main():
                         help='The k value of the system (natural number). Default is 100.')
     parser.add_argument('--alpha', nargs="+", type=float, default=0.3,
                         help='The alpha value of the system (decimal number between 0 and 1). Default is 0.3')
-    parser.add_argument('--cost_min', type=float, default=1e-4,
+    parser.add_argument('--cost_min', type=float, default=1e-5,
                         help='The minimum possible cost for operating a stake pool. Default is 1e-4.')
-    parser.add_argument('--cost_max', type=float, default=1e-3,
+    parser.add_argument('--cost_max', type=float, default=1e-4,
                         help='The maximum possible cost for operating a stake pool. Default is 1e-3.')
     parser.add_argument('--cost_factor', nargs="+", type=float, default=0.4,
                         help='The factor that determines how much an additional pool costs. '
@@ -104,10 +105,6 @@ def main():
     path = pathlib.Path.cwd() / figures_dir
     pathlib.Path(path).mkdir(parents=True, exist_ok=True)
 
-    '''margin_changes = sim_df["MarginChanges"]
-    plot_line(execution_id, sim_df["MarginChanges"], 'C0', "Number of pools over time", "Round",
-              "#Pools", "poolCount", equilibrium_steps=[], pivot_steps=[])'''
-
     pool_nums = sim_df["#Pools"]
     if sim.schedule.steps >= sim.max_iterations:
         # If the max number of iterations was reached, then we save the data about the pool numbers
@@ -130,16 +127,13 @@ def main():
     plot_line(execution_id, sim_df["TotalPledge"], 'purple', "Total pledge over time", "Round",
               "Total pledge", "totalPledge", equilibrium_steps, pivot_steps, figures_dir, True)
 
-    '''pool_sizes_by_step = sim_df["PoolSizes"]  # todo fix
-        # print(pool_sizes_by_step)
-        pool_sizes_by_pool = np.array(list(pool_sizes_by_step)).T
-        print(pool_sizes_by_pool)
-        plt.figure()
-        plt.stackplot(range(len(pool_sizes_by_step)), pool_sizes_by_pool)
-        plt.title("Pool dynamics")
-        plt.xlabel("Iteration")
-        plt.ylabel("Stake")
-        plt.savefig(figures_dir + "poolDynamics.png", bbox_inches='tight')'''
+    pool_sizes_by_step = sim_df['Stake per entity']
+    pool_sizes_by_pool = np.array(list(pool_sizes_by_step)).T
+    plt.figure()
+    plt.stackplot(range(len(pool_sizes_by_step)), pool_sizes_by_pool)
+    plt.xlabel("Round")
+    plt.ylabel("Stake per entity")
+    plt.savefig(figures_dir + "poolDynamics.png", bbox_inches='tight')
 
 
 def plot_line(execution_id, data, color, title, x_label, y_label, filename, equilibrium_steps, pivot_steps,
@@ -183,6 +177,5 @@ def main_with_profiling():
 
 
 if __name__ == "__main__":
-
     main()  # for profiling the code, comment this line and uncomment the one below
     #main_with_profiling()

@@ -48,6 +48,9 @@ def main():
     parser.add_argument('--reward_function_option', type=int, default=0,
                         help='The reward function to use in the simulation. 0 for the old function, 1 for the new one, '
                              '2 for alternative-1 and 3 for alternative-2.')
+    parser.add_argument('--pool_splitting', type=bool, default=True, action=argparse.BooleanOptionalAction,
+                        help='Are individual players allowed to create multiple pools? Default is yes.')
+
     args_dict = vars(parser.parse_args())
 
     batch_run_id = args_dict["execution_id"]
@@ -64,7 +67,6 @@ def main():
         "player_activation_order": "Random",
         "relative_utility_threshold": 0,
         "myopic_fraction": 0,
-        "pool_splitting": True,
         "min_steps_to_keep_pool": 5,
         "seed": seed
     }
@@ -89,14 +91,14 @@ def main():
     print("Variable params: ", variable_params)
 
 
-    default_model_reporters = ["Iterations", "Pool count", "Nakamoto coefficient", "Number of pool splitters", "Cost efficient stakeholders"]#,  "Min-aggregate pledge"] #"Opt min aggr pledge"]#,
+    default_model_reporters = ["Pool count", "Nakamoto coefficient", "Number of pool splitters", "Cost efficient stakeholders", "Total pledge"]#, "Iterations", "Min-aggregate pledge"]
     additional_model_reporters = defaultdict(lambda: [])
     '''additional_model_reporters['alpha'] = [
             "Average pledge", "Total pledge", "Max pools per operator", "Median pools per operator",
             "Average stake rank", "Average cost rank", "Median stake rank", "Median cost rank"
-        ]
-    additional_model_reporters['k'] = ["Statistical distance", "Homogeneity factor"]
-    additional_model_reporters['abstention_rate'] = ["Statistical distance", "Homogeneity factor"]'''
+        ]'''
+    additional_model_reporters['k'] = ["Homogeneity factor"] #"Statistical distance"
+    additional_model_reporters['abstention_rate'] = ["Statistical distance", "Homogeneity factor"]
 
     variable_param =  list(variable_params.keys())[0]
     model_reporters = {

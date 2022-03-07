@@ -92,7 +92,7 @@ class Simulation(Model):
         self.total_eras = total_eras
         self.adjustable_params = adjustable_params
 
-        self.n = n
+        self.n = int(n)
         self.abstention_rate = abstention_rate
         self.min_steps_to_keep_pool = min_steps_to_keep_pool
         self.pool_splitting = pool_splitting
@@ -125,6 +125,7 @@ class Simulation(Model):
         self.datacollector = DataCollector(
             model_reporters={
                 "#Pools": get_number_of_pools,
+                "Stake per entity": get_pool_stakes_by_agent,
                 "PoolSizes": get_pool_sizes,
                 #"PoolSizesByAgent": get_pool_sizes_by_agent,
                 #"PoolSizesByPool": get_pool_sizes_by_pool,

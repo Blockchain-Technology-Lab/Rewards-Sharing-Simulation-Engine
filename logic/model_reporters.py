@@ -1,5 +1,4 @@
 import statistics
-import itertools
 import collections
 from gekko import GEKKO
 
@@ -388,6 +387,18 @@ def get_cost_efficient_count(model):
     positive_potential_profits = [pp for pp in potential_profits if pp > 0]
     return len(positive_potential_profits)
 
+
+def get_pool_stake_distribution_snapshot(model):
+    return [pool.stake for pool in model.get_pools_list()]
+
+
+def get_pool_stakes_by_agent(model):
+    num_agents = model.n
+    pool_stakes = [0 for _ in range(num_agents)]
+    current_pools = model.get_pools_list()
+    for pool in current_pools:
+        pool_stakes[pool.owner] += pool.stake
+    return pool_stakes
 
 
 # note that any new model reporters should be added to the end, to maintain the colour allocation

@@ -170,3 +170,41 @@ def test_calculate_cost_per_pool():
 
     assert cost_per_pool == expected_cost_per_pool
     assert cost_per_pool * num_pools == expected_total_cost
+
+
+def test_calculate_pool_reward_curve_pledge_benefit():
+    # results of options 0 and 4 must be the same when curve_root = 1
+    alpha = 0.3
+    saturation_point = 0.1
+    stakes = [0.01, 0.1, 0.2]
+    pledges = [0.001, 0.0069, 0.012]
+
+    results_0 = [hlp.calculate_pool_reward(
+        stake=stakes[i],
+        pledge=pledges[i],
+        alpha=alpha,
+        beta=saturation_point,
+        reward_function_option=0
+    ) for i in range(len(stakes))]
+
+    results_4 = [hlp.calculate_pool_reward(
+        stake=stakes[i],
+        pledge=pledges[i],
+        alpha=alpha,
+        beta=saturation_point,
+        reward_function_option=4,
+        curve_root=1
+    ) for i in range(len(stakes))]
+
+    assert results_0 == results_4
+
+    results_4_ = [hlp.calculate_pool_reward(
+        stake=stakes[i],
+        pledge=pledges[i],
+        alpha=alpha,
+        beta=saturation_point,
+        reward_function_option=4,
+        curve_root=3
+    ) for i in range(len(stakes))]
+
+    assert results_0 != results_4_

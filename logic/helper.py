@@ -17,7 +17,7 @@ MIN_STAKE_UNIT = 2.2e-17
 MIN_COST_PER_POOL = 1e-6
 
 
-def generate_stake_distr_pareto(num_agents, total_stake=1, pareto_param=None, seed=156):
+def generate_stake_distr_pareto(num_agents, total_stake=1, pareto_param=2, seed=156, truncation_factor=-1):
     """
     Generate a distribution for the players' initial stake (wealth),
     sampling from a Pareto distribution
@@ -27,32 +27,27 @@ def generate_stake_distr_pareto(num_agents, total_stake=1, pareto_param=None, se
     :return:
     """
     rng = default_rng(seed=seed)
-    if pareto_param > 0:
-        # Sample from a Pareto distribution with the specified shape
-        stake_sample = rng.pareto(pareto_param, num_agents)
-    else:
-        # Sample from file that contains the (real) stake distribution
-        distribution_file = 'stake_distribution_275.csv'
-        all_stakes = get_stakes_from_file(distribution_file)
-        stake_sample = rng.choice(all_stakes, num_agents, replace=False)
-    normalized_stake_sample = normalize_distr(stake_sample, normal_sum=total_stake)
-    with open('stk-distr.csv', 'w', newline='') as f:
-        x = []
-        for n in normalized_stake_sample:
-            if n < 0.01:
-                x.append([n])
+    # Sample from a Pareto distribution with the specified shape
+    stake_sample = list(rng.pareto(pareto_param, num_agents))
+    if truncation_factor > 0:
+        # rejection sampling to ensure that the distribution is truncated
+        while True:
+            max_value = max(stake_sample)
+            if max_value > sum(stake_sample) / truncation_factor:
+                stake_sample.remove(max_value)
+                stake_sample.append(rng.pareto(pareto_param))
             else:
-                s = n
-                while s >= 0.01:
-                    x.append([0.01])
-                    s -= 0.01
-                x.append([s])
-        writer = csv.writer(f)
-        writer.writerows(x)
-    return normalized_stake_sample
+                break
+    if total_stake > 0:
+        stake_sample = normalize_distr(stake_sample, normal_sum=total_stake)
+    print(max(stake_sample))
+    return stake_sample
 
 
-def get_stakes_from_file(filename):
+def generate_stake_distr_file(filename, num_agents, total_stake=1, seed=156):
+    # Sample from file that contains the (real) stake distribution
+    #distribution_file = 'stake_distribution_275.csv'
+    rng = default_rng(seed=seed)
     stakes = []
     with open(filename) as file:
         reader = csv.reader(file)
@@ -62,7 +57,9 @@ def get_stakes_from_file(filename):
                 stake = float(row[-1])  # the last column represents the wallet's stake
                 if stake > 0:
                     stakes.append(stake)
-    return stakes
+    stake_sample = rng.choice(stakes, num_agents, replace=False)
+    normalized_stake_sample = normalize_distr(stake_sample, normal_sum=total_stake)
+    return normalized_stake_sample
 
 
 def generate_stake_distr_flat(num_agents, total_stake=1):
@@ -136,7 +133,7 @@ def calculate_current_profit(stake, pledge, cost, alpha, beta, reward_function_o
     reward = calculate_pool_reward(stake, pledge, alpha, beta, reward_function_option)
     return reward - cost
 
-def calculate_pool_reward(stake, pledge, alpha, beta, reward_function_option):
+def calculate_pool_reward(stake, pledge, alpha, beta, reward_function_option, curve_root=3, crossover_factor=8):
     if reward_function_option == 0:
         return calculate_pool_reward_old(stake, pledge, alpha, beta)
     elif reward_function_option == 1:
@@ -145,6 +142,12 @@ def calculate_pool_reward(stake, pledge, alpha, beta, reward_function_option):
         return calculate_pool_reward_alternative_1(stake, pledge, alpha, beta)
     elif reward_function_option == 3:
         return calculate_pool_reward_alternative_2(stake, pledge, alpha, beta)
+    elif reward_function_option == 4:
+        return calculate_pool_reward_curve_pledge_benefit(stake, pledge, alpha, beta, curve_root, crossover_factor)
+    elif reward_function_option == 5:
+        return calculate_pool_reward_curve_pledge_benefit_min_first(stake, pledge, alpha, beta, curve_root, crossover_factor)
+    elif reward_function_option == 6:
+        return calculate_pool_reward_curve_pledge_benefit_no_min(stake, pledge, alpha, beta, curve_root, crossover_factor)
     else:
         raise ValueError("Invalid option for reward function.")
 
@@ -177,6 +180,29 @@ def calculate_pool_reward_alternative_2(stake, pledge, alpha, beta):
     pledge_ = min(pledge, beta)
     stake_ = min(stake, beta)
     r = (TOTAL_EPOCH_REWARDS_R / (1 + alpha)) * stake_ * (1 + (alpha * sqrt(pledge_) / beta))
+    return r
+
+
+def calculate_pool_reward_curve_pledge_benefit(stake, pledge, alpha, beta, curve_root, crossover_factor):
+    crossover = beta / crossover_factor
+    pledge_ = (pledge ** (1 / curve_root)) * (crossover ** ((curve_root - 1) / curve_root))
+    return calculate_pool_reward_old(stake, pledge_, alpha, beta)
+
+def calculate_pool_reward_curve_pledge_benefit_min_first(stake, pledge, alpha, beta, curve_root, crossover_factor):
+    crossover = beta / crossover_factor
+    pledge = min(pledge, beta)
+    pledge_ = (pledge ** (1 / curve_root)) * (crossover ** ((curve_root - 1) / curve_root))
+    stake_ = min(stake, beta)
+    r = (TOTAL_EPOCH_REWARDS_R / (1 + alpha)) * (
+                stake_ + (pledge_ * alpha * ((stake_ - pledge_ * (1 - stake_ / beta)) / beta)))
+    return r
+
+def calculate_pool_reward_curve_pledge_benefit_no_min(stake, pledge, alpha, beta, curve_root, crossover_factor):
+    crossover = beta / crossover_factor
+    pledge_ = (pledge ** (1 / curve_root)) * (crossover ** ((curve_root - 1) / curve_root))
+    stake_ = min(stake, beta)
+    r = (TOTAL_EPOCH_REWARDS_R / (1 + alpha)) * (
+                stake_ + (pledge_ * alpha * ((stake_ - pledge_ * (1 - stake_ / beta)) / beta)))
     return r
 
 
