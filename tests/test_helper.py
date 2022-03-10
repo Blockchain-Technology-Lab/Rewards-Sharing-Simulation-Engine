@@ -11,12 +11,11 @@ def test_generate_stake_distr():
     stk_distr = hlp.generate_stake_distr_pareto(num_agents=100, pareto_param=2)
 
     assert len(stk_distr) == 100
-    assert sum(stk_distr) == 1
 
-    stk_distr = hlp.generate_stake_distr_pareto(num_agents=1001, pareto_param=1.5, total_stake=21527)
+    stk_distr = hlp.generate_stake_distr_pareto(num_agents=1001, pareto_param=1.5, total_stake=1)
 
     assert len(stk_distr) == 1001
-    assert sum(stk_distr) == 21527
+    assert sum(stk_distr) == 1
 
 
 def test_generate_stake_distr_flat():

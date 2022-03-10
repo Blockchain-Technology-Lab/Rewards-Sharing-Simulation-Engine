@@ -208,23 +208,40 @@ def get_nakamoto_coefficient(model):
     """
     players = model.get_players_dict()
     active_players = {player_id: players[player_id] for player_id in players if not players[player_id].abstains}
-    pools = model.get_pools_list()
+    try:
+        pools = model.get_pools_list()
+    except AttributeError:
+        # no pools have been created at this point
+        # todo merge in one mechanism for pools or players
+        player_stakes = [player.stake for player in players.values()]
+        sorted_final_stake = sorted(player_stakes, reverse=True)
+        majority_control_players = 0
+        majority_control_stake = 0
+        index = 0
+        total_stake = sum(sorted_final_stake)
+        while majority_control_stake <= total_stake / 2:
+            majority_control_stake += sorted_final_stake[index]
+            majority_control_players += 1
+            index += 1
+
+        return majority_control_players
+
     if len(pools) == 0:
         return 0
 
-    final_controlled_stake = {player_id: 0 for player_id in active_players}
+    controlled_stake = {player_id: 0 for player_id in active_players}
     for pool in pools:
-        final_controlled_stake[pool.owner] += pool.stake
+        controlled_stake[pool.owner] += pool.stake
 
-    final_stake = [final_controlled_stake[player_id] for player_id in active_players.keys()]
+    final_stake = [controlled_stake[player_id] for player_id in active_players.keys()]
     total_active_stake = sum(final_stake)
 
     sorted_final_stake = sorted(final_stake, reverse=True)
-    # final_stake.sort(reverse=True) todo figure out if (and why) we get different results with this sorting
+    # final_stake.sort(reverse=True)
     majority_control_players = 0
     majority_control_stake = 0
     index = 0
-
+    #todo make simpler
     while majority_control_stake <= total_active_stake / 2:
         majority_control_stake += sorted_final_stake[index]
         majority_control_players += 1
@@ -381,7 +398,7 @@ def get_pool_splitter_count(model):
 def get_cost_efficient_count(model):
     all_players = model.get_players_list()
     potential_profits = [
-        hlp.calculate_potential_profit(player.stake, player.cost, model.alpha, model.beta, model.reward_function_option)
+        hlp.calculate_potential_profit(player.stake, player.cost, model.alpha, model.beta, model.reward_function_option, model.total_stake)
         for player in all_players
     ]
     positive_potential_profits = [pp for pp in potential_profits if pp > 0]

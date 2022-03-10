@@ -38,13 +38,14 @@ class Stakeholder(Agent):
     def step(self):
         self.update_strategy()
         if "simultaneous" not in self.model.player_activation_order.lower():
+            # When players make moves simultaneously, "step() activates the agent and stages any necessary changes,
+            # but does not apply them yet, and advance() then applies the changes". When they don't move simultaneously,
+            # they can advance (i.e. execute their strategy) right after updating their strategy
             self.advance()
         if self.remaining_min_steps_to_keep_pool > 0:
-            # For players that are recently opened a pool
+            # For players that have recently opened a pool
             self.remaining_min_steps_to_keep_pool -= 1
 
-    # When players make moves simultaneously, "step() activates the agent and stages any necessary changes,
-    # but does not apply them yet, and advance() then applies the changes"
     def advance(self):
         if self.new_strategy is not None:
             # The player has changed their strategy, so now they have to execute it
@@ -147,8 +148,8 @@ class Stakeholder(Agent):
             beta,
             self.model.k
         )
-        r = hlp.calculate_pool_reward(pool_stake, pledge, alpha, beta, self.model.reward_function_option)
-        stake_allocation = pool.pledge  # todo change if we allow pool owners to allocate stake to their pool separate to the pledge
+        r = hlp.calculate_pool_reward(pool_stake, pledge, alpha, beta, self.model.reward_function_option, self.model.total_stake)
+        stake_allocation = pool.pledge
         q = stake_allocation / pool_stake
         return hlp.calculate_operator_reward_from_pool(pool, r, q)
 
@@ -169,7 +170,7 @@ class Stakeholder(Agent):
             current_stake
         )
         pool_stake = current_stake if self.isMyopic else non_myopic_stake
-        r = hlp.calculate_pool_reward(pool_stake, pool.pledge, alpha, beta, self.model.reward_function_option)
+        r = hlp.calculate_pool_reward(pool_stake, pool.pledge, alpha, beta, self.model.reward_function_option, self.model.total_stake)
 
         q = stake_allocation / pool_stake
         return hlp.calculate_delegator_reward_from_pool(pool, r, q)
@@ -196,7 +197,7 @@ class Stakeholder(Agent):
         alpha = self.model.alpha
         current_pools = self.model.get_pools_list()
 
-        potential_profit = hlp.calculate_potential_profit(self.stake, self.cost, alpha, saturation_point, self.model.reward_function_option)
+        potential_profit = hlp.calculate_potential_profit(self.stake, self.cost, alpha, saturation_point, self.model.reward_function_option, self.model.total_stake)
         if len(current_pools) * saturation_point < self.model.perceived_active_stake:  # note that we use active stake instead of total stake
             return potential_profit > 0
 
@@ -349,7 +350,7 @@ class Stakeholder(Agent):
         players = self.model.get_players_dict()
         potential_profits = {player_id:
                                  hlp.calculate_potential_profit(player.stake, player.cost, self.model.alpha,
-                                                                self.model.beta, self.model.reward_function_option)
+                                                                self.model.beta, self.model.reward_function_option, self.model.total_stake)
                              for player_id, player in players.items()}
 
         potential_profit_ranks = hlp.calculate_ranks(potential_profits, rank_ids=True)
@@ -414,7 +415,7 @@ class Stakeholder(Agent):
             pool.pledge = pledges[i]
             pool.is_private = pool.pledge >= self.model.beta
             pool.cost = cost_per_pool
-            pool.set_potential_profit(self.model.alpha, self.model.beta, self.model.reward_function_option)
+            pool.set_potential_profit(self.model.alpha, self.model.beta, self.model.reward_function_option, self.model.total_stake)
             pool.margin = self.calculate_margin_semi_perfect_strategy(pool)
             margins.append(pool.margin)
             owned_pools[pool.id] = pool
@@ -422,11 +423,11 @@ class Stakeholder(Agent):
         for i in range(existing_pools_num, num_pools):
             # For pools under consideration of opening, create according to the strategy
             pool_id = self.model.get_next_pool_id()
-            self.model.pool_owner_id_mapping[pool_id] = self.unique_id
+            #self.model.pool_owner_id_mapping[pool_id] = self.unique_id
             pool = Pool(pool_id=pool_id, cost=cost_per_pool,
                         pledge=pledges[i], owner=self.unique_id, alpha=self.model.alpha,
                         beta=self.model.beta, is_private=pledges[i] >= self.model.beta,
-                        reward_function_option=self.model.reward_function_option)
+                        reward_function_option=self.model.reward_function_option, total_stake=self.model.total_stake)
             # private pools have margin 0 but don't allow delegations
             pool.margin = self.calculate_margin_semi_perfect_strategy(pool)
             margins.append(pool.margin)
@@ -466,8 +467,6 @@ class Stakeholder(Agent):
                 temp_pools[pool_id] = deepcopy(pools[pool_id])
                 pools[pool_id].update_delegation(stake=-allocation, delegator_id=self.unique_id)
 
-        # todo should we allow players to delegate to their own pools? makes sense only if we consider that
-        #  pledge is locked and delegation is not
         pools_list = [pool for pool in pools.values() if pool.owner != self.unique_id and not pool.is_private]
 
         # Only proceed if there are active pools in the system that don't belong to the current player
@@ -476,7 +475,7 @@ class Stakeholder(Agent):
 
             desirability_dict = {
                 pool.id:
-                    pool.calculate_myopic_desirability(self.model.alpha, saturation_point) if self.isMyopic
+                    pool.calculate_myopic_desirability(self.model.alpha, saturation_point, self.model.total_stake) if self.isMyopic
                     else pool.calculate_desirability()
                 for pool in pools_list
             }
@@ -506,11 +505,14 @@ class Stakeholder(Agent):
         return Strategy(stake_allocations=allocations, is_pool_operator=False)
 
     def execute_strategy(self):
+        """
+        Execute the updated strategy of the agent
+        @return:
+        """
         current_pools = self.model.pools
 
         old_allocations = self.strategy.stake_allocations
         new_allocations = self.new_strategy.stake_allocations
-        # todo make simpler
         allocation_changes = dict()
         old_pool_ids = old_allocations.keys()
         new_pool_ids = new_allocations.keys()
@@ -544,7 +546,7 @@ class Stakeholder(Agent):
             if current_pools[pool_id].is_private:
                 # undelegate stake in case the pool turned from public to private
                 self.remove_delegations(pool_id)
-            current_pools[pool_id].set_potential_profit(self.model.alpha, self.model.beta, self.model.reward_function_option)
+            current_pools[pool_id].set_potential_profit(self.model.alpha, self.model.beta, self.model.reward_function_option, self.model.total_stake)
 
         self.strategy = self.new_strategy
         self.new_strategy = None
@@ -573,12 +575,13 @@ class Stakeholder(Agent):
         self.remove_delegations(pool_id)
         pools.pop(pool_id)
 
-    def remove_delegations(self, pool_id):  # todo potentially add in pool class (with changes)
+    def remove_delegations(self, pool_id):
+        #print('hi remove delegations')
         pool = self.model.pools[pool_id]
         players = self.model.get_players_dict()
         delegators = list(pool.delegators.keys())
         for player_id in delegators:
-            pool.update_delegation(-pool.delegators[player_id], player_id)  # todo is that necessary here?
+            pool.update_delegation(-pool.delegators[player_id], player_id)
             player = players[player_id]
             player.strategy.stake_allocations.pop(pool_id)
         # Also remove pool from players' upcoming moves in case of (semi)simultaneous activation

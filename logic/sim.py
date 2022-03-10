@@ -12,6 +12,7 @@ import collections
 import sys
 import random
 
+import pandas as pd
 from mesa import Model
 from mesa.datacollection import DataCollector
 from mesa.time import BaseScheduler, SimultaneousActivation, RandomActivation
@@ -44,12 +45,13 @@ class Simulation(Model):
 
     }
 
-    def __init__(self, n=1000, k=100, alpha=0.3, myopic_fraction=0, abstention_rate=0, relative_utility_threshold=0,
+    def __init__(self, n=1000, k=100, alpha=0.3, myopic_fraction=0, abstention_rate=0, abstention_known=False,relative_utility_threshold=0,
                  absolute_utility_threshold=1e-9, min_steps_to_keep_pool=5, pool_splitting=True, seed=None,
                  pareto_param=2.0, max_iterations=1000, cost_min=1e-4, cost_max=1e-3, cost_factor=0.7,
-                 player_activation_order="Random", total_stake=1, ms=10, stake_distr_type='Pareto',
+                 player_activation_order="Random", total_stake=-1, ms=10, stake_distr_type='Pareto',
                  extra_cost_type='fixed_fraction', reward_function_option=0, execution_id=''):
         # todo make sure that the input is valid? n > 0, 0 < k <= n
+        #total_stake = 33e9
 
         self.arguments = locals()  # only used for naming the output files appropriately
 
@@ -97,19 +99,41 @@ class Simulation(Model):
         self.min_steps_to_keep_pool = min_steps_to_keep_pool
         self.pool_splitting = pool_splitting
         self.max_iterations = max_iterations
-        self.total_stake = total_stake
         self.player_activation_order = player_activation_order
         self.extra_cost_type = extra_cost_type
         self.reward_function_option = reward_function_option
 
-        self.k = int(self.k / (1 - self.abstention_rate))  # todo remove
-
-        self.perceived_active_stake = total_stake
-        self.beta = total_stake / self.k
-        self.execution_id = execution_id
+        if abstention_known:
+            # The system is aware of the abstention rate of the system, so it inflates k
+            # to make it possible to end up with the original desired number of pools
+            self.k = int(self.k / (1 - self.abstention_rate))
 
         self.running = True  # for batch running and visualisation purposes
         self.schedule = self.player_activation_orders[player_activation_order](self)
+
+        self.total_stake = self.initialize_players(cost_min, cost_max, pareto_param, stake_distr_type, imposed_total_stake=total_stake)
+        self.perceived_active_stake = self.total_stake
+        self.beta = self.total_stake / self.k
+        self.execution_id = execution_id
+
+        # generate file that describes the state of the system at step 0
+        filename = "initial-states.csv" # aka system prior?
+        '''data = {
+            'n': [self.n],
+            'k': [self.k],
+            'alpha': [self.alpha],
+            'Total stake': [self.total_stake],
+            'Nakamoto coeff': [get_nakamoto_coefficient(self)],
+            '# cost efficient': [get_cost_efficient_count(self)],
+            'execution id': [self.execution_id]
+        }
+        df = pd.DataFrame(data)'''
+        # n, k, alpha, total stake, NC, #cost efficient agents,  execution_id
+        row = [self.n, self.k, self.alpha, self.total_stake, get_nakamoto_coefficient(self), get_cost_efficient_count(self), self.execution_id]
+        with open(filename, 'a+', newline='') as file:
+            writer = csv.writer(file)
+            writer.writerow(row)
+
         self.consecutive_idle_steps = 0  # steps towards convergence
         self.current_step_idle = True
         self.min_consecutive_idle_steps_for_convergence = max(min_steps_to_keep_pool + 1, ms)
@@ -119,7 +143,6 @@ class Simulation(Model):
 
         self.initialise_pool_id_seq()  # initialise pool id sequence for the new model run
         #cost_max = 10 * cost_min
-        self.initialize_players(cost_min, cost_max, pareto_param, stake_distr_type)
 
         # only include reporters that are needed for every STEP
         self.datacollector = DataCollector(
@@ -149,19 +172,20 @@ class Simulation(Model):
                 #"AvgCostRank": get_avg_cost_rnk
             })
 
-        self.pool_owner_id_mapping = dict() # todo probably useless
+        #self.pool_owner_id_mapping = dict() # todo probably useless
         self.start_time = None
         self.equilibrium_steps = []
         self.pivot_steps = []
 
-    def initialize_players(self, cost_min, cost_max, pareto_param, stake_distr_type):
+    def initialize_players(self, cost_min, cost_max, pareto_param, stake_distr_type, imposed_total_stake):
         if stake_distr_type.lower() == 'flat':
             # Distribute the total stake of the system evenly to all players
-            stake_distribution = hlp.generate_stake_distr_flat(num_agents=self.n, total_stake=self.total_stake)
+            stake_distribution = hlp.generate_stake_distr_flat(num_agents=self.n, total_stake= max(imposed_total_stake, 1))
         else:
             # Allocate stake to the players, sampling from a Pareto distribution
-            stake_distribution = hlp.generate_stake_distr_pareto(num_agents=self.n, total_stake=self.total_stake,
-                                                                 pareto_param=pareto_param)
+            stake_distribution = hlp.generate_stake_distr_pareto(num_agents=self.n, pareto_param=pareto_param, total_stake=imposed_total_stake)
+        total_stake = sum(stake_distribution)
+
         # Allocate cost to the players, sampling from a uniform distribution
         cost_distribution = hlp.generate_cost_distr_unfrm(num_agents=self.n, low=cost_min, high=cost_max)
         #cost_distribution = hlp.generate_cost_distr_bands(num_agents=self.n, low=cost_min, high=cost_max, num_bands=10)
@@ -182,6 +206,7 @@ class Simulation(Model):
                 stake=stake_distribution[i]
             )
             self.schedule.add(agent)
+        return total_stake
 
     def initialise_pool_id_seq(self):
         self.id_seq = 0
@@ -242,14 +267,15 @@ class Simulation(Model):
 
     def dump_state_to_csv(self):
         row_list = [
-            ["Owner id", "Pool id", "Pool stake", "Margin", "Perfect margin", "Pledge",
-             "Owner stake", "Owner stake rank", "Pool cost", "Owner cost rank", "Pool desirability",
-             "Pool potential profit", "Owner PP rank", "Pool desirability rank", "Pool status"]
+            ["Owner id", "Pool id", "Owner stake", "Pledge", "Pool stake", "Owner cost", "Pool cost",
+             "Owner PP",  "Pool PP", "Pool desirability",
+             "Owner stake rank", "Owner cost rank", "Owner PP rank",
+              "Pool desirability rank", "Margin", "Perfect margin","Pool status"]
         ]
         players = self.get_players_dict()
         pools = self.get_pools_list()
         player_potential_profits = {
-            player.unique_id: hlp.calculate_potential_profit(player.stake, player.cost, self.alpha, self.beta, self.reward_function_option) for
+            player.unique_id: hlp.calculate_potential_profit(player.stake, player.cost, self.alpha, self.beta, self.reward_function_option, self.total_stake) for
             player in players.values()}
         pool_potential_profits = {pool.id: pool.potential_profit for pool in pools}
         pool_potential_profit_ranks = hlp.calculate_ranks(pool_potential_profits)
@@ -259,15 +285,16 @@ class Simulation(Model):
         stakes = {player_id: player.stake for player_id, player in players.items()}
         stake_ranks = hlp.calculate_ranks(stakes)
         negative_cost_ranks = hlp.calculate_ranks({player_id: -player.cost for player_id, player in players.items()})
-        decimals = 4
+        decimals = 8
         row_list.extend(
-            [[pool.owner, pool.id, round(pool.stake, decimals), round(pool.margin, decimals),
+            [[pool.owner, pool.id, round(players[pool.owner].stake, decimals), round(pool.pledge, decimals),
+              round(pool.stake, decimals), round(players[pool.owner].cost, decimals),round(pool.cost, decimals),
+              round(player_potential_profits[pool.owner], decimals),
+              round(pool.potential_profit, decimals), round(pool.calculate_desirability(), decimals),
+              stake_ranks[pool.owner], negative_cost_ranks[pool.owner],
+              player_potential_profit_ranks[pool.owner],
+              desirability_ranks[pool.id], round(pool.margin, decimals),
               round(players[pool.owner].calculate_margin_perfect_strategy(), decimals),
-              round(pool.pledge, decimals), round(players[pool.owner].stake, decimals), stake_ranks[pool.owner],
-              round(pool.cost, decimals),
-              negative_cost_ranks[pool.owner], round(pool.calculate_desirability(), 10),
-              round(pool.potential_profit, decimals), player_potential_profit_ranks[pool.owner],
-              desirability_ranks[pool.id],
               "Private" if pool.is_private else "Public"]
              for pool in pools])
 
@@ -295,7 +322,8 @@ class Simulation(Model):
         return self.schedule.agents
 
     def get_status(self):
-        print("Step {}: {} pools".format(self.schedule.steps, len(self.pools)))
+        print("Step {}: {} pools, NC {}"
+              .format(self.schedule.steps, len(self.pools), get_nakamoto_coefficient(self)))
 
     def revise_beliefs(self):
         """

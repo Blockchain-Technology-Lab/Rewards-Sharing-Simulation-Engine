@@ -17,7 +17,7 @@ MIN_STAKE_UNIT = 2.2e-17
 MIN_COST_PER_POOL = 1e-6
 
 
-def generate_stake_distr_pareto(num_agents, total_stake=1, pareto_param=2, seed=156, truncation_factor=-1):
+def generate_stake_distr_pareto(num_agents, pareto_param=2, seed=156, truncation_factor=-1, total_stake=-1):
     """
     Generate a distribution for the players' initial stake (wealth),
     sampling from a Pareto distribution
@@ -28,20 +28,27 @@ def generate_stake_distr_pareto(num_agents, total_stake=1, pareto_param=2, seed=
     """
     rng = default_rng(seed=seed)
     # Sample from a Pareto distribution with the specified shape
-    stake_sample = list(rng.pareto(pareto_param, num_agents))
+    a, m = pareto_param, 1.  # shape and mode
+    stake_sample = list((rng.pareto(a, num_agents) + 1) * m)
     if truncation_factor > 0:
-        # rejection sampling to ensure that the distribution is truncated
-        while True:
-            max_value = max(stake_sample)
-            if max_value > sum(stake_sample) / truncation_factor:
-                stake_sample.remove(max_value)
-                stake_sample.append(rng.pareto(pareto_param))
-            else:
-                break
+        stake_sample = truncate_pareto(rng, (a, m), stake_sample, truncation_factor)
     if total_stake > 0:
         stake_sample = normalize_distr(stake_sample, normal_sum=total_stake)
-    print(max(stake_sample))
+    #print('Total stake = ', sum(stake_sample))
+    #print('Max stake = ',max(stake_sample))
     return stake_sample
+
+
+def truncate_pareto(rng, pareto_params, sample, truncation_factor):
+    a, m = pareto_params
+    while True:
+        # rejection sampling to ensure that the distribution is truncated
+        max_value = max(sample)
+        if max_value > sum(sample) / truncation_factor:
+            sample.remove(max_value)
+            sample.append((rng.pareto(a) + 1) * m)
+        else:
+            return sample
 
 
 def generate_stake_distr_file(filename, num_agents, total_stake=1, seed=156):
@@ -115,7 +122,7 @@ def normalize_distr(dstr, normal_sum=1):
     return nrm_dstr
 
 
-def calculate_potential_profit(pledge, cost, alpha, beta, reward_function_option):
+def calculate_potential_profit(pledge, cost, alpha, beta, reward_function_option, total_stake):
     """
     Calculate a pool's potential profit, which can be defined as the profit it would get at saturation level
 
@@ -125,82 +132,83 @@ def calculate_potential_profit(pledge, cost, alpha, beta, reward_function_option
     :param beta:
     :return: float, the maximum possible profit that this pool can yield
     """
-    potential_reward = calculate_pool_reward(beta, pledge, alpha, beta, reward_function_option)
+    potential_reward = calculate_pool_reward(beta, pledge, alpha, beta, reward_function_option, total_stake)
     return potential_reward - cost
 
 
-def calculate_current_profit(stake, pledge, cost, alpha, beta, reward_function_option):
-    reward = calculate_pool_reward(stake, pledge, alpha, beta, reward_function_option)
+def calculate_current_profit(stake, pledge, cost, alpha, beta, reward_function_option, total_stake):
+    reward = calculate_pool_reward(stake, pledge, alpha, beta, reward_function_option, total_stake)
     return reward - cost
 
-def calculate_pool_reward(stake, pledge, alpha, beta, reward_function_option, curve_root=3, crossover_factor=8):
+def calculate_pool_reward(stake, pledge, alpha, beta, reward_function_option, total_stake, curve_root=3, crossover_factor=8):
+    if total_stake <= 0:
+         raise ValueError('Total stake must be > 0')
+    relative_stake = stake / total_stake
+    relative_pledge = pledge / total_stake
     if reward_function_option == 0:
-        return calculate_pool_reward_old(stake, pledge, alpha, beta)
+        return calculate_pool_reward_old(relative_stake, relative_pledge, alpha, beta)
     elif reward_function_option == 1:
-        return calculate_pool_reward_new(stake, pledge, alpha, beta)
+        return calculate_pool_reward_new(relative_stake, relative_pledge, alpha, beta)
     elif reward_function_option == 2:
-        return calculate_pool_reward_alternative_1(stake, pledge, alpha, beta)
+        return calculate_pool_reward_flat_pledge_benefit(relative_stake, relative_pledge, alpha, beta)
     elif reward_function_option == 3:
-        return calculate_pool_reward_alternative_2(stake, pledge, alpha, beta)
+        return calculate_pool_reward_new_sqrt(relative_stake, relative_pledge, alpha, beta)
     elif reward_function_option == 4:
-        return calculate_pool_reward_curve_pledge_benefit(stake, pledge, alpha, beta, curve_root, crossover_factor)
+        return calculate_pool_reward_curve_pledge_benefit(relative_stake, relative_pledge, alpha, beta, curve_root, crossover_factor)
     elif reward_function_option == 5:
-        return calculate_pool_reward_curve_pledge_benefit_min_first(stake, pledge, alpha, beta, curve_root, crossover_factor)
+        return calculate_pool_reward_curve_pledge_benefit_min_first(relative_stake, relative_pledge, alpha, beta, curve_root, crossover_factor)
     elif reward_function_option == 6:
-        return calculate_pool_reward_curve_pledge_benefit_no_min(stake, pledge, alpha, beta, curve_root, crossover_factor)
+        return calculate_pool_reward_curve_pledge_benefit_no_min(relative_stake, relative_pledge, alpha, beta, curve_root, crossover_factor)
     else:
         raise ValueError("Invalid option for reward function.")
 
 
-def calculate_pool_reward_old(stake, pledge, alpha, beta):
-    pledge_ = min(pledge, beta)
-    stake_ = min(stake, beta)
+def calculate_pool_reward_old(relative_stake, relative_pledge, alpha, beta):
+    pledge_ = min(relative_pledge, beta)
+    stake_ = min(relative_stake, beta)
     r = (TOTAL_EPOCH_REWARDS_R / (1 + alpha)) * (stake_ + (pledge_ * alpha * ((stake_ - pledge_ * (1 - stake_ / beta)) / beta)))
     return r
 
 
-def calculate_pool_reward_new(stake, pledge, alpha, beta):
-    pledge_ = min(pledge, beta)
-    stake_ = min(stake, beta)
+def calculate_pool_reward_new(relative_stake, relative_pledge, alpha, beta):
+    pledge_ = min(relative_pledge, beta)
+    stake_ = min(relative_stake, beta)
     r = (TOTAL_EPOCH_REWARDS_R / (1 + alpha)) * stake_ * (1 + (alpha * pledge_ / beta))
     return r
 
 
-def calculate_pool_reward_alternative_1(stake, pledge, alpha, beta):
-    """
-    community-proposed reward sharing function
-    """
-    pledge_ = min(pledge, beta)
-    stake_ = min(stake, beta)
+def calculate_pool_reward_flat_pledge_benefit(relative_stake, relative_pledge, alpha, beta):
+    pledge_ = min(relative_pledge, beta)
+    stake_ = min(relative_stake, beta)
     r = (TOTAL_EPOCH_REWARDS_R / (1 + alpha)) * (stake_ + alpha * pledge_)
     return r
 
 
-def calculate_pool_reward_alternative_2(stake, pledge, alpha, beta):
-    pledge_ = min(pledge, beta)
-    stake_ = min(stake, beta)
+def calculate_pool_reward_new_sqrt(relative_stake, relative_pledge, alpha, beta):
+    pledge_ = min(relative_pledge, beta)
+    stake_ = min(relative_stake, beta)
     r = (TOTAL_EPOCH_REWARDS_R / (1 + alpha)) * stake_ * (1 + (alpha * sqrt(pledge_) / beta))
     return r
 
 
-def calculate_pool_reward_curve_pledge_benefit(stake, pledge, alpha, beta, curve_root, crossover_factor):
+def calculate_pool_reward_curve_pledge_benefit(relative_stake, relative_pledge, alpha, beta, curve_root, crossover_factor):
     crossover = beta / crossover_factor
-    pledge_ = (pledge ** (1 / curve_root)) * (crossover ** ((curve_root - 1) / curve_root))
-    return calculate_pool_reward_old(stake, pledge_, alpha, beta)
+    pledge_ = (relative_pledge ** (1 / curve_root)) * (crossover ** ((curve_root - 1) / curve_root))
+    return calculate_pool_reward_old(relative_stake, pledge_, alpha, beta)
 
-def calculate_pool_reward_curve_pledge_benefit_min_first(stake, pledge, alpha, beta, curve_root, crossover_factor):
+def calculate_pool_reward_curve_pledge_benefit_min_first(relative_stake, relative_pledge, alpha, beta, curve_root, crossover_factor):
     crossover = beta / crossover_factor
-    pledge = min(pledge, beta)
+    pledge = min(relative_pledge, beta)
     pledge_ = (pledge ** (1 / curve_root)) * (crossover ** ((curve_root - 1) / curve_root))
-    stake_ = min(stake, beta)
+    stake_ = min(relative_stake, beta)
     r = (TOTAL_EPOCH_REWARDS_R / (1 + alpha)) * (
                 stake_ + (pledge_ * alpha * ((stake_ - pledge_ * (1 - stake_ / beta)) / beta)))
     return r
 
-def calculate_pool_reward_curve_pledge_benefit_no_min(stake, pledge, alpha, beta, curve_root, crossover_factor):
+def calculate_pool_reward_curve_pledge_benefit_no_min(relative_stake, relative_pledge, alpha, beta, curve_root, crossover_factor):
     crossover = beta / crossover_factor
-    pledge_ = (pledge ** (1 / curve_root)) * (crossover ** ((curve_root - 1) / curve_root))
-    stake_ = min(stake, beta)
+    pledge_ = (relative_pledge ** (1 / curve_root)) * (crossover ** ((curve_root - 1) / curve_root))
+    stake_ = min(relative_stake, beta)
     r = (TOTAL_EPOCH_REWARDS_R / (1 + alpha)) * (
                 stake_ + (pledge_ * alpha * ((stake_ - pledge_ * (1 - stake_ / beta)) / beta)))
     return r
@@ -209,7 +217,7 @@ def calculate_pool_reward_curve_pledge_benefit_no_min(stake, pledge, alpha, beta
 def calculate_delegator_reward_from_pool(pool, pool_reward, delegator_stake_fraction):
     margin_factor = (1 - pool.margin) * delegator_stake_fraction
     pool_profit = pool_reward - pool.cost
-    r_d = margin_factor * pool_profit if pool_profit > 0 else 0
+    r_d = max(margin_factor * pool_profit, 0)
     return r_d
 
 
