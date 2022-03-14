@@ -10,10 +10,10 @@ MARGIN_INCREMENT = 0.01
 
 class Strategy:
     # todo rethink slots as they may scale better
-    # __slots__ = ['is_pool_operator', 'num_pools', 'pledges', 'margins', 'owned_pools', 'stake_allocations']
+    # __slots__ = ['num_pools', 'pledges', 'margins', 'owned_pools', 'stake_allocations']
 
     def __init__(self, pledges=None, margins=None, stake_allocations=None,
-                 is_pool_operator=False, owned_pools=None, num_pools=0):
+                 owned_pools=None, num_pools=0):
         if pledges is None:
             pledges = []
         if margins is None:
@@ -23,8 +23,9 @@ class Strategy:
         if stake_allocations is None:
             stake_allocations = dict()
         self.stake_allocations = stake_allocations
-        self.is_pool_operator = is_pool_operator
+        self.owned_pools = owned_pools
+        # todo remove the following as redundant
         self.num_pools = num_pools
         self.pledges = pledges
         self.margins = margins
-        self.owned_pools = owned_pools
+

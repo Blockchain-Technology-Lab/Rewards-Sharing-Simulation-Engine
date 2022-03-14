@@ -51,26 +51,20 @@ class Simulation(Model):
                  player_activation_order="Random", total_stake=-1, ms=10, stake_distr_type='Pareto',
                  extra_cost_type='fixed_fraction', reward_function_option=0, execution_id=''):
         # todo make sure that the input is valid? n > 0, 0 < k <= n
-        #total_stake = 33e9
-
         self.arguments = locals()  # only used for naming the output files appropriately
 
         if execution_id == '':
             # No identifier was provided by the user, so we construct one based on the simulation's parameter values
             execution_id = hlp.generate_execution_id(self.arguments)
-
         seed = str(seed) # to maintain consistency among seeds, because command line arguments are parsed as strings
         if seed == 'None':
             seed = str(random.randint(0, 9999999))
-
         execution_id += '-seed-' + seed
 
         super().__init__(seed=seed)
 
-
         print(sys.version)
         print([f"{k}, {v}" for k, v in locals().items()])
-
 
         # An era is defined as a time period during which the parameters of the model don't change
         self.current_era = 0
@@ -111,7 +105,9 @@ class Simulation(Model):
         self.running = True  # for batch running and visualisation purposes
         self.schedule = self.player_activation_orders[player_activation_order](self)
 
-        self.total_stake = self.initialize_players(cost_min, cost_max, pareto_param, stake_distr_type, imposed_total_stake=total_stake)
+        self.total_stake = self.initialize_players(cost_min, cost_max, pareto_param, stake_distr_type, imposed_total_stake=total_stake, seed=seed)
+        if self.total_stake <= 0:
+            raise ValueError('Total stake must be > 0')
         self.perceived_active_stake = self.total_stake
         self.beta = self.total_stake / self.k
         self.execution_id = execution_id
@@ -177,17 +173,18 @@ class Simulation(Model):
         self.equilibrium_steps = []
         self.pivot_steps = []
 
-    def initialize_players(self, cost_min, cost_max, pareto_param, stake_distr_type, imposed_total_stake):
+    def initialize_players(self, cost_min, cost_max, pareto_param, stake_distr_type, imposed_total_stake, seed):
         if stake_distr_type.lower() == 'flat':
             # Distribute the total stake of the system evenly to all players
             stake_distribution = hlp.generate_stake_distr_flat(num_agents=self.n, total_stake= max(imposed_total_stake, 1))
         else:
             # Allocate stake to the players, sampling from a Pareto distribution
-            stake_distribution = hlp.generate_stake_distr_pareto(num_agents=self.n, pareto_param=pareto_param, total_stake=imposed_total_stake)
+            stake_distribution = hlp.generate_stake_distr_pareto(num_agents=self.n, pareto_param=pareto_param, seed=seed,
+                                                                 total_stake=imposed_total_stake)#, truncation_factor=self.k)
         total_stake = sum(stake_distribution)
 
         # Allocate cost to the players, sampling from a uniform distribution
-        cost_distribution = hlp.generate_cost_distr_unfrm(num_agents=self.n, low=cost_min, high=cost_max)
+        cost_distribution = hlp.generate_cost_distr_unfrm(num_agents=self.n, low=cost_min, high=cost_max, seed=seed)
         #cost_distribution = hlp.generate_cost_distr_bands(num_agents=self.n, low=cost_min, high=cost_max, num_bands=10)
         #cost_distribution = hlp.generate_cost_distr_nrm(num_agents=self.n, low=cost_min, high=cost_max, mean=5e-6, stddev=5e-1)
 
@@ -212,6 +209,7 @@ class Simulation(Model):
         self.id_seq = 0
 
     def get_next_pool_id(self):
+        #todo use for temp pools too (like now) or only for confirmed ones? e.g. use temp-id before official opening
         self.id_seq += 1
         return self.id_seq
 
@@ -322,8 +320,8 @@ class Simulation(Model):
         return self.schedule.agents
 
     def get_status(self):
-        print("Step {}: {} pools, NC {}"
-              .format(self.schedule.steps, len(self.pools), get_nakamoto_coefficient(self)))
+        print("Step {}: {} pools"
+              .format(self.schedule.steps, len(self.pools)))
 
     def revise_beliefs(self):
         """

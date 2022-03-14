@@ -1,6 +1,7 @@
 import statistics
 import collections
 from gekko import GEKKO
+import numpy as np
 
 from logic.helper import MAX_NUM_POOLS
 import logic.helper as hlp
@@ -418,6 +419,43 @@ def get_pool_stakes_by_agent(model):
     return pool_stakes
 
 
+def gini_coefficient(np_array):
+    """Compute Gini coefficient of array of values
+    using the fact that their Gini coefficient is half their relative mean absolute difference,
+    as noted here: https://en.wikipedia.org/wiki/Mean_absolute_difference#Relative_mean_absolute_difference """
+    diffsum = 0 # sum of absolute differences
+    for i, xi in enumerate(np_array[:-1], 1):
+        diffsum += np.sum(np.abs(xi - np_array[i:]))
+    return diffsum / (len(np_array) * sum(np_array)) if sum(np_array) != 0 else -1
+
+
+def get_gini_id_coeff_pool_count(model):
+    """
+    We
+    @param model:
+    @return:
+    """
+    # gather data
+    pools = model.get_pools_list()
+    print(pools)
+    #todo check later if you can abstract this to a function that serves this one, NC and others
+    pools_owned = collections.defaultdict(lambda: 0)
+    for pool in pools:
+        pools_owned[pool.owner] += 1
+    pools_per_agent = np.fromiter(pools_owned.values(), dtype=int)
+    return gini_coefficient(pools_per_agent)
+
+
+def get_gini_id_coeff_stake(model):
+    pools = model.get_pools_list()
+    # todo check later if you can abstract this to a function that serves this one, NC and others
+    stake_controlled = collections.defaultdict(lambda: 0)
+    for pool in pools:
+        stake_controlled[pool.owner] += pool.stake
+    stake_per_agent = np.fromiter(stake_controlled.values(), dtype=float)
+    return gini_coefficient(stake_per_agent)
+
+
 # note that any new model reporters should be added to the end, to maintain the colour allocation
 all_model_reporters = {
     "Pool count": get_final_number_of_pools,
@@ -440,5 +478,7 @@ all_model_reporters = {
     "Median cost rank": get_median_cost_rnk,
     "Opt min aggr pledge": get_optimal_min_aggregate_pledge,
     "Number of pool splitters": get_pool_splitter_count,
-    "Cost efficient stakeholders": get_cost_efficient_count
+    "Cost efficient stakeholders": get_cost_efficient_count,
+    "Gini-id": get_gini_id_coeff_pool_count,
+    "Gini-id stake": get_gini_id_coeff_stake
 }

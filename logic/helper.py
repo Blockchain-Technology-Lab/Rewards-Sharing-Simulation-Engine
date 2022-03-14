@@ -13,7 +13,7 @@ from math import sqrt
 
 TOTAL_EPOCH_REWARDS_R = 1
 MAX_NUM_POOLS = 1000
-MIN_STAKE_UNIT = 2.2e-17
+MIN_STAKE_UNIT = 2.2e-17 #todo change to reflect how much 1 lovelace is depending on total stake?
 MIN_COST_PER_POOL = 1e-6
 
 
@@ -26,7 +26,7 @@ def generate_stake_distr_pareto(num_agents, pareto_param=2, seed=156, truncation
     :param total_stake:
     :return:
     """
-    rng = default_rng(seed=seed)
+    rng = default_rng(seed=int(seed))
     # Sample from a Pareto distribution with the specified shape
     a, m = pareto_param, 1.  # shape and mode
     stake_sample = list((rng.pareto(a, num_agents) + 1) * m)
@@ -34,8 +34,8 @@ def generate_stake_distr_pareto(num_agents, pareto_param=2, seed=156, truncation
         stake_sample = truncate_pareto(rng, (a, m), stake_sample, truncation_factor)
     if total_stake > 0:
         stake_sample = normalize_distr(stake_sample, normal_sum=total_stake)
-    #print('Total stake = ', sum(stake_sample))
-    #print('Max stake = ',max(stake_sample))
+    print('Total stake = ', sum(stake_sample))
+    print('Max stake = ',max(stake_sample))
     return stake_sample
 
 
@@ -54,7 +54,7 @@ def truncate_pareto(rng, pareto_params, sample, truncation_factor):
 def generate_stake_distr_file(filename, num_agents, total_stake=1, seed=156):
     # Sample from file that contains the (real) stake distribution
     #distribution_file = 'stake_distribution_275.csv'
-    rng = default_rng(seed=seed)
+    rng = default_rng(seed=int(seed))
     stakes = []
     with open(filename) as file:
         reader = csv.reader(file)
@@ -83,7 +83,7 @@ def generate_cost_distr_unfrm(num_agents, low, high, seed=156):
     :param high:
     :return:
     """
-    rng = default_rng(seed=seed)
+    rng = default_rng(seed=int(seed))
     costs = rng.uniform(low=low, high=high, size=num_agents)
     return costs
 
@@ -132,19 +132,20 @@ def calculate_potential_profit(pledge, cost, alpha, beta, reward_function_option
     :param beta:
     :return: float, the maximum possible profit that this pool can yield
     """
-    potential_reward = calculate_pool_reward(beta, pledge, alpha, beta, reward_function_option, total_stake)
+    relative_stake = beta / total_stake
+    relative_pledge = pledge / total_stake
+    potential_reward = calculate_pool_reward(relative_stake, relative_pledge, alpha, beta, reward_function_option, total_stake)
     return potential_reward - cost
 
 
 def calculate_current_profit(stake, pledge, cost, alpha, beta, reward_function_option, total_stake):
-    reward = calculate_pool_reward(stake, pledge, alpha, beta, reward_function_option, total_stake)
+    relative_pledge = pledge / total_stake
+    relative_stake = stake / total_stake
+    reward = calculate_pool_reward(relative_stake, relative_pledge, alpha, beta, reward_function_option, total_stake)
     return reward - cost
 
-def calculate_pool_reward(stake, pledge, alpha, beta, reward_function_option, total_stake, curve_root=3, crossover_factor=8):
-    if total_stake <= 0:
-         raise ValueError('Total stake must be > 0')
-    relative_stake = stake / total_stake
-    relative_pledge = pledge / total_stake
+def calculate_pool_reward(relative_stake, relative_pledge, alpha, beta, reward_function_option, total_stake, curve_root=3, crossover_factor=8):
+    beta = beta / total_stake
     if reward_function_option == 0:
         return calculate_pool_reward_old(relative_stake, relative_pledge, alpha, beta)
     elif reward_function_option == 1:

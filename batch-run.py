@@ -90,8 +90,9 @@ def main():
     print('-------------')
     print("Variable params: ", variable_params)
 
-
-    default_model_reporters = ["Pool count", "Nakamoto coefficient", "Number of pool splitters", "Cost efficient stakeholders", "Total pledge"]#, "Iterations", "Min-aggregate pledge"]
+    default_model_reporters = ["Pool count", "Nakamoto coefficient", "Number of pool splitters",
+                               "Cost efficient stakeholders", "Total pledge",
+                               "Gini-id", "Gini-id stake"]  # , "Min-aggregate pledge"]
     additional_model_reporters = defaultdict(lambda: [])
     '''additional_model_reporters['alpha'] = [
             "Average pledge", "Total pledge", "Max pools per operator", "Median pools per operator",
