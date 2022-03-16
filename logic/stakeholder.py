@@ -11,8 +11,6 @@ import operator
 import logic.helper as hlp
 from logic.pool import Pool
 from logic.strategy import Strategy
-from logic.strategy import STARTING_MARGIN
-from logic.strategy import MARGIN_INCREMENT
 from logic.helper import MIN_STAKE_UNIT
 from logic.custom_exceptions import PoolNotFoundError, NonPositiveAllocationError
 
@@ -87,9 +85,7 @@ class Stakeholder(Agent):
         # them earlier so that the "easiest" move is preferred ( current -> delegator -> operator)
         max_utility_option = max(possible_moves, key=lambda key: possible_moves[key][0])
 
-        #todo find better way to discard draft pool ids (if needed) ->  currently fails when operator utility is negative
-        '''if "operator" in possible_moves.keys() and max_utility_option != "operator":
-            self.discard_draft_pools(possible_moves["operator"][1])'''
+        #todo maybe discard temp pool ids here
 
         self.new_strategy = None if max_utility_option == "current" else possible_moves[max_utility_option][1]
 
@@ -287,33 +283,6 @@ class Stakeholder(Agent):
             all_pools[new_pool.id] = temp_pool
         return max(margin_utilities, key=lambda key: margin_utilities[key])
 
-    def calculate_margin_simple(self, current_margin=-1):
-        if current_margin < 0:
-            # player doesn't have a pool yet so he sets the max margin
-            return STARTING_MARGIN
-        # player already has a pool
-        return max(current_margin - MARGIN_INCREMENT, 0)
-
-    '''def calculate_margin_increment(self, pool):
-        current_margin = pool.margin
-        new_pool = deepcopy(pool)
-        all_pools = deepcopy(self.model.pools)
-        if current_margin < 0:
-            # player doesn't have a pool yet so he sets the max margin
-            return STARTING_MARGIN
-        # player already has a pool
-        # compare current margin with one increment up and one increment down and choose the one with the highest utility
-        max_utility = 0
-        margin = -1
-        margin_candidates = {max(current_margin - MARGIN_INCREMENT, 0), current_margin,
-                             min(current_margin + MARGIN_INCREMENT, 1)}
-        for margin_candidate in margin_candidates:
-            new_pool.margin = margin_candidate
-            utility = self.calculate_operator_utility_by_pool(new_pool, all_pools)
-            if utility > max_utility:
-                max_utility = utility
-                margin = margin_candidate
-        return margin'''
 
     def calculate_margin_semi_perfect_strategy(self, pool):
         """
@@ -382,9 +351,9 @@ class Stakeholder(Agent):
 
     def determine_current_pools(self, num_pools):
         owned_pools = deepcopy(self.strategy.owned_pools)
-        if num_pools < self.strategy.num_pools:
+        if num_pools < len(self.strategy.owned_pools):
             # Ditch the pool(s) with the lowest desirability / rank
-            retiring_pools_num = self.strategy.num_pools - num_pools
+            retiring_pools_num = len(self.strategy.owned_pools) - num_pools
             for i in range(retiring_pools_num):
                 # owned_pools.pop(min(owned_pools, key=lambda key: owned_pools[key].stake))
                 desirabilities = {id: pool.calculate_desirability() for id, pool in owned_pools.items()}
@@ -420,7 +389,6 @@ class Stakeholder(Agent):
 
     def find_operator_move(self, num_pools, owned_pools):
         pledges = self.calculate_pledges(num_pools)
-        margins = []
 
         cost_per_pool = hlp.calculate_cost_per_pool_fixed_fraction(num_pools, self.cost, self.model.cost_factor) if \
             self.model.extra_cost_type == 'fixed_fraction' else hlp.calculate_cost_per_pool(num_pools, self.cost, self.model.cost_factor)
@@ -432,7 +400,7 @@ class Stakeholder(Agent):
             pool.cost = cost_per_pool
             pool.set_potential_profit(self.model.alpha, self.model.beta, self.model.reward_function_option, self.model.total_stake)
             pool.margin = self.calculate_margin_semi_perfect_strategy(pool)
-            margins.append(pool.margin)
+
         existing_pools_num = len(owned_pools)
         for i in range(existing_pools_num, num_pools):
             # For pools under consideration of opening, create according to the strategy
@@ -445,13 +413,11 @@ class Stakeholder(Agent):
                         reward_function_option=self.model.reward_function_option, total_stake=self.model.total_stake)
             # private pools have margin 0 but don't allow delegations
             pool.margin = self.calculate_margin_semi_perfect_strategy(pool)
-            margins.append(pool.margin)
             owned_pools[pool_id] = pool
 
         allocations = self.find_delegation_move_for_operator(pledges)
 
-        return Strategy(pledges=pledges, margins=margins, stake_allocations=allocations,
-                        num_pools=num_pools, owned_pools=owned_pools)
+        return Strategy(stake_allocations=allocations, owned_pools=owned_pools)
 
     def find_delegation_move_for_operator(self, pledges):
         allocations = dict()

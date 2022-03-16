@@ -296,10 +296,11 @@ def to_latex(row_list, sim_id, output_dir):
 
 
 def generate_execution_id(args_dict):
-    num_args_to_use = 4
+    num_args_to_use = 5
     max_characters = 100
+    primitive = (int, str, bool, float)
     return "".join([str(key) + '-' + str(value) + '-' for key, value in list(args_dict.items())[:num_args_to_use]
-                    if type(value) == bool or type(value) == int or type(value) == float])[:max_characters]
+                    if type(value) in primitive])[:max_characters]
 
 
 def calculate_cost_per_pool(num_pools, initial_cost, cost_factor):

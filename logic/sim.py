@@ -45,15 +45,15 @@ class Simulation(Model):
 
     }
 
-    def __init__(self, n=1000, k=100, alpha=0.3, myopic_fraction=0, abstention_rate=0, abstention_known=False,relative_utility_threshold=0,
-                 absolute_utility_threshold=1e-9, min_steps_to_keep_pool=5, pool_splitting=True, seed=None,
-                 pareto_param=2.0, max_iterations=1000, cost_min=1e-4, cost_max=1e-3, cost_factor=0.7,
-                 player_activation_order="Random", total_stake=-1, ms=10, stake_distr_type='Pareto',
+    def __init__(self, n=1000, k=100, alpha=0.3, stake_distr_type='Pareto', myopic_fraction=0, abstention_rate=0,
+                 abstention_known=False,relative_utility_threshold=0, absolute_utility_threshold=1e-9,
+                 min_steps_to_keep_pool=5, pool_splitting=True, seed=None, pareto_param=2.0, max_iterations=1000,
+                 cost_min=1e-4, cost_max=1e-3, cost_factor=0.7, player_activation_order="Random", total_stake=-1, ms=10,
                  extra_cost_type='fixed_fraction', reward_function_option=0, execution_id=''):
         # todo make sure that the input is valid? n > 0, 0 < k <= n
         self.arguments = locals()  # only used for naming the output files appropriately
 
-        if execution_id == '':
+        if execution_id == '' or execution_id == 'temp':
             # No identifier was provided by the user, so we construct one based on the simulation's parameter values
             execution_id = hlp.generate_execution_id(self.arguments)
         seed = str(seed) # to maintain consistency among seeds, because command line arguments are parsed as strings

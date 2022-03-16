@@ -76,7 +76,7 @@ def main():
         if isinstance(arg_values, list):
             if len(arg_values) > 2:
                 if arg_name == 'alpha' or arg_name == 'cost_min':
-                    variable_params[arg_name] = list(np.logspace(arg_values[0], arg_values[1], num=int(arg_values[2])))
+                    variable_params[arg_name] = [float(x) for x in np.logspace(arg_values[0], arg_values[1], num=int(arg_values[2]))]
                 else:
                     scale_factor = 1e6
                     int_range = [int(v * scale_factor) for v in arg_values]
@@ -92,7 +92,8 @@ def main():
 
     default_model_reporters = ["Pool count", "Nakamoto coefficient", "Number of pool splitters",
                                "Cost efficient stakeholders", "Total pledge",
-                               "Gini-id", "Gini-id stake"]  # , "Min-aggregate pledge"]
+                               "Gini-id", "Gini-id stake", "Gini-id stake (k)", "Gini-id (k)",
+                               "Gini-id stake (fraction)", "Gini-id (fraction)"]  # , "Min-aggregate pledge"]
     additional_model_reporters = defaultdict(lambda: [])
     '''additional_model_reporters['alpha'] = [
             "Average pledge", "Total pledge", "Max pools per operator", "Median pools per operator",

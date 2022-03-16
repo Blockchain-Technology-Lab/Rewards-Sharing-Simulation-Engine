@@ -118,14 +118,18 @@ def test_get_pool_splitter_count(mocker):
     model = logic.sim.Simulation()
 
     pools_list = [
-        Pool(owner=i, cost=0.001, pledge=0.001, margin=0.1, alpha=0.3, beta=0.1, pool_id=555, reward_function_option=0, total_stake=1)
+        Pool(owner=i, cost=0.001, pledge=0.001, margin=0.1, alpha=0.3, beta=0.1, pool_id=555, reward_function_option=0,
+             total_stake=1)
         for i in range(1, 11)]
     pools_list.append(
-        Pool(owner=2, cost=0.001, pledge=0.01, margin=0.1, alpha=0.3, beta=0.1, pool_id=556, reward_function_option=0, total_stake=1))
+        Pool(owner=2, cost=0.001, pledge=0.01, margin=0.1, alpha=0.3, beta=0.1, pool_id=556, reward_function_option=0,
+             total_stake=1))
     pools_list.append(
-        Pool(owner=2, cost=0.001, pledge=0.01, margin=0.1, alpha=0.3, beta=0.1, pool_id=556, reward_function_option=0, total_stake=1))
+        Pool(owner=2, cost=0.001, pledge=0.01, margin=0.1, alpha=0.3, beta=0.1, pool_id=556, reward_function_option=0,
+             total_stake=1))
     pools_list.append(
-        Pool(owner=5, cost=0.001, pledge=0.01, margin=0.1, alpha=0.3, beta=0.1, pool_id=556, reward_function_option=0, total_stake=1))
+        Pool(owner=5, cost=0.001, pledge=0.01, margin=0.1, alpha=0.3, beta=0.1, pool_id=556, reward_function_option=0,
+             total_stake=1))
 
     mocker.patch('logic.sim.Simulation.get_pools_list', return_value=pools_list)
 
@@ -151,6 +155,9 @@ def test_gini_coefficient():
     g4 = gini_coefficient(x4)
     assert round(g4, 3) == 0.145
 
+    x5 = np.array([1, 1, 3, 0, 0])
+    g5 = gini_coefficient(x5)
+    assert round(g5, 3) == 0.56
 
 
 def test_get_gini_id_coeff_pool_count():
@@ -158,13 +165,17 @@ def test_get_gini_id_coeff_pool_count():
 
     pools = {}
     pools_1 = [
-        Pool(owner=1, cost=0.001, pledge=0.01, margin=0.1, alpha=0.3, beta=0.1, pool_id=i, reward_function_option=0, total_stake=1)
+        Pool(owner=1, cost=0.001, pledge=0.01, margin=0.1, alpha=0.3, beta=0.1, pool_id=i, reward_function_option=0,
+             total_stake=1)
         for i in range(11)]
     for pool in pools_1:
         pools[pool.id] = pool
-    pools[11] = Pool(owner=2, cost=0.001, pledge=0.01, margin=0.1, alpha=0.3, beta=0.1, pool_id=11, reward_function_option=0, total_stake=1)
-    pools[12] = Pool(owner=2, cost=0.001, pledge=0.05, margin=0.1, alpha=0.3, beta=0.1, pool_id=12, reward_function_option=0, total_stake=1)
-    pools[13] = Pool(owner=5, cost=0.001, pledge=0.06, margin=0.1, alpha=0.3, beta=0.1, pool_id=13, reward_function_option=0, total_stake=1)
+    pools[11] = Pool(owner=2, cost=0.001, pledge=0.01, margin=0.1, alpha=0.3, beta=0.1, pool_id=11,
+                     reward_function_option=0, total_stake=1)
+    pools[12] = Pool(owner=2, cost=0.001, pledge=0.05, margin=0.1, alpha=0.3, beta=0.1, pool_id=12,
+                     reward_function_option=0, total_stake=1)
+    pools[13] = Pool(owner=5, cost=0.001, pledge=0.06, margin=0.1, alpha=0.3, beta=0.1, pool_id=13,
+                     reward_function_option=0, total_stake=1)
     model.pools = pools
 
     g = get_gini_id_coeff_pool_count(model)
@@ -191,3 +202,23 @@ def test_get_gini_id_coeff_stake():
 
     g = get_gini_id_coeff_stake(model)
     assert round(g, 3) == 0.145
+
+
+def test_get_gini_id_coeff_pool_count_k_agents():
+    model = logic.sim.Simulation(k=5)
+    pools = {}
+    pools_1 = [
+        Pool(owner=1, cost=0.001, pledge=0.01, margin=0.1, alpha=0.3, beta=0.1, pool_id=i,
+             reward_function_option=0, total_stake=1)
+        for i in range(3)]
+    for pool in pools_1:
+        pools[pool.id] = pool
+    pools[3] = Pool(owner=2, cost=0.001, pledge=0.01, margin=0.1, alpha=0.3, beta=0.1, pool_id=11,
+                     reward_function_option=0, total_stake=1)
+    pools[4] = Pool(owner=5, cost=0.001, pledge=0.06, margin=0.1, alpha=0.3, beta=0.1, pool_id=13,
+                     reward_function_option=0, total_stake=1)
+    model.pools = pools
+
+    g = get_gini_id_coeff_pool_count_k_agents(model)
+    assert round(g, 3) == 0.56
+

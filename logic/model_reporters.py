@@ -430,14 +430,8 @@ def gini_coefficient(np_array):
 
 
 def get_gini_id_coeff_pool_count(model):
-    """
-    We
-    @param model:
-    @return:
-    """
     # gather data
     pools = model.get_pools_list()
-    print(pools)
     #todo check later if you can abstract this to a function that serves this one, NC and others
     pools_owned = collections.defaultdict(lambda: 0)
     for pool in pools:
@@ -446,14 +440,57 @@ def get_gini_id_coeff_pool_count(model):
     return gini_coefficient(pools_per_agent)
 
 
+def get_gini_id_coeff_pool_count_k_agents(model):
+    # use at least k agents (if there aren't k pool operators, pad with non-pool operators)
+    pools = model.get_pools_list()
+    pools_owned = collections.defaultdict(lambda: 0)
+    for pool in pools:
+        pools_owned[pool.owner] += 1
+    pools_per_agent = np.fromiter(pools_owned.values(), dtype=int)
+    if pools_per_agent.size < model.k:
+        missing_values = model.k - pools_per_agent.size
+        pools_per_agent = np.append(pools_per_agent, np.zeros(missing_values, dtype=int))
+    return gini_coefficient(pools_per_agent)
+
+
+def get_gini_id_coeff_pool_count_fraction(model):
+    # gather data
+    pools = model.get_pools_list()
+    pools_owned = collections.defaultdict(lambda: 0)
+    for pool in pools:
+        pools_owned[pool.owner] += 1
+    pools_per_agent = np.fromiter(pools_owned.values(), dtype=int)
+    return gini_coefficient(pools_per_agent) / pools_per_agent.size
+
+
 def get_gini_id_coeff_stake(model):
     pools = model.get_pools_list()
-    # todo check later if you can abstract this to a function that serves this one, NC and others
     stake_controlled = collections.defaultdict(lambda: 0)
     for pool in pools:
         stake_controlled[pool.owner] += pool.stake
     stake_per_agent = np.fromiter(stake_controlled.values(), dtype=float)
     return gini_coefficient(stake_per_agent)
+
+
+def get_gini_id_coeff_stake_k_agents(model):
+    pools = model.get_pools_list()
+    stake_controlled = collections.defaultdict(lambda: 0)
+    for pool in pools:
+        stake_controlled[pool.owner] += pool.stake
+    stake_per_agent = np.fromiter(stake_controlled.values(), dtype=float)
+    if stake_per_agent.size < model.k:
+        missing_values = model.k - stake_per_agent.size
+        stake_per_agent = np.append(stake_per_agent, np.zeros(missing_values, dtype=int))
+    return gini_coefficient(stake_per_agent)
+
+
+def get_gini_id_coeff_stake_fraction(model):
+    pools = model.get_pools_list()
+    stake_controlled = collections.defaultdict(lambda: 0)
+    for pool in pools:
+        stake_controlled[pool.owner] += pool.stake
+    stake_per_agent = np.fromiter(stake_controlled.values(), dtype=float)
+    return gini_coefficient(stake_per_agent) / stake_per_agent.size
 
 
 # note that any new model reporters should be added to the end, to maintain the colour allocation
@@ -480,5 +517,9 @@ all_model_reporters = {
     "Number of pool splitters": get_pool_splitter_count,
     "Cost efficient stakeholders": get_cost_efficient_count,
     "Gini-id": get_gini_id_coeff_pool_count,
-    "Gini-id stake": get_gini_id_coeff_stake
+    "Gini-id stake": get_gini_id_coeff_stake,
+    "Gini-id (k)": get_gini_id_coeff_pool_count_k_agents,
+    "Gini-id stake (k)": get_gini_id_coeff_stake_k_agents,
+    "Gini-id (fraction)": get_gini_id_coeff_pool_count_fraction,
+    "Gini-id stake (fraction)": get_gini_id_coeff_stake_fraction
 }

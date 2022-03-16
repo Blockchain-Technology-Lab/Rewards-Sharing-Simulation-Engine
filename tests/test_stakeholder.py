@@ -31,11 +31,12 @@ def test_calculate_utility():
 
 #todo review failing test
 def test_calculate_operator_utility():
-    model = Simulation()
-    pool = Pool(cost=0.001, pledge=0.01, owner=156, margin=0.1, alpha=0.3, beta=0.1, pool_id=555, reward_function_option=0)
+    model = Simulation(total_stake=1)
+    pool = Pool(cost=0.001, pledge=0.1, owner=156, margin=0.1, alpha=0.3, beta=0.1, pool_id=555,
+                reward_function_option=0, total_stake=1)
     model.pools[555] = pool
     player = Stakeholder(unique_id=156, model=model, cost=0.001)
-    strategy = Strategy(pledges=[0.1], margins=[0.1], is_pool_operator=True, num_pools=1, owned_pools={555: pool})
+    strategy = Strategy(owned_pools={555: pool})
 
     utility = player.calculate_operator_utility_from_strategy(strategy)
 
