@@ -1,9 +1,4 @@
 # -*- coding: utf-8 -*-
-"""
-Created on Fri Jun 11 17:14:45 2021
-
-@author: chris
-"""
 from mesa import Agent
 from copy import deepcopy
 import operator
@@ -12,15 +7,14 @@ import logic.helper as hlp
 from logic.pool import Pool
 from logic.strategy import Strategy
 from logic.helper import MIN_STAKE_UNIT
-from logic.custom_exceptions import PoolNotFoundError, NonPositiveAllocationError
+from logic.custom_exceptions import PoolNotFoundError
 
 
 class Stakeholder(Agent):
 
-    def __init__(self, unique_id, model, stake=0, is_myopic=False, is_abstainer=False,
-                 cost=0, strategy=None):
+    def __init__(self, unique_id, model, stake, is_myopic=False, is_abstainer=False, cost=0, strategy=None):
         super().__init__(unique_id, model)
-        self.cost = cost  # the player's individual cost of running one pool
+        self.cost = cost  # the cost of running one pool for this agent
         self.stake = stake
         self.isMyopic = is_myopic
         self.abstains = is_abstainer
@@ -28,11 +22,10 @@ class Stakeholder(Agent):
         self.new_strategy = None
 
         if strategy is None:
-            # Initialise strategy to being a delegator with no allocated stake
+            # Initialise strategy to an "empty" strategy
             strategy = Strategy()
         self.strategy = strategy
 
-    # In every step the agent needs to decide what to do
     def step(self):
         self.update_strategy()
         if "simultaneous" not in self.model.player_activation_order.lower():
@@ -44,12 +37,6 @@ class Stakeholder(Agent):
             # For players that have recently opened a pool
             self.remaining_min_steps_to_keep_pool -= 1
 
-    def advance(self):
-        if self.new_strategy is not None:
-            # The player has changed their strategy, so now they have to execute it
-            self.execute_strategy()
-            self.model.current_step_idle = False
-
     def update_strategy(self):
         if not self.abstains:
             self.make_move()
@@ -59,8 +46,14 @@ class Stakeholder(Agent):
                 # player did not abstain in the previous round
                 self.new_strategy = Strategy()
 
+    def advance(self):
+        if self.new_strategy is not None:
+            # The player has changed their strategy, so now they have to execute it
+            self.execute_strategy()
+            self.model.current_step_idle = False
+
     def make_move(self):
-        current_utility = self.calculate_utility(self.strategy)
+        current_utility = self.calculate_expected_utility(self.strategy)
         current_utility_with_inertia = max(
             (1 + self.model.relative_utility_threshold) * current_utility,
             current_utility + self.model.absolute_utility_threshold
@@ -72,7 +65,7 @@ class Stakeholder(Agent):
         # unless they are pool operators with recently opened pools (we assume that they will keep them at least for a bit)
         if self.remaining_min_steps_to_keep_pool == 0:
             delegator_strategy = self.find_delegation_move_desirability()
-            delegator_utility = self.calculate_utility(delegator_strategy)
+            delegator_utility = self.calculate_expected_utility(delegator_strategy)
             possible_moves["delegator"] = delegator_utility, delegator_strategy
 
         if len(self.strategy.owned_pools) > 0 or self.has_potential_for_pool():
@@ -95,7 +88,7 @@ class Stakeholder(Agent):
         max_operator_strategy = None
         for num_pools in sorted(operator_strategies.keys()):
             operator_strategy = operator_strategies[num_pools]
-            operator_utility = self.calculate_utility(operator_strategy)
+            operator_utility = self.calculate_expected_utility(operator_strategy)
             if operator_utility > max_operator_utility:
                 max_operator_utility = operator_utility
                 max_operator_strategy = operator_strategy
@@ -108,14 +101,14 @@ class Stakeholder(Agent):
         hypothetical_owned_pools = set(operator_strategy.owned_pools.keys())
         self.model.rewind_pool_id_seq(step=len(hypothetical_owned_pools - old_owned_pools))
 
-    def calculate_utility(self, strategy):
+    def calculate_expected_utility(self, strategy):
         utility = 0
-        # Calculate utility of operating pools
+        # Calculate expected utility of operating own pools
         if len(strategy.owned_pools) > 0:
             utility += self.calculate_operator_utility_from_strategy(strategy)
 
+        # Calculate expected utility of delegating to other pools
         pools = self.model.pools
-        # Calculate utility of delegating to other pools
         for pool_id, a in strategy.stake_allocations.items():
             if a <= 0:
                 continue
@@ -153,10 +146,10 @@ class Stakeholder(Agent):
         )
         relative_pool_stake = pool_stake / self.model.total_stake
         relative_pledge = pledge / self.model.total_stake
-        r = hlp.calculate_pool_reward(relative_pool_stake, relative_pledge, alpha, beta, self.model.reward_function_option,total_stake= self.model.total_stake)
+        r = hlp.calculate_pool_reward(relative_pool_stake, relative_pledge, alpha, beta, self.model.reward_function_option, self.model.total_stake)
         stake_allocation = pool.pledge
         q = stake_allocation / pool_stake
-        return hlp.calculate_operator_reward_from_pool(pool, r, q)
+        return hlp.calculate_operator_reward_from_pool(pool_margin=pool.margin, pool_cost=pool.cost, pool_reward=r, operator_stake_fraction=q)
 
     def calculate_delegator_utility_from_pool(self, pool, stake_allocation):
         alpha = self.model.alpha
@@ -177,10 +170,10 @@ class Stakeholder(Agent):
         pool_stake = current_stake if self.isMyopic else non_myopic_stake
         relative_pool_stake = pool_stake / self.model.total_stake
         relative_pledge = pool.pledge / self.model.total_stake
-        r = hlp.calculate_pool_reward(relative_pool_stake, relative_pledge, alpha, beta, self.model.reward_function_option, total_stake=self.model.total_stake)
+        r = hlp.calculate_pool_reward(relative_pool_stake, relative_pledge, alpha, beta, self.model.reward_function_option, self.model.total_stake)
 
         q = stake_allocation / pool_stake
-        return hlp.calculate_delegator_reward_from_pool(pool, r, q)
+        return hlp.calculate_delegator_reward_from_pool(pool_margin=pool.margin, pool_cost=pool.cost, pool_reward=r, delegator_stake_fraction=q)
 
     # how does a myopic player decide whether to open a pool or not? -> for now we assume that all players play non-myopically when it comes to pool moves
     def has_potential_for_pool(self):
@@ -208,26 +201,13 @@ class Stakeholder(Agent):
         if len(current_pools) * saturation_point < self.model.perceived_active_stake:  # note that we use active stake instead of total stake
             return potential_profit > 0
 
-        existing_desirabilities = [pool.calculate_desirability() for pool in current_pools]
+        existing_desirabilities = [hlp.calculate_pool_desirability(margin=pool.margin, potential_profit=pool.potential_profit) for pool in current_pools]
         # Note that the potential profit is equal to the desirability of a pool with 0 margin,
         # so, effectively, the player is comparing his best-case desirability with the desirabilities of the current pools
         return potential_profit > 0 and any(
             desirability < potential_profit for desirability in existing_desirabilities)
 
-    def calculate_pledges(self, num_pools):
-        """
-        The players choose to allocate their entire stake as the pledge of their pools,
-        so they divide it equally among them
-        However, if they saturate all their pools with pledge and still have remaining stake,
-        then they don't allocate all of it to their pools, as a pool with such a pledge above saturation
-         would yield suboptimal rewards
-        :return:
-        """
-        if num_pools <= 0:
-            raise ValueError("Player tried to calculate pledge for zero or less pools.")
-        return [min(self.stake / num_pools, self.model.beta)] * num_pools
-
-    def calculate_margin_binary_search(self, pool, current_margin=0.25):
+    '''def calculate_margin_binary_search(self, pool, current_margin=0.25):
         """
         Calculate a suitable margin for a pool by trying out different values in a range
         and comparing the expected utilities they yield. Since the range is continuous, the search terminates after a
@@ -281,7 +261,7 @@ class Stakeholder(Agent):
             all_pools.pop(new_pool.id)
         else:
             all_pools[new_pool.id] = temp_pool
-        return max(margin_utilities, key=lambda key: margin_utilities[key])
+        return max(margin_utilities, key=lambda key: margin_utilities[key])'''
 
 
     def calculate_margin_semi_perfect_strategy(self, pool):
@@ -356,7 +336,7 @@ class Stakeholder(Agent):
             retiring_pools_num = len(self.strategy.owned_pools) - num_pools
             for i in range(retiring_pools_num):
                 # owned_pools.pop(min(owned_pools, key=lambda key: owned_pools[key].stake))
-                desirabilities = {id: pool.calculate_desirability() for id, pool in owned_pools.items()}
+                desirabilities = {id: hlp.calculate_pool_desirability(margin=pool.margin, potential_profit=pool.potential_profit) for id, pool in owned_pools.items()}
                 ranks = hlp.calculate_ranks(desirabilities, rank_ids=True)
                 # important to use rank and not desirabilities to make sure that the same tie breaking rule is followed
                 owned_pools.pop(max(ranks, key=lambda key: ranks[key]))
@@ -388,10 +368,10 @@ class Stakeholder(Agent):
         return moves
 
     def find_operator_move(self, num_pools, owned_pools):
-        pledges = self.calculate_pledges(num_pools)
+        pledges = hlp.determine_pledge_per_pool(agent_stake=self.stake, beta=self.model.beta, num_pools=num_pools)
 
-        cost_per_pool = hlp.calculate_cost_per_pool_fixed_fraction(num_pools, self.cost, self.model.cost_factor) if \
-            self.model.extra_cost_type == 'fixed_fraction' else hlp.calculate_cost_per_pool(num_pools, self.cost, self.model.cost_factor)
+        cost_per_pool = hlp.calculate_cost_per_pool_fixed_fraction(num_pools=num_pools, initial_cost=self.cost, cost_factor=self.model.cost_factor) if \
+            self.model.extra_cost_type == 'fixed_fraction' else hlp.calculate_cost_per_pool(num_pools=num_pools, initial_cost=self.cost, cost_factor=self.model.cost_factor)
         for i, (pool_id, pool) in enumerate(owned_pools.items()):
             # For pools that already exist, modify them to match the new strategy
             pool.stake -= pool.pledge - pledges[i]
@@ -450,8 +430,11 @@ class Stakeholder(Agent):
             saturation_point = self.model.beta
             desirability_dict = {
                 pool.id:
-                    pool.calculate_myopic_desirability(self.model.alpha, saturation_point, self.model.total_stake) if self.isMyopic
-                    else pool.calculate_desirability()
+                    hlp.calculate_myopic_pool_desirability(stake=pool.stake, pledge=pool.pledge,
+                                                           cost=pool.cost, margin=pool.margin,
+                                                           alpha=self.model.alpha, beta=saturation_point,
+                                                           total_stake=self.model.total_stake) if self.isMyopic
+                    else hlp.calculate_pool_desirability(margin=pool.margin, potential_profit=pool.potential_profit)
                 for pool in pools_list
             }
             pp_dict = {pool.id: pool.potential_profit for pool in pools_list}

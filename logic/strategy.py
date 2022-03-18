@@ -6,8 +6,7 @@ Created on Fri Jun 11 17:13:20 2021
 """
 
 class Strategy:
-    # todo rethink slots as they may scale better
-    # __slots__ = ['owned_pools', 'stake_allocations']
+    __slots__ = ['owned_pools', 'stake_allocations']
 
     def __init__(self, stake_allocations=None, owned_pools=None):
         if owned_pools is None:

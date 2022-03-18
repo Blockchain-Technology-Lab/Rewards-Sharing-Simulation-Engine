@@ -1,4 +1,5 @@
 import logic.sim as simulation
+from logic.helper import *
 
 import pathlib
 import matplotlib.pyplot as plt
@@ -34,7 +35,7 @@ def main():
                         help='The utility threshold under which moves are disregarded. Default is 1e-9.')
     parser.add_argument('--player_activation_order', type=str, default='Random',
                         help='Player activation order. Default is random.')
-    parser.add_argument('--seed', default=42,#None,
+    parser.add_argument('--seed', default=None,
                         help='Seed for reproducibility. Default is None, which means that no seed is given.')
     parser.add_argument("--min_steps_to_keep_pool", type=int, default=5,
                         help='The number of steps for which a player remains idle after opening a pool. Default is 5.')
@@ -129,11 +130,12 @@ def main():
 
     pool_sizes_by_step = sim_df['Stake per entity']
     pool_sizes_by_pool = np.array(list(pool_sizes_by_step)).T
-    plt.figure()
+    plt.figure(figsize=(10,5))
     plt.stackplot(range(len(pool_sizes_by_step)), pool_sizes_by_pool)
+    plt.xlim(xmin=0.0)
     plt.xlabel("Round")
     plt.ylabel("Stake per entity")
-    plt.savefig(figures_dir + "poolDynamics.png", bbox_inches='tight')
+    plt.savefig(figures_dir + "poolDynamics-" + execution_id + ".png", bbox_inches='tight')
 
 
 def plot_line(execution_id, data, color, title, x_label, y_label, filename, equilibrium_steps, pivot_steps,
@@ -159,8 +161,6 @@ def plot_line(execution_id, data, color, title, x_label, y_label, filename, equi
     plt.legend()
     plt.savefig(figures_dir + execution_id + "-" + filename + ".png", bbox_inches='tight')
 
-    # plt.show()
-
 
 def main_with_profiling():
     import cProfile
@@ -179,3 +179,8 @@ def main_with_profiling():
 if __name__ == "__main__":
     main()  # for profiling the code, comment this line and uncomment the one below
     #main_with_profiling()
+    cache_funcs = [calculate_potential_profit, calculate_pool_reward, #calculate_cost_per_pool, calculate_myopic_pool_desirability,
+                   calculate_delegator_reward_from_pool, calculate_operator_reward_from_pool, calculate_cost_per_pool_fixed_fraction,
+                   calculate_pool_desirability, calculate_pool_stake_NM_from_rank, determine_pledge_per_pool]
+    for func in cache_funcs:
+        print(func.__name__,': ', func.cache_info())

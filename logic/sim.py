@@ -278,7 +278,7 @@ class Simulation(Model):
         pool_potential_profits = {pool.id: pool.potential_profit for pool in pools}
         pool_potential_profit_ranks = hlp.calculate_ranks(pool_potential_profits)
         player_potential_profit_ranks = hlp.calculate_ranks(player_potential_profits)
-        desirabilities = {pool.id: pool.calculate_desirability() for pool in pools}
+        desirabilities = {pool.id: hlp.calculate_pool_desirability(margin=pool.margin, potential_profit=pool.potential_profit) for pool in pools}
         desirability_ranks = hlp.calculate_ranks(desirabilities, pool_potential_profits)
         stakes = {player_id: player.stake for player_id, player in players.items()}
         stake_ranks = hlp.calculate_ranks(stakes)
@@ -288,7 +288,7 @@ class Simulation(Model):
             [[pool.owner, pool.id, round(players[pool.owner].stake, decimals), round(pool.pledge, decimals),
               round(pool.stake, decimals), round(players[pool.owner].cost, decimals),round(pool.cost, decimals),
               round(player_potential_profits[pool.owner], decimals),
-              round(pool.potential_profit, decimals), round(pool.calculate_desirability(), decimals),
+              round(pool.potential_profit, decimals), round(hlp.calculate_pool_desirability(margin=pool.margin, potential_profit=pool.potential_profit), decimals),
               stake_ranks[pool.owner], negative_cost_ranks[pool.owner],
               player_potential_profit_ranks[pool.owner],
               desirability_ranks[pool.id], round(pool.margin, decimals),
@@ -334,7 +334,7 @@ class Simulation(Model):
         # Revise active stake
         active_stake = sum([pool.stake for pool in self.pools.values()])
         self.perceived_active_stake = active_stake
-        # Revise expected number of pools, k
+        # Revise expected number of pools, k (note that the value of beta, which is used to calculate rewards, does not change in this case)
         self.k = math.ceil(round(active_stake / self.beta, 12))  # first rounding to 12 decimal digits to avoid floating point errors
 
     def adjust_params(self):

@@ -64,14 +64,14 @@ def get_pool_sizes_by_pool(model):
 def get_desirabilities_by_agent(model):
     desirabilities = dict()
     for pool in model.get_pools_list():
-        desirabilities[pool.owner] = pool.calculate_desirability()
+        desirabilities[pool.owner] = hlp.calculate_pool_desirability(margin=pool.margin, potential_profit=pool.potential_profit)
     return [desirabilities[i] if i in desirabilities else 0 for i in range(model.n)]
 
 
 def get_desirabilities_by_pool(model):
     desirabilities = dict()
     for id, pool in model.pools.items():
-        desirabilities[id] = pool.calculate_desirability()
+        desirabilities[id] = hlp.calculate_pool_desirability(margin=pool.margin, potential_profit=pool.potential_profit)
     return [desirabilities[i] if i in desirabilities else 0 for i in range(1, MAX_NUM_POOLS)] \
         if len(desirabilities) > 0 else [0] * MAX_NUM_POOLS
 

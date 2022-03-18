@@ -10,6 +10,7 @@ import csv
 import pandas as pd
 import pathlib
 from math import sqrt
+from functools import lru_cache
 
 TOTAL_EPOCH_REWARDS_R = 1
 MAX_NUM_POOLS = 1000
@@ -41,7 +42,7 @@ def generate_stake_distr_pareto(num_agents, pareto_param=2, seed=156, truncation
 
 def truncate_pareto(rng, pareto_params, sample, truncation_factor):
     a, m = pareto_params
-    while True:
+    while 1:
         # rejection sampling to ensure that the distribution is truncated
         max_value = max(sample)
         if max_value > sum(sample) / truncation_factor:
@@ -121,11 +122,10 @@ def normalize_distr(dstr, normal_sum=1):
     nrm_dstr[-1] += flt_error
     return nrm_dstr
 
-
+@lru_cache(maxsize=1024)
 def calculate_potential_profit(pledge, cost, alpha, beta, reward_function_option, total_stake):
     """
     Calculate a pool's potential profit, which can be defined as the profit it would get at saturation level
-
     :param pledge:
     :param cost:
     :param alpha:
@@ -137,13 +137,14 @@ def calculate_potential_profit(pledge, cost, alpha, beta, reward_function_option
     potential_reward = calculate_pool_reward(relative_stake, relative_pledge, alpha, beta, reward_function_option, total_stake)
     return potential_reward - cost
 
-
+@lru_cache(maxsize=1024)
 def calculate_current_profit(stake, pledge, cost, alpha, beta, reward_function_option, total_stake):
     relative_pledge = pledge / total_stake
     relative_stake = stake / total_stake
     reward = calculate_pool_reward(relative_stake, relative_pledge, alpha, beta, reward_function_option, total_stake)
     return reward - cost
 
+@lru_cache(maxsize=1024)
 def calculate_pool_reward(relative_stake, relative_pledge, alpha, beta, reward_function_option, total_stake, curve_root=3, crossover_factor=8):
     beta = beta / total_stake
     if reward_function_option == 0:
@@ -163,13 +164,11 @@ def calculate_pool_reward(relative_stake, relative_pledge, alpha, beta, reward_f
     else:
         raise ValueError("Invalid option for reward function.")
 
-
 def calculate_pool_reward_old(relative_stake, relative_pledge, alpha, beta):
     pledge_ = min(relative_pledge, beta)
     stake_ = min(relative_stake, beta)
     r = (TOTAL_EPOCH_REWARDS_R / (1 + alpha)) * (stake_ + (pledge_ * alpha * ((stake_ - pledge_ * (1 - stake_ / beta)) / beta)))
     return r
-
 
 def calculate_pool_reward_new(relative_stake, relative_pledge, alpha, beta):
     pledge_ = min(relative_pledge, beta)
@@ -177,20 +176,17 @@ def calculate_pool_reward_new(relative_stake, relative_pledge, alpha, beta):
     r = (TOTAL_EPOCH_REWARDS_R / (1 + alpha)) * stake_ * (1 + (alpha * pledge_ / beta))
     return r
 
-
 def calculate_pool_reward_flat_pledge_benefit(relative_stake, relative_pledge, alpha, beta):
     pledge_ = min(relative_pledge, beta)
     stake_ = min(relative_stake, beta)
     r = (TOTAL_EPOCH_REWARDS_R / (1 + alpha)) * (stake_ + alpha * pledge_)
     return r
 
-
 def calculate_pool_reward_new_sqrt(relative_stake, relative_pledge, alpha, beta):
     pledge_ = min(relative_pledge, beta)
     stake_ = min(relative_stake, beta)
     r = (TOTAL_EPOCH_REWARDS_R / (1 + alpha)) * stake_ * (1 + (alpha * sqrt(pledge_) / beta))
     return r
-
 
 def calculate_pool_reward_curve_pledge_benefit(relative_stake, relative_pledge, alpha, beta, curve_root, crossover_factor):
     crossover = beta / crossover_factor
@@ -214,19 +210,18 @@ def calculate_pool_reward_curve_pledge_benefit_no_min(relative_stake, relative_p
                 stake_ + (pledge_ * alpha * ((stake_ - pledge_ * (1 - stake_ / beta)) / beta)))
     return r
 
-
-def calculate_delegator_reward_from_pool(pool, pool_reward, delegator_stake_fraction):
-    margin_factor = (1 - pool.margin) * delegator_stake_fraction
-    pool_profit = pool_reward - pool.cost
+@lru_cache(maxsize=1024)
+def calculate_delegator_reward_from_pool(pool_margin, pool_cost, pool_reward, delegator_stake_fraction):
+    margin_factor = (1 - pool_margin) * delegator_stake_fraction
+    pool_profit = pool_reward - pool_cost
     r_d = max(margin_factor * pool_profit, 0)
     return r_d
 
-
-def calculate_operator_reward_from_pool(pool, pool_reward, operator_stake_fraction):
-    margin_factor = pool.margin + ((1 - pool.margin) * operator_stake_fraction)
-    pool_profit = pool_reward - pool.cost
+@lru_cache(maxsize=1024)
+def calculate_operator_reward_from_pool(pool_margin, pool_cost, pool_reward, operator_stake_fraction):
+    margin_factor = pool_margin + ((1 - pool_margin) * operator_stake_fraction)
+    pool_profit = pool_reward - pool_cost
     return pool_profit if pool_profit <= 0 else pool_profit * margin_factor
-
 
 def calculate_pool_stake_NM(pool_id, pools, beta, k):
     """
@@ -238,7 +233,7 @@ def calculate_pool_stake_NM(pool_id, pools, beta, k):
     :return: the value of the non-myopic stake of the pool with id pool_id
     """
     desirabilities = {
-        pool_id: pool.calculate_desirability()
+        pool_id: calculate_pool_desirability(margin=pool.margin, potential_profit=pool.potential_profit)
         for pool_id, pool in pools.items()
     }
     potential_profits = {
@@ -253,8 +248,7 @@ def calculate_pool_stake_NM(pool_id, pools, beta, k):
     ranks = calculate_ranks(desirabilities, potential_profits, stakes, rank_ids=True)
     rank = ranks[pool_id]
     pool = pools[pool_id]
-    return pool.calculate_stake_NM(k, beta, rank)
-
+    return calculate_pool_stake_NM_from_rank(pool_pledge=pool.pledge, pool_stake=pool.stake, k=k, beta=beta, rank=rank)
 
 def calculate_ranks(ranking_dict, *tie_breaking_dicts, rank_ids=True):
     """
@@ -280,7 +274,6 @@ def calculate_ranks(ranking_dict, *tie_breaking_dicts, rank_ids=True):
     }
     return ranks
 
-
 def to_latex(row_list, sim_id, output_dir):
     row_list_latex = [row[2:4] + row[5:8] + row[9:10] + row[12:14] for row in row_list]
     df = pd.DataFrame(row_list_latex[1:], columns=row_list_latex[0])
@@ -294,7 +287,6 @@ def to_latex(row_list, sim_id, output_dir):
     with open(output_dir + sim_id + "-output.tex", 'w', newline='') as file:
         sorted_df.to_latex(file, index=False)
 
-
 def generate_execution_id(args_dict):
     num_args_to_use = 5
     max_characters = 100
@@ -302,7 +294,7 @@ def generate_execution_id(args_dict):
     return "".join([str(key) + '-' + str(value) + '-' for key, value in list(args_dict.items())[:num_args_to_use]
                     if type(value) in primitive])[:max_characters]
 
-
+@lru_cache(maxsize=1024)
 def calculate_cost_per_pool(num_pools, initial_cost, cost_factor):
     """
     Calculate the average cost of an agent's pools, assuming that any additional pool costs less than the previous one
@@ -318,6 +310,33 @@ def calculate_cost_per_pool(num_pools, initial_cost, cost_factor):
     else:
         return initial_cost
 
-
+@lru_cache(maxsize=1024)
 def calculate_cost_per_pool_fixed_fraction(num_pools, initial_cost, cost_factor):
     return (initial_cost + (num_pools - 1) * cost_factor * initial_cost) / num_pools
+
+@lru_cache(maxsize=1024)
+def calculate_pool_desirability(margin, potential_profit):
+    return max((1 - margin) * potential_profit, 0)
+
+@lru_cache(maxsize=1024)
+def calculate_myopic_pool_desirability(stake, pledge, cost, margin, alpha, beta, total_stake):
+    current_profit = calculate_current_profit(stake, pledge, cost, alpha, beta, total_stake)
+    return max((1 - margin) * current_profit, 0)
+
+@lru_cache(maxsize=1024)
+def calculate_pool_stake_NM_from_rank(pool_pledge, pool_stake, k, beta, rank):
+    return pool_pledge if rank > k else max(beta, pool_stake)
+
+@lru_cache(maxsize=1024)
+def determine_pledge_per_pool(agent_stake, beta, num_pools):
+    """
+    The players choose to allocate their entire stake as the pledge of their pools,
+    so they divide it equally among them
+    However, if they saturate all their pools with pledge and still have remaining stake,
+    then they don't allocate all of it to their pools, as a pool with such a pledge above saturation
+     would yield suboptimal rewards
+    :return: list of pledge values
+    """
+    if num_pools <= 0:
+        raise ValueError("Player tried to calculate pledge for zero or less pools.")
+    return [min(agent_stake / num_pools, beta)] * num_pools
