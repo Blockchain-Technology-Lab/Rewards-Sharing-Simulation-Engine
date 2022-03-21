@@ -1,9 +1,5 @@
 # -*- coding: utf-8 -*-
-"""
-Created on Thu Jun 10 12:59:49 2021
 
-@author: chris
-"""
 import csv
 import time
 import pathlib
@@ -135,12 +131,9 @@ class Simulation(Model):
         self.min_consecutive_idle_steps_for_convergence = max(min_steps_to_keep_pool + 1, ms)
         self.pools = dict()
         self.revision_frequency = 10  # defines how often active stake and expected #pools are revised
-        # self.initial_states = {"inactive":0, "maximally_decentralised":1, "nicely_decentralised":2} todo maybe support different initial states
-
         self.initialise_pool_id_seq()  # initialise pool id sequence for the new model run
-        #cost_max = 10 * cost_min
 
-        # only include reporters that are needed for every STEP
+        # only include reporters that are needed for every STEP here
         self.datacollector = DataCollector(
             model_reporters={
                 "#Pools": get_number_of_pools,
@@ -168,8 +161,7 @@ class Simulation(Model):
                 #"AvgCostRank": get_avg_cost_rnk
             })
 
-        #self.pool_owner_id_mapping = dict() # todo probably useless
-        self.start_time = None
+        self.start_time = time.time()
         self.equilibrium_steps = []
         self.pivot_steps = []
 
@@ -216,20 +208,20 @@ class Simulation(Model):
     def rewind_pool_id_seq(self, step=1):
         self.id_seq -= step
 
-    # One step of the model
     def step(self):
-        if self.start_time is None:
-            self.start_time = time.time()
+        """
+        Execute one step of the simulation
+        """
         self.datacollector.collect(self)
 
         current_step = self.schedule.steps
-
-        if current_step > 0 and current_step % self.revision_frequency == 0:
+        if current_step % self.revision_frequency == 0 and current_step > 0:
             self.revise_beliefs()
 
         if current_step >= self.max_iterations:
+            # put those 3 in a wrap up function (instead of print time)
             self.running = False
-            print("Model took  {:.2f} seconds to run.".format(time.time() - self.start_time))
+            self.print_time()
             self.dump_state_to_csv()
             return
 
@@ -243,58 +235,40 @@ class Simulation(Model):
                     self.adjust_params()
                 else:
                     self.running = False
-                    print("Model took  {:.2f} seconds to run.".format(time.time() - self.start_time))
+                    self.print_time()
                     self.dump_state_to_csv()
+                    return
         else:
             self.consecutive_idle_steps = 0
         self.current_step_idle = True
         self.get_status()
 
-    # Run multiple steps
     def run_model(self):
+        """
+        Execute multiple steps of the simulation, until it converges or a maximum number of iterations is reached
+        :return:
+        """
+        self.start_time = time.time()
         self.initialise_pool_id_seq()  # initialise pool id sequence for the new model run
         while self.schedule.steps <= self.max_iterations and self.running:
             self.step()
 
     def has_converged(self):
         """
-            Check whether the system has reached a state of equilibrium,
-            where no player wants to change their strategy
+        Check whether the system has reached a state of equilibrium,
+        where no player wants to change their strategy
         """
         return self.consecutive_idle_steps >= self.min_consecutive_idle_steps_for_convergence
 
     def dump_state_to_csv(self):
-        row_list = [
-            ["Owner id", "Pool id", "Owner stake", "Pledge", "Pool stake", "Owner cost", "Pool cost",
-             "Owner PP",  "Pool PP", "Pool desirability",
-             "Owner stake rank", "Owner cost rank", "Owner PP rank",
-              "Pool desirability rank", "Margin", "Perfect margin","Pool status"]
-        ]
+        row_list = [["Pool id", "Owner id", "Owner stake", "Pool Pledge", "Pool stake", "Owner cost", "Pool cost", "Pool margin"]]
         players = self.get_players_dict()
         pools = self.get_pools_list()
-        player_potential_profits = {
-            player.unique_id: hlp.calculate_potential_profit(player.stake, player.cost, self.alpha, self.beta, self.reward_function_option, self.total_stake) for
-            player in players.values()}
-        pool_potential_profits = {pool.id: pool.potential_profit for pool in pools}
-        pool_potential_profit_ranks = hlp.calculate_ranks(pool_potential_profits)
-        player_potential_profit_ranks = hlp.calculate_ranks(player_potential_profits)
-        desirabilities = {pool.id: hlp.calculate_pool_desirability(margin=pool.margin, potential_profit=pool.potential_profit) for pool in pools}
-        desirability_ranks = hlp.calculate_ranks(desirabilities, pool_potential_profits)
-        stakes = {player_id: player.stake for player_id, player in players.items()}
-        stake_ranks = hlp.calculate_ranks(stakes)
-        negative_cost_ranks = hlp.calculate_ranks({player_id: -player.cost for player_id, player in players.items()})
-        decimals = 8
+        decimals = 12
         row_list.extend(
-            [[pool.owner, pool.id, round(players[pool.owner].stake, decimals), round(pool.pledge, decimals),
-              round(pool.stake, decimals), round(players[pool.owner].cost, decimals),round(pool.cost, decimals),
-              round(player_potential_profits[pool.owner], decimals),
-              round(pool.potential_profit, decimals), round(hlp.calculate_pool_desirability(margin=pool.margin, potential_profit=pool.potential_profit), decimals),
-              stake_ranks[pool.owner], negative_cost_ranks[pool.owner],
-              player_potential_profit_ranks[pool.owner],
-              desirability_ranks[pool.id], round(pool.margin, decimals),
-              round(players[pool.owner].calculate_margin_perfect_strategy(), decimals),
-              "Private" if pool.is_private else "Public"]
-             for pool in pools])
+            [[pool.id, pool.owner, round(players[pool.owner].stake, decimals), round(pool.pledge, decimals),
+              round(pool.stake, decimals), round(players[pool.owner].cost, decimals), round(pool.cost, decimals),
+              round(pool.margin, decimals)] for pool in pools])
 
         today = time.strftime("%d-%m-%Y")
         output_dir = "output/" + today
@@ -305,10 +279,6 @@ class Simulation(Model):
         with open(filename, 'w', newline='') as file:
             writer = csv.writer(file)
             writer.writerows(row_list)
-
-        # temporary, used to extract results in latex format for easier reporting
-        latex_dir = output_dir + "/latex/"
-        hlp.to_latex(row_list, self.execution_id, latex_dir)
 
     def get_pools_list(self):
         return list(self.pools.values())
@@ -334,7 +304,7 @@ class Simulation(Model):
         # Revise active stake
         active_stake = sum([pool.stake for pool in self.pools.values()])
         self.perceived_active_stake = active_stake
-        # Revise expected number of pools, k (note that the value of beta, which is used to calculate rewards, does not change in this case)
+        # Revise expected number of pools, k  (note that the value of beta, which is used to calculate rewards, does not change in this case)
         self.k = math.ceil(round(active_stake / self.beta, 12))  # first rounding to 12 decimal digits to avoid floating point errors
 
     def adjust_params(self):
@@ -349,3 +319,6 @@ class Simulation(Model):
                     self.beta = self.total_stake / self.k
         if change_occured:
             self.pivot_steps.append(self.schedule.steps)
+
+    def print_time(self):
+        print("Model took  {:.2f} seconds to run.".format(time.time() - self.start_time))

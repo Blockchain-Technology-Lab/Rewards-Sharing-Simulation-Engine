@@ -14,7 +14,8 @@ def test_get_number_of_pools():
 
 
 def test_get_controlled_stake_mean_abs_diff(mocker):
-    model = logic.sim.Simulation()
+    total_stake = 1
+    model = logic.sim.Simulation(total_stake=total_stake)
 
     players_dict = {
         1: Stakeholder(unique_id=1, model=model, stake=0.01),
@@ -22,13 +23,13 @@ def test_get_controlled_stake_mean_abs_diff(mocker):
     }
 
     pool1 = Pool(owner=1, cost=0.001, pledge=0.01, margin=0.1, alpha=0.3, beta=0.1, pool_id=555,
-                 reward_function_option=0)
+                 reward_function_option=0, total_stake=total_stake)
     pool1.stake = 0.08
     pool2 = Pool(owner=2, cost=0.001, pledge=0.01, margin=0.1, alpha=0.3, beta=0.1, pool_id=556,
-                 reward_function_option=0)
+                 reward_function_option=0, total_stake=total_stake)
     pool2.stake = 0.1
     pool3 = Pool(owner=2, cost=0.001, pledge=0.01, margin=0.1, alpha=0.3, beta=0.1, pool_id=557,
-                 reward_function_option=0)
+                 reward_function_option=0, total_stake=total_stake)
     pool3.stake = 0.05
     pools_list = [pool1, pool2, pool3]
 
@@ -41,7 +42,8 @@ def test_get_controlled_stake_mean_abs_diff(mocker):
 
 
 def test_get_controlled_stake_distr_stat_dist(mocker):
-    model = logic.sim.Simulation()
+    total_stake = 1
+    model = logic.sim.Simulation(total_stake=total_stake)
 
     players_dict = {
         1: Stakeholder(unique_id=1, model=model, stake=0.01),
@@ -50,13 +52,13 @@ def test_get_controlled_stake_distr_stat_dist(mocker):
     }
 
     pool1 = Pool(owner=1, cost=0.001, pledge=0.01, margin=0.1, alpha=0.3, beta=0.1, pool_id=555,
-                 reward_function_option=0)
+                 reward_function_option=0, total_stake=total_stake)
     pool1.stake = 0.08
     pool2 = Pool(owner=2, cost=0.001, pledge=0.01, margin=0.1, alpha=0.3, beta=0.1, pool_id=556,
-                 reward_function_option=0)
+                 reward_function_option=0, total_stake=total_stake)
     pool2.stake = 0.1
     pool3 = Pool(owner=2, cost=0.001, pledge=0.01, margin=0.1, alpha=0.3, beta=0.1, pool_id=557,
-                 reward_function_option=0)
+                 reward_function_option=0, total_stake=total_stake)
     pool3.stake = 0.05
     pools_list = [pool1, pool2, pool3]
 
@@ -70,16 +72,17 @@ def test_get_controlled_stake_distr_stat_dist(mocker):
 
 
 def test_get_min_aggregate_pledge(mocker):
-    model = logic.sim.Simulation()
+    total_stake = 1
+    model = logic.sim.Simulation(total_stake=total_stake)
 
     pool1 = Pool(owner=1, cost=0.001, pledge=0.001, margin=0.1, alpha=0.3, beta=0.1, pool_id=555,
-                 reward_function_option=0)
+                 reward_function_option=0, total_stake=total_stake)
     pool1.stake = 0.09
     pool2 = Pool(owner=2, cost=0.001, pledge=0.01, margin=0.1, alpha=0.3, beta=0.1, pool_id=556,
-                 reward_function_option=0)
+                 reward_function_option=0, total_stake=total_stake)
     pool2.stake = 0.1
     pool3 = Pool(owner=2, cost=0.001, pledge=0.002, margin=0.1, alpha=0.3, beta=0.1, pool_id=557,
-                 reward_function_option=0)
+                 reward_function_option=0, total_stake=total_stake)
     pool3.stake = 0.05
     pools_list = [pool1, pool2, pool3]
 
@@ -96,7 +99,7 @@ def test_get_min_aggregate_pledge(mocker):
     for i in range(num_pools):
         pools_list.append(
             Pool(owner=i, cost=0.001, pledge=stake_per_pool, margin=0.1, alpha=0.3, beta=0.1, pool_id=100 + i,
-                 reward_function_option=0))
+                 reward_function_option=0, total_stake=total_stake))
     mocker.patch('logic.sim.Simulation.get_pools_list', return_value=pools_list)
     min_aggr_pledge = get_min_aggregate_pledge(model)
     assert min_aggr_pledge == num_pools / 2 * stake_per_pool

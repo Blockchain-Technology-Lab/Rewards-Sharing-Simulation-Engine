@@ -11,6 +11,7 @@ import pandas as pd
 import pathlib
 from math import sqrt
 from functools import lru_cache
+import heapq
 
 TOTAL_EPOCH_REWARDS_R = 1
 MAX_NUM_POOLS = 1000
@@ -225,30 +226,24 @@ def calculate_operator_reward_from_pool(pool_margin, pool_cost, pool_reward, ope
 
 def calculate_pool_stake_NM(pool_id, pools, beta, k):
     """
-    Calculate the non-myopic stake of a pool, given the pool and the state of the system (current pools)
+    Calculate the non-myopic stake of a pool, given the pool and the state of the system (other active pools)
     :param pool_id: the id of the pool that is examined
     :param pools: dictionary of pools with the pool id as key and the pool object as value
     :param beta: the saturation point of the system
     :param k: the desired number of pools of the system
     :return: the value of the non-myopic stake of the pool with id pool_id
     """
-    desirabilities = {
-        pool_id: calculate_pool_desirability(margin=pool.margin, potential_profit=pool.potential_profit)
-        for pool_id, pool in pools.items()
-    }
-    potential_profits = {
-        pool_id: pool.potential_profit
-        for pool_id, pool in pools.items()
-    }
-    stakes = {
-        pool_id: pool.stake
-        for pool_id, pool in pools.items()
-    }
-    # todo this exact same calculation is performed for all potential pools. maybe cache results somehow?
-    ranks = calculate_ranks(desirabilities, potential_profits, stakes, rank_ids=True)
-    rank = ranks[pool_id]
     pool = pools[pool_id]
-    return calculate_pool_stake_NM_from_rank(pool_pledge=pool.pledge, pool_stake=pool.stake, k=k, beta=beta, rank=rank)
+    if len(pools) <= k:
+        rank_in_top_k = True
+    else:
+        d = [(calculate_pool_desirability(margin=pool.margin, potential_profit=pool.potential_profit),
+              pool.potential_profit, pool.stake, -pool_id) for pool_id, pool in pools.items()]
+        top_k_pools = heapq.nlargest(k, d)
+        top_k_pool_ids = [-p[3] for p in top_k_pools]
+        rank_in_top_k = pool_id in top_k_pool_ids
+
+    return calculate_pool_stake_NM_from_rank(pool_pledge=pool.pledge, pool_stake=pool.stake, beta=beta, rank_in_top_k=rank_in_top_k)
 
 def calculate_ranks(ranking_dict, *tie_breaking_dicts, rank_ids=True):
     """
@@ -324,8 +319,8 @@ def calculate_myopic_pool_desirability(stake, pledge, cost, margin, alpha, beta,
     return max((1 - margin) * current_profit, 0)
 
 @lru_cache(maxsize=1024)
-def calculate_pool_stake_NM_from_rank(pool_pledge, pool_stake, k, beta, rank):
-    return pool_pledge if rank > k else max(beta, pool_stake)
+def calculate_pool_stake_NM_from_rank(pool_pledge, pool_stake, beta, rank_in_top_k):
+    return max(beta, pool_stake) if rank_in_top_k else pool_pledge
 
 @lru_cache(maxsize=1024)
 def determine_pledge_per_pool(agent_stake, beta, num_pools):

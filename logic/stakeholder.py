@@ -385,7 +385,6 @@ class Stakeholder(Agent):
         for i in range(existing_pools_num, num_pools):
             # For pools under consideration of opening, create according to the strategy
             pool_id = self.model.get_next_pool_id()
-            #self.model.pool_owner_id_mapping[pool_id] = self.unique_id
             # todo maybe use a temp pool id here and assign final id at execution
             pool = Pool(pool_id=pool_id, cost=cost_per_pool,
                         pledge=pledges[i], owner=self.unique_id, alpha=self.model.alpha,
@@ -526,8 +525,8 @@ class Stakeholder(Agent):
 
     def close_pool(self, pool_id):
         pools = self.model.pools
-        pool = pools[pool_id]
         try:
+            pool = pools[pool_id]
             if pool.owner != self.unique_id:
                 raise ValueError("Player tried to close pool that belongs to another player.")
         except KeyError:
@@ -546,10 +545,12 @@ class Stakeholder(Agent):
                 player.strategy.stake_allocations.pop(pool.id) # todo change
             else:
                 print('-------------------------------------------------')
-                print('pool id: ', pool.id)
-                print('player id: ', player.unique_id)
+                print('n: ', self.model.n)
                 print('k: ', self.model.k)
                 print('alpha: ', self.model.alpha)
+                print('seed: ', self.model.seed)
+                print('pool id: ', pool.id)
+                print('player id: ', player.unique_id)
                 print('step: ', self.model.schedule.steps)
                 print('-------------------------------------------------')
 
