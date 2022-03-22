@@ -40,13 +40,13 @@ class MyBatchRunner(BatchRunnerMP):
             header += fixed_param_cols
         header += extra_cols
 
+        row = [param for param in params]
+
         if self.model_reporters:
             current_model_vars = self.collect_model_vars(model)
             self.model_vars[params] = current_model_vars
             header.extend(current_model_vars.keys())
-
-        row = [param for param in params]
-        row.extend([value for value in current_model_vars.values()])
+            row.extend([value for value in current_model_vars.values()])
 
         this_batch_run_intermediate_results = "output/" + self.execution_id + "-intermediate-results.csv"
         all_batch_run_intermediate_results = "output/batch-run-all-intermediate-results-v2.csv"
@@ -103,7 +103,7 @@ class MyBatchRunner(BatchRunnerMP):
                 ):
                     results[params] = model
                     pbar.update()
-                    self._intermediate_result_prep_mp(params, model)
+                    #self._intermediate_result_prep_mp(params, model)
 
                 self._result_prep_mp(results)
         # For debugging model due to difficulty of getting errors during multiprocessing

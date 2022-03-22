@@ -8,9 +8,9 @@ import collections
 import sys
 import random
 
-import pandas as pd
+#import pandas as pd
 from mesa import Model
-from mesa.datacollection import DataCollector
+#from mesa.datacollection import DataCollector
 from mesa.time import BaseScheduler, SimultaneousActivation, RandomActivation
 
 from logic.stakeholder import Stakeholder
@@ -67,7 +67,7 @@ class Simulation(Model):
         total_eras = 1
 
         adjustable_params = AdjustableParams(
-            k=k if isinstance(k, list) else [k],
+            k=int(k) if isinstance(k, list) else [int(k)],
             alpha=alpha if isinstance(alpha, list) else [alpha],
             cost_factor=cost_factor if isinstance(cost_factor, list) else [cost_factor],
             relative_utility_threshold=relative_utility_threshold if isinstance(relative_utility_threshold, list)else [
@@ -134,7 +134,7 @@ class Simulation(Model):
         self.initialise_pool_id_seq()  # initialise pool id sequence for the new model run
 
         # only include reporters that are needed for every STEP here
-        self.datacollector = DataCollector(
+        '''self.datacollector = DataCollector(
             model_reporters={
                 "#Pools": get_number_of_pools,
                 "Stake per entity": get_pool_stakes_by_agent,
@@ -159,7 +159,7 @@ class Simulation(Model):
                 #"MedianMargin": get_median_margin,
                 #"AvgStkRank": get_avg_stk_rnk,
                 #"AvgCostRank": get_avg_cost_rnk
-            })
+            })'''
 
         self.start_time = time.time()
         self.equilibrium_steps = []
@@ -212,7 +212,7 @@ class Simulation(Model):
         """
         Execute one step of the simulation
         """
-        self.datacollector.collect(self)
+        #self.datacollector.collect(self)
 
         current_step = self.schedule.steps
         if current_step % self.revision_frequency == 0 and current_step > 0:
@@ -315,6 +315,7 @@ class Simulation(Model):
                 setattr(self, attr_name, attr_values_list[self.current_era])
                 change_occured = True
                 if attr_name == 'k':
+                    self.k = int(self.k)
                     # update beta in case the value of k changes
                     self.beta = self.total_stake / self.k
         if change_occured:
