@@ -27,7 +27,19 @@ class Stakeholder(Agent):
             strategy = Strategy()
         self.strategy = strategy
 
+
+    def check_for_correctness_delegations(self):
+        pools = self.model.pools
+        for pool_id, pool in pools.items():
+            if (self.unique_id in pool.delegators) != (pool_id in self.strategy.stake_allocations):
+                print(pool_id)
+                print(pool.delegators)
+                print(self.unique_id)
+                print(self.strategy.stake_allocations)
+
+
     def step(self):
+        #self.check_for_correctness_delegations()
         self.update_strategy()
         if "simultaneous" not in self.model.player_activation_order.lower():
             # When players make moves simultaneously, "step() activates the agent and stages any necessary changes,
@@ -214,11 +226,11 @@ class Stakeholder(Agent):
         ranks in the top k)
         :return: float, the margin that the player will set for this pool
         """
-        current_pool = deepcopy(pool)
+        current_pool = deepcopy(pool) # todo check whether a deepcopy is really needed here
         all_pools = self.model.pools
         temp_pool = None
         if current_pool.id in all_pools:
-            temp_pool = deepcopy(all_pools[current_pool.id])
+            temp_pool = all_pools[current_pool.id]
         all_pools[current_pool.id] = current_pool
 
         potential_profits = [pool.potential_profit for pool in all_pools.values()]
@@ -249,10 +261,8 @@ class Stakeholder(Agent):
         potential_profits = [hlp.calculate_potential_profit(player.stake, player.cost, self.model.alpha, self.model.beta,
                                                             self.model.reward_function_option, self.model.total_stake)
                              for player in players]
-        print(potential_profits)
         current_player_pp = hlp.calculate_potential_profit(self.stake, self.cost, self.model.alpha, self.model.beta,
                                                            self.model.reward_function_option, self.model.total_stake)
-        print(current_player_pp)
         k = self.model.k
         n = len(players)
         if k < n:
@@ -299,8 +309,8 @@ class Stakeholder(Agent):
             num_pools_options = {1}
 
         for num_pools in num_pools_options:
-            owned_pools = self.determine_current_pools(num_pools)
-            moves[num_pools] = self.find_operator_move(num_pools, owned_pools)
+            owned_pools_copies = self.determine_current_pools(num_pools)
+            moves[num_pools] = self.find_operator_move(num_pools, owned_pools_copies)
         return moves
 
     def find_operator_move(self, num_pools, owned_pools):
@@ -375,7 +385,7 @@ class Stakeholder(Agent):
 
         # Remove the player's stake from the pools in case it's being delegated
         for pool_id, allocation in self.strategy.stake_allocations.items():
-            all_pools_dict[pool_id].update_delegation(stake=-allocation, delegator_id=self.unique_id)
+            all_pools_dict[pool_id].update_delegation(new_delegation=0, delegator_id=self.unique_id)
 
         allocations = dict()
         best_saturated_pool = None
@@ -399,7 +409,7 @@ class Stakeholder(Agent):
 
         # Return the player's stake to the pools it was delegated to
         for pool_id, allocation in self.strategy.stake_allocations.items():
-            all_pools_dict[pool_id].update_delegation(stake=allocation, delegator_id=self.unique_id)
+            all_pools_dict[pool_id].update_delegation(new_delegation=allocation, delegator_id=self.unique_id)
 
         return Strategy(stake_allocations=allocations)
 
@@ -412,15 +422,19 @@ class Stakeholder(Agent):
 
         old_allocations = self.strategy.stake_allocations
         new_allocations = self.new_strategy.stake_allocations
-        allocation_changes = dict()
-        old_pool_ids = old_allocations.keys()
-        new_pool_ids = new_allocations.keys()
-        for pool_id in old_pool_ids - new_pool_ids:
-            allocation_changes[pool_id] = -old_allocations[pool_id]
-        for pool_id in old_pool_ids & new_pool_ids:
-            allocation_changes[pool_id] = new_allocations[pool_id] - old_allocations[pool_id]
-        for pool_id in new_pool_ids - old_pool_ids:
-            allocation_changes[pool_id] = new_allocations[pool_id]
+        for pool_id in old_allocations.keys() - new_allocations.keys():
+            if current_pools[pool_id] is not None:  # todo can't really be none here, right? maybe in simultaneous act?
+                # remove delegation
+                current_pools[pool_id].update_delegation(new_delegation=0, delegator_id=self.unique_id)
+            else:
+                print("problemo")
+        for pool_id in new_allocations.keys() :
+            if current_pools[pool_id] is not None:  # todo can't really be none here, right? maybe in simultaneous act?
+                # add / modify delegation
+                current_pools[pool_id].update_delegation(new_delegation=new_allocations[pool_id], delegator_id=self.unique_id)
+            else:
+                print("problemo")
+
 
         old_owned_pools = set(self.strategy.owned_pools.keys())
         new_owned_pools = set(self.new_strategy.owned_pools.keys())
@@ -431,33 +445,15 @@ class Stakeholder(Agent):
         for pool_id in new_owned_pools & old_owned_pools:
             # updates in old pools
             updated_pool = self.new_strategy.owned_pools[pool_id]
-            if updated_pool is None:
-                current_pools.pop(pool_id)  # todo can it ever be None?
-                continue
-            # todo alternatively keep delegators and stake(?) and set current_pools[pool_id] = updated_pool
-            current_pools[pool_id].margin_change = updated_pool.margin - current_pools[pool_id].margin
-            current_pools[pool_id].margin = updated_pool.margin
-            pledge_diff = current_pools[pool_id].pledge - updated_pool.pledge
-            current_pools[pool_id].stake -= pledge_diff
-            current_pools[pool_id].pledge = updated_pool.pledge
-            current_pools[pool_id].cost = updated_pool.cost
-            current_pools[pool_id].is_private = updated_pool.is_private
-            if current_pools[pool_id].is_private and current_pools[pool_id].stake > current_pools[pool_id].pledge:
+            current_pools[pool_id] = updated_pool
+            if updated_pool.is_private and updated_pool.stake > updated_pool.pledge:
                 # undelegate stake in case the pool turned from public to private
-                self.remove_delegations(current_pools[pool_id])
-            current_pools[pool_id].set_potential_profit(self.model.alpha, self.model.beta, self.model.reward_function_option, self.model.total_stake)
+                self.remove_delegations(updated_pool)
 
         self.strategy = self.new_strategy
         self.new_strategy = None
         for pool_id in new_owned_pools - old_owned_pools:
             self.open_pool(pool_id)
-
-        for pool_id, allocation_change in allocation_changes.items():
-            if current_pools[pool_id] is not None:  # todo can't really be none here, right?
-                # add or subtract the relevant stake from the pool if it hasn't closed
-                if allocation_change != 0:
-                    current_pools[pool_id].update_delegation(stake=allocation_changes[pool_id],
-                                                             delegator_id=self.unique_id)
 
     def open_pool(self, pool_id):
         self.model.pools[pool_id] = self.strategy.owned_pools[pool_id]
@@ -481,7 +477,7 @@ class Stakeholder(Agent):
         for player_id in delegators:
             player = players[player_id]
             if pool.id in player.strategy.stake_allocations.keys():
-                player.strategy.stake_allocations.pop(pool.id) # todo change
+                player.strategy.stake_allocations.pop(pool.id)
             else:
                 print('-------------------------------------------------')
                 print('n: ', self.model.n)
@@ -493,7 +489,7 @@ class Stakeholder(Agent):
                 print('step: ', self.model.schedule.steps)
                 print('alleged delegation: ', pool.delegators[player_id])
                 print('-------------------------------------------------')
-            pool.update_delegation(-pool.delegators[player_id], player_id)
+            pool.update_delegation(new_delegation=0, delegator_id=player_id)
 
 
         # Also remove pool from players' upcoming moves in case of (semi)simultaneous activation

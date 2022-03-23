@@ -103,7 +103,7 @@ class MyBatchRunner(BatchRunnerMP):
                 ):
                     results[params] = model
                     pbar.update()
-                    #self._intermediate_result_prep_mp(params, model)
+                    self._intermediate_result_prep_mp(params, model)
 
                 self._result_prep_mp(results)
         # For debugging model due to difficulty of getting errors during multiprocessing

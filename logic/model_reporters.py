@@ -16,20 +16,6 @@ def get_final_number_of_pools(model):
     return len(model.pools)
 
 
-def get_margin_changes(model):
-    pools = model.get_pools_list()
-    margin_increase, margin_decrease, margin_abs_change = 0, 0, 0
-    for pool in pools:
-        margin_change = pool.margin_change
-        if margin_change > 0:
-            margin_increase += margin_change
-            margin_abs_change += margin_change
-        else:
-            margin_decrease -= margin_change
-            margin_abs_change -= margin_change
-    return margin_increase, margin_decrease, margin_abs_change
-
-
 def get_avg_margin(model):
     pools = model.get_pools_list()
     margins = [pool.margin for pool in pools]

@@ -154,7 +154,6 @@ class Simulation(Model):
                 # "MinAggregatePledge": get_min_aggregate_pledge,
                 # "PledgeRate": get_pledge_rate,
                 #"AreaCoverage": get_homogeneity_factor,
-                #"MarginChanges": get_margin_changes,
                 #"AvgMargin": get_avg_margin,
                 #"MedianMargin": get_median_margin,
                 #"AvgStkRank": get_avg_stk_rnk,

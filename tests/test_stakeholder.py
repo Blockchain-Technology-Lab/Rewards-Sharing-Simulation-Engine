@@ -1,4 +1,5 @@
 import pytest
+from copy import copy
 
 from logic.pool import Pool
 from logic.sim import Simulation
@@ -171,7 +172,6 @@ def test_find_delegation_move():
     assert allocations.keys() == {558}
     assert allocations[558] == 0.0001
 
-
     # ties in desirability, potential profit and stake, break with id
     pool558.stake = 0.003
     delegator_strategy = player159.find_delegation_move()
@@ -196,3 +196,99 @@ def test_find_delegation_move():
     allocations = delegator_strategy.stake_allocations
     assert allocations.keys() == {557}
     assert allocations[557] == 0.0001
+
+
+def test_execute_strategy(mocker):
+    total_stake = 1
+    model = Simulation(total_stake=total_stake)
+    player1 = Stakeholder(1, model, stake=0.003, cost=0.001)
+    player2 = Stakeholder(2, model, stake=0.002, cost=0.001)
+    player3 = Stakeholder(3, model, stake=0.001, cost=0.001)
+    player4 = Stakeholder(4, model, stake=0.0001, cost=0.001)
+
+    players_dict = {1: player1, 2: player2, 3: player3, 4: player4}
+    mocker.patch('logic.sim.Simulation.get_players_dict', return_value=players_dict)
+
+    # setting: there are two pools, one of them has two delegators and the other has none
+    pool1 = Pool(cost=0.001, pledge=0.003, owner=1, alpha=0.3, beta=0.1, pool_id=1, reward_function_option=0,
+                   total_stake=total_stake, margin=0.1)
+    model.pools[1] = pool1
+    pool2 = Pool(cost=0.001, pledge=0.002, owner=2, alpha=0.3, beta=0.1, pool_id=2, reward_function_option=0,
+                   total_stake=total_stake, margin=0)
+    model.pools[2] = pool2
+    player1.strategy = Strategy(stake_allocations=None, owned_pools={1: pool1})
+    player2.strategy = Strategy(stake_allocations=None, owned_pools={2: pool2})
+    player3.strategy = Strategy(stake_allocations={1: 0.001}, owned_pools=None)
+    player4.strategy = Strategy(stake_allocations={1: 0.0001}, owned_pools=None)
+
+    pool1.stake = 0.0041
+    pool1.delegators = {3: 0.001, 4: 0.0001}
+
+    # new strategy for pool owner: change pool margin
+    pool1_copy = copy(pool1)
+    pool1_copy.margin = 0.2
+    new_strategy1 = Strategy(stake_allocations=None, owned_pools={1: pool1_copy})
+    player1.new_strategy = new_strategy1
+    player1.execute_strategy()
+
+    assert player1.strategy == new_strategy1
+    assert player1.new_strategy is None
+    assert model.pools[1].margin == 0.2
+    assert model.pools[1].stake == 0.0041
+
+    # new strategy for delegator: delegate to other pool
+    new_strategy3 = Strategy(stake_allocations={2: 0.001}, owned_pools=None)
+    player3.new_strategy = new_strategy3
+    player3.execute_strategy()
+
+    assert player3.strategy == new_strategy3
+    assert player3.new_strategy is None
+    assert pytest.approx(model.pools[1].stake) == 0.0031
+    assert pytest.approx(model.pools[2].stake) == 0.003
+    assert 3 not in model.pools[1].delegators
+    assert 3 in model.pools[2].delegators
+
+    # new strategy for pool owner: close pool
+    new_strategy1 = Strategy(stake_allocations={2: 0.003}, owned_pools=None)
+    player1.new_strategy = new_strategy1
+    
+    player1.execute_strategy()
+
+    assert player1.strategy == new_strategy1
+    assert player1.new_strategy is None
+    assert 1 not in model.pools
+    assert pytest.approx(model.pools[2].stake) == 0.006
+    assert len(player4.strategy.stake_allocations) == 0
+
+
+    # new strategy for delegator: open pool
+    pool3 = Pool(cost=0.001, pledge=0.001, owner=3, alpha=0.3, beta=0.1, pool_id=3, reward_function_option=0,
+                 total_stake=total_stake, margin=0)
+    new_strategy3 = Strategy(stake_allocations=None, owned_pools={3: pool3})
+    player3.new_strategy = new_strategy3
+    
+    player3.execute_strategy()
+
+    assert player3.strategy == new_strategy3
+    assert player3.new_strategy is None
+    assert pytest.approx(model.pools[2].stake) == 0.005
+    assert 3 not in model.pools[2].delegators
+    assert 3 in model.pools
+
+    # new strategy for pool owner: delegate part of stake
+    pool2_copy = copy(pool2)
+    pool2_copy.pledge -= 0.001
+    pool2_copy.stake -= 0.001
+    new_strategy2 = Strategy(stake_allocations={3: 0.001}, owned_pools={2: pool2_copy})
+    player2.new_strategy = new_strategy2
+    
+    player2.execute_strategy()
+
+    assert player1.strategy == new_strategy1
+    assert player1.new_strategy is None
+    assert 1 not in model.pools
+    assert pytest.approx(model.pools[2].stake) == 0.004
+    assert pytest.approx(model.pools[3].stake) == 0.002
+
+
+
