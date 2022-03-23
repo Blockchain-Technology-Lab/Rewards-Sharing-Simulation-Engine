@@ -237,8 +237,7 @@ def calculate_pool_stake_NM(pool_id, pools, beta, k):
     if len(pools) <= k:
         rank_in_top_k = True
     else:
-        d = [(calculate_pool_desirability(margin=pool.margin, potential_profit=pool.potential_profit),
-              pool.potential_profit, pool.stake, -pool_id) for pool_id, pool in pools.items()]
+        d = [(pool.desirability, pool.potential_profit, pool.stake, -pool_id) for pool_id, pool in pools.items()]
         top_k_pools = heapq.nlargest(k, d)
         top_k_pool_ids = [-p[3] for p in top_k_pools]
         rank_in_top_k = pool_id in top_k_pool_ids
@@ -269,18 +268,11 @@ def calculate_ranks(ranking_dict, *tie_breaking_dicts, rank_ids=True):
     }
     return ranks
 
-def to_latex(row_list, sim_id, output_dir):
-    row_list_latex = [row[2:4] + row[5:8] + row[9:10] + row[12:14] for row in row_list]
-    df = pd.DataFrame(row_list_latex[1:], columns=row_list_latex[0])
-    # shift desirability rank column to first position to act as index
-    first_column = df.pop('Pool desirability rank')
-    df.insert(0, 'Pool desirability rank', first_column)
-    sorted_df = df.sort_values(by=['Pool desirability rank'], ascending=True)
-
+def save_as_latex_table(df, sim_id, output_dir):
     path = pathlib.Path.cwd() / output_dir
     pathlib.Path(path).mkdir(parents=True, exist_ok=True)
     with open(output_dir + sim_id + "-output.tex", 'w', newline='') as file:
-        sorted_df.to_latex(file, index=False)
+        df.save_as_latex_table(file, index=False)
 
 def generate_execution_id(args_dict):
     num_args_to_use = 5

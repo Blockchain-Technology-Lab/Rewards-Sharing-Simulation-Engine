@@ -179,7 +179,6 @@ def test_find_delegation_move():
     assert allocations.keys() == {557}
     assert allocations[557] == 0.0001
 
-
     # highest desirability pools saturated, choose next
     pool558.stake = 0.1
     pool557.stake = 0.1
@@ -187,3 +186,13 @@ def test_find_delegation_move():
     allocations = delegator_strategy.stake_allocations
     assert allocations.keys() == {556}
     assert allocations[556] == 0.0001
+
+    # all pools saturated, choose the one with highest desirability
+    pool558.stake = 0.1
+    pool557.stake = 0.1
+    pool555.stake = 0.1
+    pool556.stake = 0.1
+    delegator_strategy = player159.find_delegation_move()
+    allocations = delegator_strategy.stake_allocations
+    assert allocations.keys() == {557}
+    assert allocations[557] == 0.0001

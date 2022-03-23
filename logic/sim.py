@@ -67,7 +67,7 @@ class Simulation(Model):
         total_eras = 1
 
         adjustable_params = AdjustableParams(
-            k=int(k) if isinstance(k, list) else [int(k)],
+            k=[int(k_value) for k_value in k] if isinstance(k, list) else [int(k)],
             alpha=alpha if isinstance(alpha, list) else [alpha],
             cost_factor=cost_factor if isinstance(cost_factor, list) else [cost_factor],
             relative_utility_threshold=relative_utility_threshold if isinstance(relative_utility_threshold, list)else [

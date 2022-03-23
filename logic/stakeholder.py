@@ -202,7 +202,7 @@ class Stakeholder(Agent):
         if len(current_pools) * saturation_point < self.model.perceived_active_stake:  # note that we use active stake instead of total stake
             return potential_profit > 0
 
-        existing_desirabilities = [hlp.calculate_pool_desirability(margin=pool.margin, potential_profit=pool.potential_profit) for pool in current_pools]
+        existing_desirabilities = [pool.desirability for pool in current_pools]
         # Note that the potential profit is equal to the desirability of a pool with 0 margin,
         # so, effectively, the player is comparing his best-case desirability with the desirabilities of the current pools
         return potential_profit > 0 and any(desirability < potential_profit for desirability in existing_desirabilities)
@@ -271,8 +271,7 @@ class Stakeholder(Agent):
         if num_pools_to_keep < len(owned_pools):
             # Ditch the pool(s) with the lowest desirability / rank
             # todo do I need to calculate myopic desirability in case of myopic player?
-            pool_properties = [(hlp.calculate_pool_desirability(margin=pool.margin, potential_profit=pool.potential_profit),
-                  pool.potential_profit, pool.stake, -pool_id) for pool_id, pool in owned_pools.items()]
+            pool_properties = [(pool.desirability, pool.potential_profit, pool.stake, -pool_id) for pool_id, pool in owned_pools.items()]
             top_pools_ids = {-p[3] for p in heapq.nlargest(num_pools_to_keep, pool_properties)}
             other_pools_ids = owned_pools.keys() - top_pools_ids
             for pool_id in other_pools_ids:
@@ -355,8 +354,7 @@ class Stakeholder(Agent):
         # todo do I need to calculate myopic desirability in case of myopic player?
         relevant_pools_properties = [
             (
-                pool.stake >= saturation_point,
-                -hlp.calculate_pool_desirability(margin=pool.margin, potential_profit=pool.potential_profit),
+                -pool.desirability,
                 -pool.potential_profit,
                 -pool.stake,
                 pool.id
@@ -372,22 +370,32 @@ class Stakeholder(Agent):
 
         if stake_to_delegate is None:
             stake_to_delegate = self.stake
+            if stake_to_delegate <= MIN_STAKE_UNIT:
+                return Strategy()
 
         # Remove the player's stake from the pools in case it's being delegated
         for pool_id, allocation in self.strategy.stake_allocations.items():
             all_pools_dict[pool_id].update_delegation(stake=-allocation, delegator_id=self.unique_id)
 
         allocations = dict()
+        best_saturated_pool = None
         while len(relevant_pools_properties) > 0:
-            best_pool_id = heapq.heappop(relevant_pools_properties)[4]
+            # first attempt to delegate to unsaturated pools
+            best_pool_id = heapq.heappop(relevant_pools_properties)[3]
             best_pool = all_pools_dict[best_pool_id]
             stake_to_saturation = saturation_point - best_pool.stake
-            if stake_to_saturation >= MIN_STAKE_UNIT:
-                allocation = min(stake_to_delegate, stake_to_saturation) if stake_to_saturation > 0 else stake_to_delegate
-                stake_to_delegate -= allocation
-                allocations[best_pool.id] = allocation
-            if stake_to_delegate <= MIN_STAKE_UNIT:
+            if stake_to_saturation <= 0:
+                if best_saturated_pool is None:
+                    best_saturated_pool = best_pool
+                continue
+            allocation = min(stake_to_delegate, stake_to_saturation)
+            stake_to_delegate -= allocation
+            allocations[best_pool.id] = allocation
+            if stake_to_delegate < MIN_STAKE_UNIT:
                 break
+        if stake_to_delegate >= MIN_STAKE_UNIT and best_saturated_pool is not None:
+            # if the stake to delegate does not fit in unsaturated pools, delegate to the saturated one with the highest desirability
+            allocations[best_saturated_pool.id] = stake_to_delegate
 
         # Return the player's stake to the pools it was delegated to
         for pool_id, allocation in self.strategy.stake_allocations.items():
