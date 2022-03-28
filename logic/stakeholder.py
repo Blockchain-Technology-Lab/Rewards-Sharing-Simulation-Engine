@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 from mesa import Agent
-from copy import deepcopy, copy
-import operator
+from copy import deepcopy
 import heapq
 
 import logic.helper as hlp
@@ -226,12 +225,11 @@ class Stakeholder(Agent):
         ranks in the top k)
         :return: float, the margin that the player will set for this pool
         """
-        current_pool = deepcopy(pool) # todo check whether a deepcopy is really needed here
         all_pools = self.model.pools
         temp_pool = None
-        if current_pool.id in all_pools:
-            temp_pool = all_pools[current_pool.id]
-        all_pools[current_pool.id] = current_pool
+        if pool.id in all_pools:
+            temp_pool = all_pools[pool.id]
+        all_pools[pool.id] = pool
 
         potential_profits = [pool.potential_profit for pool in all_pools.values()]
         k = self.model.k
@@ -244,9 +242,9 @@ class Stakeholder(Agent):
 
         # make sure that model fields are left intact
         if temp_pool is None:
-            all_pools.pop(current_pool.id)
+            all_pools.pop(pool.id)
         else:
-            all_pools[current_pool.id] = temp_pool
+            all_pools[pool.id] = temp_pool
 
         return margin
 
@@ -276,17 +274,18 @@ class Stakeholder(Agent):
         margin = max(1 - (reference_potential_profit / current_player_pp), 0)
         return margin
 
-    def determine_current_pools(self, num_pools_to_keep):
-        owned_pools = deepcopy(self.strategy.owned_pools)
-        if num_pools_to_keep < len(owned_pools):
-            # Ditch the pool(s) with the lowest desirability / rank
+    def determine_pools_to_keep(self, num_pools_to_keep):
+        if num_pools_to_keep < len(self.strategy.owned_pools):
+            # Only keep the pool(s) that rank best (based on desirability, potential profit, stake and "age")
+            owned_pools_to_keep = dict()
             # todo do I need to calculate myopic desirability in case of myopic player?
-            pool_properties = [(pool.desirability, pool.potential_profit, pool.stake, -pool_id) for pool_id, pool in owned_pools.items()]
+            pool_properties = [(pool.desirability, pool.potential_profit, pool.stake, -pool_id) for pool_id, pool in self.strategy.owned_pools.items()]
             top_pools_ids = {-p[3] for p in heapq.nlargest(num_pools_to_keep, pool_properties)}
-            other_pools_ids = owned_pools.keys() - top_pools_ids
-            for pool_id in other_pools_ids:
-                owned_pools.pop(pool_id)
-        return owned_pools
+            for pool_id in top_pools_ids:
+                owned_pools_to_keep[pool_id] = deepcopy(self.strategy.owned_pools[pool_id])
+        else:
+            owned_pools_to_keep = deepcopy(self.strategy.owned_pools)
+        return owned_pools_to_keep
 
     def find_operator_moves(self):
         """
@@ -309,7 +308,7 @@ class Stakeholder(Agent):
             num_pools_options = {1}
 
         for num_pools in num_pools_options:
-            owned_pools_copies = self.determine_current_pools(num_pools)
+            owned_pools_copies = self.determine_pools_to_keep(num_pools)
             moves[num_pools] = self.find_operator_move(num_pools, owned_pools_copies)
         return moves
 

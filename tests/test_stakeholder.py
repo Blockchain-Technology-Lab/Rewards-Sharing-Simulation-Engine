@@ -103,7 +103,7 @@ def test_close_pool():
     assert str(e_info.value) == "Player tried to close pool that belongs to another player."
 
 
-def test_determine_current_pools():
+def test_determine_pools_to_keep():
     total_stake = 1
     model = Simulation(total_stake=total_stake)
     player = Stakeholder(unique_id=1, model=model, stake=0.005)
@@ -118,22 +118,22 @@ def test_determine_current_pools():
 
     # new pool number same as current pool number so return all pools
     new_num_pools = 3
-    pools_to_keep = player.determine_current_pools(new_num_pools)
+    pools_to_keep = player.determine_pools_to_keep(new_num_pools)
     assert pools_to_keep.keys() == current_pools.keys()
 
     # new pool number higher than current pool number so return all pools
     new_num_pools = 4
-    pools_to_keep = player.determine_current_pools(new_num_pools)
+    pools_to_keep = player.determine_pools_to_keep(new_num_pools)
     assert pools_to_keep.keys() == current_pools.keys()
 
     # new pool number lower than current pool number so return best pools
     new_num_pools = 1
-    pools_to_keep = player.determine_current_pools(new_num_pools)
+    pools_to_keep = player.determine_pools_to_keep(new_num_pools)
     assert pools_to_keep.keys() == {3}
 
     # new pool number lower than current pool number so return best pools (with tie breaking)
     new_num_pools = 2
-    pools_to_keep = player.determine_current_pools(new_num_pools)
+    pools_to_keep = player.determine_pools_to_keep(new_num_pools)
     assert pools_to_keep.keys() == {1, 3}
 
 
