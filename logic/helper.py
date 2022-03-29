@@ -12,6 +12,7 @@ import pathlib
 from math import sqrt
 from functools import lru_cache
 import heapq
+import time
 
 TOTAL_EPOCH_REWARDS_R = 1
 MAX_NUM_POOLS = 1000
@@ -36,8 +37,6 @@ def generate_stake_distr_pareto(num_agents, pareto_param=2, seed=156, truncation
         stake_sample = truncate_pareto(rng, (a, m), stake_sample, truncation_factor)
     if total_stake > 0:
         stake_sample = normalize_distr(stake_sample, normal_sum=total_stake)
-    print('Total stake = ', sum(stake_sample))
-    print('Max stake = ',max(stake_sample))
     return stake_sample
 
 
@@ -327,3 +326,14 @@ def determine_pledge_per_pool(agent_stake, beta, num_pools):
     if num_pools <= 0:
         raise ValueError("Player tried to calculate pledge for zero or less pools.")
     return [min(agent_stake / num_pools, beta)] * num_pools
+
+def export_csv_file(rows, filename ):
+    today = time.strftime("%d-%m-%Y")
+    output_dir = "output/" + today
+    path = pathlib.Path.cwd() / output_dir
+    filename = path / filename
+    pathlib.Path(path).mkdir(parents=True, exist_ok=True)
+    with open(filename, 'w', newline='') as file:
+        writer = csv.writer(file)
+        writer.writerows(rows)
+

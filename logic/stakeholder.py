@@ -40,27 +40,27 @@ class Stakeholder(Agent):
     def step(self):
         #self.check_for_correctness_delegations()
         self.update_strategy()
-        if "simultaneous" not in self.model.player_activation_order.lower():
-            # When players make moves simultaneously, "step() activates the agent and stages any necessary changes,
+        if "simultaneous" not in self.model.agent_activation_order.lower():
+            # When agents make moves simultaneously, "step() activates the agent and stages any necessary changes,
             # but does not apply them yet, and advance() then applies the changes". When they don't move simultaneously,
             # they can advance (i.e. execute their strategy) right after updating their strategy
             self.advance()
         if self.remaining_min_steps_to_keep_pool > 0:
-            # For players that have recently opened a pool
+            # For agents that have recently opened a pool
             self.remaining_min_steps_to_keep_pool -= 1
 
     def update_strategy(self):
         if not self.abstains:
             self.make_move()
         else:
-            # player abstains from this round
+            # agent abstains from this round
             if len(self.strategy.owned_pools) > 0 or len(self.strategy.stake_allocations) > 0:
-                # player did not abstain in the previous round
+                # agent did not abstain in the previous round
                 self.new_strategy = Strategy()
 
     def advance(self):
         if self.new_strategy is not None:
-            # The player has changed their strategy, so now they have to execute it
+            # The agent has changed their strategy, so now they have to execute it
             self.execute_strategy()
             self.model.current_step_idle = False
 
@@ -70,10 +70,10 @@ class Stakeholder(Agent):
             (1 + self.model.relative_utility_threshold) * current_utility,
             current_utility + self.model.absolute_utility_threshold
         )
-        # hold the player's potential moves in a dict, where the values are tuples of (utility, strategy)
+        # hold the agent's potential moves in a dict, where the values are tuples of (utility, strategy)
         possible_moves = {"current": (current_utility_with_inertia, self.strategy)}
 
-        # For all players, find a possible delegation strategy and calculate its potential utility
+        # For all agents, find a possible delegation strategy and calculate its potential utility
         # unless they are pool operators with recently opened pools (we assume that they will keep them at least for a bit)
         if self.remaining_min_steps_to_keep_pool == 0:
             delegator_strategy = self.find_delegation_move()
@@ -81,7 +81,7 @@ class Stakeholder(Agent):
             possible_moves["delegator"] = delegator_utility, delegator_strategy
 
         if len(self.strategy.owned_pools) > 0 or self.has_potential_for_pool():
-            # Player is considering opening a pool, so he has to find the most suitable pool params
+            # agent is considering opening a pool, so he has to find the most suitable pool params
             # and calculate the potential utility of operating a pool with these params
             possible_moves["operator"] = self.choose_pool_strategy()
 
@@ -128,7 +128,7 @@ class Stakeholder(Agent):
                 pool = pools[pool_id]
                 utility += self.calculate_delegator_utility_from_pool(pool, a)
             else:
-                raise PoolNotFoundError("Player {} considered delegating to a non-existing pool ({})!"
+                raise PoolNotFoundError("agent {} considered delegating to a non-existing pool ({})!"
                                         .format(self.unique_id, pool_id))
         return utility
 
@@ -187,23 +187,23 @@ class Stakeholder(Agent):
         q = stake_allocation / pool_stake
         return hlp.calculate_delegator_reward_from_pool(pool_margin=pool.margin, pool_cost=pool.cost, pool_reward=r, delegator_stake_fraction=q)
 
-    # how does a myopic player decide whether to open a pool or not? -> for now we assume that all players play non-myopically when it comes to pool moves
+    # how does a myopic agent decide whether to open a pool or not? -> for now we assume that all agents play non-myopically when it comes to pool moves
     def has_potential_for_pool(self):
         """
-        Determine whether the player is at a good position to open a pool, using the following rules:
+        Determine whether the agent is at a good position to open a pool, using the following rules:
         If the current pools are not enough to cover the total active stake of the system without getting oversaturated
-        then having a positive potential profit is a necessary and sufficient condition for a player to open a pool
+        then having a positive potential profit is a necessary and sufficient condition for a agent to open a pool
         (as it means that there is stake that is forced to remain undelegated
         or delegated to an oversaturated pool that yields suboptimal rewards)
         Note that the total active stake is estimated by the stakeholders at predetermined intervals and may not be
         100% accurate
 
-        If there are enough pools to cover all active players' stake without causing oversaturation,
-        then the player only opens a pool if the maximum possible desirability of their pool
+        If there are enough pools to cover all active agents' stake without causing oversaturation,
+        then the agent only opens a pool if the maximum possible desirability of their pool
         (aka the potential profit) is higher than the desirability of at least one currently active pool
         (with the perspective of "stealing" the delegators from that pool)
 
-        :return: bool true if the player has potential to open pool based on the above rules, false otherwise
+        :return: bool true if the agent has potential to open pool based on the above rules, false otherwise
         """
         saturation_point = self.model.beta
         alpha = self.model.alpha
@@ -215,15 +215,15 @@ class Stakeholder(Agent):
 
         existing_desirabilities = [pool.desirability for pool in current_pools]
         # Note that the potential profit is equal to the desirability of a pool with 0 margin,
-        # so, effectively, the player is comparing his best-case desirability with the desirabilities of the current pools
+        # so, effectively, the agent is comparing his best-case desirability with the desirabilities of the current pools
         return potential_profit > 0 and any(desirability < potential_profit for desirability in existing_desirabilities)
 
     def calculate_margin_semi_perfect_strategy(self, pool):
         """
-        Inspired by "perfect strategies", the player ranks all existing pools based on their potential
+        Inspired by "perfect strategies", the agent ranks all existing pools based on their potential
         profit and chooses a margin that can guarantee the pool's desirability (non-zero only if the pool
         ranks in the top k)
-        :return: float, the margin that the player will set for this pool
+        :return: float, the margin that the agent will set for this pool
         """
         all_pools = self.model.pools
         temp_pool = None
@@ -250,19 +250,19 @@ class Stakeholder(Agent):
 
     def calculate_margin_perfect_strategy(self):
         """
-        Based on "perfect strategies", the player ranks all players based on their potential
+        Based on "perfect strategies", the agent ranks all agents based on their potential
         profit of operating one pool and chooses a margin that can keep his pool competitive
-        :return: float, the margin that the player will use for their pool(s)
+        :return: float, the margin that the agent will use for their pool(s)
         """
-        # first calculate the potential profits of all players
-        players = self.model.get_players_list()
-        potential_profits = [hlp.calculate_potential_profit(player.stake, player.cost, self.model.alpha, self.model.beta,
+        # first calculate the potential profits of all agents
+        agents = self.model.get_agents_list()
+        potential_profits = [hlp.calculate_potential_profit(agent.stake, agent.cost, self.model.alpha, self.model.beta,
                                                             self.model.reward_function_option, self.model.total_stake)
-                             for player in players]
-        current_player_pp = hlp.calculate_potential_profit(self.stake, self.cost, self.model.alpha, self.model.beta,
+                             for agent in agents]
+        current_agent_pp = hlp.calculate_potential_profit(self.stake, self.cost, self.model.alpha, self.model.beta,
                                                            self.model.reward_function_option, self.model.total_stake)
         k = self.model.k
-        n = len(players)
+        n = len(agents)
         if k < n:
             top_potential_profits = heapq.nlargest(k + 1, potential_profits)
             # find the pool that is ranked at position k+1, if such pool exists
@@ -271,14 +271,14 @@ class Stakeholder(Agent):
             reference_potential_profit = 0
 
         # todo possible improvement: keep track of all agents who have opened pools and their potential profits
-        margin = max(1 - (reference_potential_profit / current_player_pp), 0)
+        margin = max(1 - (reference_potential_profit / current_agent_pp), 0)
         return margin
 
     def determine_pools_to_keep(self, num_pools_to_keep):
         if num_pools_to_keep < len(self.strategy.owned_pools):
             # Only keep the pool(s) that rank best (based on desirability, potential profit, stake and "age")
             owned_pools_to_keep = dict()
-            # todo do I need to calculate myopic desirability in case of myopic player?
+            # todo do I need to calculate myopic desirability in case of myopic agent?
             pool_properties = [(pool.desirability, pool.potential_profit, pool.stake, -pool_id) for pool_id, pool in self.strategy.owned_pools.items()]
             top_pools_ids = {-p[3] for p in heapq.nlargest(num_pools_to_keep, pool_properties)}
             for pool_id in top_pools_ids:
@@ -289,7 +289,7 @@ class Stakeholder(Agent):
 
     def find_operator_moves(self):
         """
-        When players are allowed to operate multiple pools, they try out different options to decide
+        When agents are allowed to operate multiple pools, they try out different options to decide
         exactly how many pools to operate. Specifically, they always consider running any number of pools up to their
         current number (i.e. closing some pools or keeping the same number) and they also consider opening one
         extra pool. In case an operator has recently opened a new pool, they are not allowed to close any currently open
@@ -347,7 +347,7 @@ class Stakeholder(Agent):
         allocations = dict()
         remaining_stake = self.stake - sum(pledges)
         if remaining_stake > 0:
-            # in some cases players may not want to allocate their entire stake to their pool (e.g. when stake > β)
+            # in some cases agents may not want to allocate their entire stake to their pool (e.g. when stake > β)
             delegation_strategy = self.find_delegation_move(stake_to_delegate=remaining_stake)
             allocations = delegation_strategy.stake_allocations
         return allocations
@@ -360,7 +360,7 @@ class Stakeholder(Agent):
         """
         all_pools_dict = self.model.pools
         saturation_point = self.model.beta
-        # todo do I need to calculate myopic desirability in case of myopic player?
+        # todo do I need to calculate myopic desirability in case of myopic agent?
         relevant_pools_properties = [
             (
                 -pool.desirability,
@@ -371,7 +371,7 @@ class Stakeholder(Agent):
                for pool in all_pools_dict.values()
                if pool.owner != self.unique_id and not pool.is_private
         ]
-        # Only proceed if there are public pools in the system that don't belong to the current player
+        # Only proceed if there are public pools in the system that don't belong to the current agent
         if len(relevant_pools_properties) == 0:
             return Strategy()
 
@@ -382,7 +382,7 @@ class Stakeholder(Agent):
             if stake_to_delegate <= MIN_STAKE_UNIT:
                 return Strategy()
 
-        # Remove the player's stake from the pools in case it's being delegated
+        # Remove the agent's stake from the pools in case it's being delegated
         for pool_id, allocation in self.strategy.stake_allocations.items():
             all_pools_dict[pool_id].update_delegation(new_delegation=0, delegator_id=self.unique_id)
 
@@ -406,7 +406,7 @@ class Stakeholder(Agent):
             # if the stake to delegate does not fit in unsaturated pools, delegate to the saturated one with the highest desirability
             allocations[best_saturated_pool.id] = stake_to_delegate
 
-        # Return the player's stake to the pools it was delegated to
+        # Return the agent's stake to the pools it was delegated to
         for pool_id, allocation in self.strategy.stake_allocations.items():
             all_pools_dict[pool_id].update_delegation(new_delegation=allocation, delegator_id=self.unique_id)
 
@@ -463,7 +463,7 @@ class Stakeholder(Agent):
         try:
             pool = pools[pool_id]
             if pool.owner != self.unique_id:
-                raise ValueError("Player tried to close pool that belongs to another player.")
+                raise ValueError("agent tried to close pool that belongs to another agent.")
         except KeyError:
             raise ValueError("Given pool id is not valid.")
         # Undelegate delegators' stake
@@ -471,12 +471,12 @@ class Stakeholder(Agent):
         pools.pop(pool_id)
 
     def remove_delegations(self, pool):
-        players = self.model.get_players_dict()
+        agents = self.model.get_agents_dict()
         delegators = list(pool.delegators.keys())
-        for player_id in delegators:
-            player = players[player_id]
-            if pool.id in player.strategy.stake_allocations.keys():
-                player.strategy.stake_allocations.pop(pool.id)
+        for agent_id in delegators:
+            agent = agents[agent_id]
+            if pool.id in agent.strategy.stake_allocations.keys():
+                agent.strategy.stake_allocations.pop(pool.id)
             else:
                 print('-------------------------------------------------')
                 print('n: ', self.model.n)
@@ -484,18 +484,18 @@ class Stakeholder(Agent):
                 print('alpha: ', self.model.alpha)
                 print('seed: ', self.model._seed)
                 print('pool id: ', pool.id)
-                print('player id: ', player.unique_id)
+                print('agent id: ', agent.unique_id)
                 print('step: ', self.model.schedule.steps)
-                print('alleged delegation: ', pool.delegators[player_id])
+                print('alleged delegation: ', pool.delegators[agent_id])
                 print('-------------------------------------------------')
-            pool.update_delegation(new_delegation=0, delegator_id=player_id)
+            pool.update_delegation(new_delegation=0, delegator_id=agent_id)
 
 
-        # Also remove pool from players' upcoming moves in case of (semi)simultaneous activation
-        if "simultaneous" in self.model.player_activation_order.lower():
-            for player in players.values():  # todo alternatively save potential delegators somewhere so that we don't go through the whole list of players here
-                if player.new_strategy is not None:
-                    player.new_strategy.stake_allocations.pop(pool.id, None)
+        # Also remove pool from agents' upcoming moves in case of (semi)simultaneous activation
+        if "simultaneous" in self.model.agent_activation_order.lower():
+            for agent in agents.values():  # todo alternatively save potential delegators somewhere so that we don't go through the whole list of agents here
+                if agent.new_strategy is not None:
+                    agent.new_strategy.stake_allocations.pop(pool.id, None)
 
     def get_status(self):
         print("Agent id: {}, is myopic: {}, stake: {}, cost:{}"

@@ -25,13 +25,13 @@ def main():
     parser.add_argument('--max_iterations', type=int, default=2000,
                         help='The maximum number of iterations of the system. Default is 1000.')
     parser.add_argument('--n', nargs="+", type=int, default=1000,
-                        help='The number of players (natural number). Default is 100.')
-    parser.add_argument('--k', nargs="+", type=int, default=[100, 200, 2],
+                        help='The number of agents (natural number). Default is 100.')
+    parser.add_argument('--k', nargs="+", type=int, default=[100, 501, 50],
                         help='The k value of the system (natural number). Default is 10.')
     parser.add_argument('--alpha', nargs="+", type=float, default=0.3,
                         help='The alpha value of the system (decimal number between 0 and 1). Default is 0.3')
     parser.add_argument('--abstention_rate', nargs="+", type=float, default=0,
-                        help='The percentage of players that will abstain from the game in this run. Default is 10%%.')
+                        help='The percentage of agents that will abstain from the game in this run. Default is 10%%.')
     parser.add_argument('--pareto_param', nargs="+", type=float, default=2.0,
                         help='The shape value of the Pareto distribution for the initial stake allocation.')
     parser.add_argument('--cost_min', nargs="+", type=float, default=1e-4,
@@ -42,14 +42,14 @@ def main():
                         help='The factor that determines how much an additional pool costs. '
                              'Default is 60%.')
     parser.add_argument('--stake_distr_type', type=str, default='Pareto',
-                        help='The distribution type to use for the initial allocation of stake to the players.')
+                        help='The distribution type to use for the initial allocation of stake to the agents.')
     parser.add_argument('--extra_cost_type', type=str, default='fixed_fraction',
                         help='The method used to calculate the cost of any additional pool.')
     parser.add_argument('--reward_function_option', type=int, default=0,
                         help='The reward function to use in the simulation. 0 for the old function, 1 for the new one, '
                              '2 for alternative-1 and 3 for alternative-2.')
     parser.add_argument('--pool_splitting', type=bool, default=True, action=argparse.BooleanOptionalAction,
-                        help='Are individual players allowed to create multiple pools? Default is yes.')
+                        help='Are individual agents allowed to create multiple pools? Default is yes.')
 
     args_dict = vars(parser.parse_args())
 
@@ -64,7 +64,7 @@ def main():
 
     fixed_params = {
         "execution_id": "temp",
-        "player_activation_order": "Random",
+        "agent_activation_order": "Random",
         "relative_utility_threshold": 0,
         "myopic_fraction": 0,
         "min_steps_to_keep_pool": 5,
@@ -91,9 +91,9 @@ def main():
     print("Variable params: ", variable_params)
 
     default_model_reporters = ["Pool count", "Nakamoto coefficient", "Number of pool splitters",
-                               "Cost efficient stakeholders", "Total pledge",
-                               "Gini-id", "Gini-id stake", "Gini-id stake (k)", "Gini-id (k)",
-                               "Gini-id stake (fraction)", "Gini-id (fraction)"]  # , "Min-aggregate pledge"]
+                               "Cost efficient stakeholders", "Total pledge"]
+                               #"Gini-id", "Gini-id stake", "Gini-id stake (k)", "Gini-id (k)"]
+                               #"Gini-id stake (fraction)", "Gini-id (fraction)"]  # , "Min-aggregate pledge"]
     additional_model_reporters = defaultdict(lambda: [])
     '''additional_model_reporters['alpha'] = [
             "Average pledge", "Total pledge", "Max pools per operator", "Median pools per operator",

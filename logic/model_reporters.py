@@ -112,7 +112,7 @@ def get_avg_sat_rate(model):
 
 
 def get_stakes_n_margins(model):
-    players = model.get_players_dict()
+    players = model.get_agents_dict()
     pools = model.get_pools_list()
     return {
         'x': [players[pool.owner].stake for pool in pools],
@@ -124,7 +124,7 @@ def get_stakes_n_margins(model):
 
 
 def get_total_delegated_stake(model):
-    players = model.get_players_list()
+    players = model.get_agents_list()
     stake_from_pools = sum([pool.stake for pool in model.get_pools_list()])
     stake_from_players = sum([sum([a for a in player.strategy.stake_allocations.values()])
                               for player in players]) + \
@@ -140,7 +140,7 @@ def get_controlled_stake_mean_abs_diff(model):
     :return: the mean value of the absolute differences of the stake the players control
                 (how they started vs how they ended up)
     """
-    active_players = {player_id: player for player_id, player in model.get_players_dict().items() if
+    active_players = {player_id: player for player_id, player in model.get_agents_dict().items() if
                       not player.abstains}
     pools = model.get_pools_list()
     if len(pools) == 0:
@@ -162,7 +162,7 @@ def get_controlled_stake_distr_stat_dist(model):
     """
     active_players = {
         player_id: player
-        for player_id, player in model.get_players_dict().items()
+        for player_id, player in model.get_agents_dict().items()
         if not player.abstains
     }
     pools = model.get_pools_list()
@@ -193,7 +193,7 @@ def get_nakamoto_coefficient(model):
     :param model: the instance of the simulation
     :return: the number of players that control more than 50% of the total active stake through their pools
     """
-    players = model.get_players_dict()
+    players = model.get_agents_dict()
     active_players = {player_id: players[player_id] for player_id in players if not players[player_id].abstains}
     try:
         pools = model.get_pools_list()
@@ -252,7 +252,7 @@ def get_optimal_min_aggregate_pledge(model):
     Potential caveat: maybe doesn't generalise to when we have abstention
     """
     k = model.k
-    all_stakes = [player.stake for player in model.get_players_list()]
+    all_stakes = [player.stake for player in model.get_agents_list()]
     relevant_stakes = sorted(all_stakes, reverse=True)[int(k/2):k]
     return sum(relevant_stakes)
 
@@ -332,7 +332,7 @@ def get_iterations(model):
 
 def get_avg_stk_rnk(model):
     pools = model.get_pools_list()
-    all_players = model.get_players_dict()
+    all_players = model.get_agents_dict()
     pool_owner_ids = {pool.owner for pool in pools}
     stakes = {player_id: player.stake for player_id, player in all_players.items()}
     stake_ranks = hlp.calculate_ranks(stakes)
@@ -342,7 +342,7 @@ def get_avg_stk_rnk(model):
 
 def get_avg_cost_rnk(model):
     pools = model.get_pools_list()
-    all_players = model.get_players_dict()
+    all_players = model.get_agents_dict()
     pool_owner_ids = {pool.owner for pool in pools}
     negative_cost_ranks = hlp.calculate_ranks({player_id: -player.cost for player_id, player in all_players.items()})
     pool_owner_cost_ranks = [negative_cost_ranks[pool_owner] for pool_owner in pool_owner_ids]
@@ -352,7 +352,7 @@ def get_avg_cost_rnk(model):
 
 def get_median_stk_rnk(model):
     pools = model.get_pools_list()
-    all_players = model.get_players_dict()
+    all_players = model.get_agents_dict()
     pool_owner_ids = {pool.owner for pool in pools}
     stakes = {player_id: player.stake for player_id, player in all_players.items()}
     stake_ranks = hlp.calculate_ranks(stakes)
@@ -362,7 +362,7 @@ def get_median_stk_rnk(model):
 
 def get_median_cost_rnk(model):
     pools = model.get_pools_list()
-    all_players = model.get_players_dict()
+    all_players = model.get_agents_dict()
     pool_owner_ids = {pool.owner for pool in pools}
     negative_cost_ranks = hlp.calculate_ranks({player_id: -player.cost for player_id, player in all_players.items()})
     pool_owner_cost_ranks = [negative_cost_ranks[pool_owner] for pool_owner in pool_owner_ids]
@@ -383,7 +383,7 @@ def get_pool_splitter_count(model):
     return len(pool_splitters)
 
 def get_cost_efficient_count(model):
-    all_players = model.get_players_list()
+    all_players = model.get_agents_list()
     potential_profits = [
         hlp.calculate_potential_profit(player.stake, player.cost, model.alpha, model.beta, model.reward_function_option, model.total_stake)
         for player in all_players

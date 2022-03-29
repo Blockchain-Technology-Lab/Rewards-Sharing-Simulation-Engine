@@ -62,7 +62,7 @@ model_params = {
     ),
     "player_activation_order": UserSettableParameter("choice", "Player activation order",
                                                      value="Random",
-                                                     choices=list(Simulation.player_activation_orders.keys())),
+                                                     choices=list(Simulation.agent_activation_orders.keys())),
     "seed": UserSettableParameter(
         "number", "Random seed", 42, description="Seed for reproducibility"
     ),

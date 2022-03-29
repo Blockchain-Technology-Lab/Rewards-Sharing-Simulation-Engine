@@ -33,10 +33,10 @@ class Simulation(Model):
     Simulation of staking behaviour in Proof-of-Stake Blockchains.
     """
 
-    player_activation_orders = {
+    agent_activation_orders = {
         "Random": RandomActivation,
         "Sequential": BaseScheduler,
-        "Simultaneous": SimultaneousActivation, # note that during simultaneous activation players apply their moves sequentially which may not be the expected behaviour
+        "Simultaneous": SimultaneousActivation, # note that during simultaneous activation agents apply their moves sequentially which may not be the expected behaviour
         "Semisimultaneous": SemiSimultaneousActivation
 
     }
@@ -44,7 +44,7 @@ class Simulation(Model):
     def __init__(self, n=1000, k=100, alpha=0.3, stake_distr_type='Pareto', myopic_fraction=0, abstention_rate=0,
                  abstention_known=False,relative_utility_threshold=0, absolute_utility_threshold=1e-9,
                  min_steps_to_keep_pool=5, pool_splitting=True, seed=None, pareto_param=2.0, max_iterations=1000,
-                 cost_min=1e-4, cost_max=1e-3, cost_factor=0.7, player_activation_order="Random", total_stake=-1, ms=10,
+                 cost_min=1e-4, cost_max=1e-3, cost_factor=0.7, agent_activation_order="Random", total_stake=-1, ms=10,
                  extra_cost_type='fixed_fraction', reward_function_option=0, execution_id=''):
         # todo make sure that the input is valid? n > 0, 0 < k <= n
         self.arguments = locals()  # only used for naming the output files appropriately
@@ -58,9 +58,7 @@ class Simulation(Model):
         execution_id += '-seed-' + seed
 
         super().__init__(seed=seed)
-
-        print(sys.version)
-        print([f"{k}, {v}" for k, v in locals().items()])
+        #print([f"{k}, {v}" for k, v in locals().items()])
 
         # An era is defined as a time period during which the parameters of the model don't change
         self.current_era = 0
@@ -89,19 +87,19 @@ class Simulation(Model):
         self.min_steps_to_keep_pool = min_steps_to_keep_pool
         self.pool_splitting = pool_splitting
         self.max_iterations = max_iterations
-        self.player_activation_order = player_activation_order
+        self.agent_activation_order = agent_activation_order
         self.extra_cost_type = extra_cost_type
         self.reward_function_option = reward_function_option
 
         if abstention_known:
-            # The system is aware of the abstention rate of the system, so it inflates k
+            # The system is aware of the abstention rate of the system, so it inflates k (and subsequently lowers beta)
             # to make it possible to end up with the original desired number of pools
             self.k = int(self.k / (1 - self.abstention_rate))
 
         self.running = True  # for batch running and visualisation purposes
-        self.schedule = self.player_activation_orders[player_activation_order](self)
+        self.schedule = self.agent_activation_orders[agent_activation_order](self)
 
-        self.total_stake = self.initialize_players(cost_min, cost_max, pareto_param, stake_distr_type, imposed_total_stake=total_stake, seed=seed)
+        self.total_stake = self.initialize_agents(cost_min, cost_max, pareto_param, stake_distr_type, imposed_total_stake=total_stake, seed=seed)
         if self.total_stake <= 0:
             raise ValueError('Total stake must be > 0')
         self.perceived_active_stake = self.total_stake
@@ -164,17 +162,17 @@ class Simulation(Model):
         self.equilibrium_steps = []
         self.pivot_steps = []
 
-    def initialize_players(self, cost_min, cost_max, pareto_param, stake_distr_type, imposed_total_stake, seed):
+    def initialize_agents(self, cost_min, cost_max, pareto_param, stake_distr_type, imposed_total_stake, seed):
         if stake_distr_type.lower() == 'flat':
-            # Distribute the total stake of the system evenly to all players
+            # Distribute the total stake of the system evenly to all agents
             stake_distribution = hlp.generate_stake_distr_flat(num_agents=self.n, total_stake= max(imposed_total_stake, 1))
         else:
-            # Allocate stake to the players, sampling from a Pareto distribution
+            # Allocate stake to the agents, sampling from a Pareto distribution
             stake_distribution = hlp.generate_stake_distr_pareto(num_agents=self.n, pareto_param=pareto_param, seed=seed,
                                                                  total_stake=imposed_total_stake)#, truncation_factor=self.k)
         total_stake = sum(stake_distribution)
 
-        # Allocate cost to the players, sampling from a uniform distribution
+        # Allocate cost to the agents, sampling from a uniform distribution
         cost_distribution = hlp.generate_cost_distr_unfrm(num_agents=self.n, low=cost_min, high=cost_max, seed=seed)
         #cost_distribution = hlp.generate_cost_distr_bands(num_agents=self.n, low=cost_min, high=cost_max, num_bands=10)
         #cost_distribution = hlp.generate_cost_distr_nrm(num_agents=self.n, low=cost_min, high=cost_max, mean=5e-6, stddev=5e-1)
@@ -211,6 +209,7 @@ class Simulation(Model):
         """
         Execute one step of the simulation
         """
+        self.get_status()
         #self.datacollector.collect(self)
 
         current_step = self.schedule.steps
@@ -218,10 +217,7 @@ class Simulation(Model):
             self.revise_beliefs()
 
         if current_step >= self.max_iterations:
-            # put those 3 in a wrap up function (instead of print time)
-            self.running = False
-            self.print_time()
-            self.dump_state_to_csv()
+            self.wrap_up_execution()
             return
 
         # Activate all agents (in the order specified by self.schedule) to perform all their actions for one time step
@@ -233,14 +229,11 @@ class Simulation(Model):
                 if self.current_era < self.total_eras - 1:
                     self.adjust_params()
                 else:
-                    self.running = False
-                    self.print_time()
-                    self.dump_state_to_csv()
+                    self.wrap_up_execution()
                     return
         else:
             self.consecutive_idle_steps = 0
         self.current_step_idle = True
-        self.get_status()
 
     def run_model(self):
         """
@@ -255,37 +248,47 @@ class Simulation(Model):
     def has_converged(self):
         """
         Check whether the system has reached a state of equilibrium,
-        where no player wants to change their strategy
+        where no agent wants to change their strategy
         """
         return self.consecutive_idle_steps >= self.min_consecutive_idle_steps_for_convergence
 
-    def dump_state_to_csv(self):
+    def export_agents_file(self):
+        row_list = [["Agent id", "Stake", "Cost", "Potential Profit","Active","Status"]]
+        agents = self.get_agents_dict()
+        decimals = 5
+        row_list.extend([
+            [agent_id, round(agents[agent_id].stake, decimals), round(agents[agent_id].cost, decimals),
+             round(hlp.calculate_potential_profit(agents[agent_id].stake, agents[agent_id].cost, self.alpha, self.beta, self.reward_function_option, self.total_stake), decimals),
+             "No" if agents[agent_id].abstains else "Yes",
+             "Operator" if len(agents[agent_id].strategy.owned_pools) > 0 else "Delegator"
+             ] for agent_id in range(len(agents))
+        ])
+
+        filename = self.execution_id + '-final_configuration_stakeholders.csv' \
+            if self.has_converged() else  self.execution_id + '-intermediate_configuration_stakeholders.csv'
+        hlp.export_csv_file(row_list, filename)
+        
+    def export_pools_file(self):
         row_list = [["Pool id", "Owner id", "Owner stake", "Pool Pledge", "Pool stake", "Owner cost", "Pool cost", "Pool margin"]]
-        players = self.get_players_dict()
+        agents = self.get_agents_dict()
         pools = self.get_pools_list()
         decimals = 12
         row_list.extend(
-            [[pool.id, pool.owner, round(players[pool.owner].stake, decimals), round(pool.pledge, decimals),
-              round(pool.stake, decimals), round(players[pool.owner].cost, decimals), round(pool.cost, decimals),
+            [[pool.id, pool.owner, round(agents[pool.owner].stake, decimals), round(pool.pledge, decimals),
+              round(pool.stake, decimals), round(agents[pool.owner].cost, decimals), round(pool.cost, decimals),
               round(pool.margin, decimals)] for pool in pools])
+        filename = self.execution_id + '-final_configuration_pools.csv'\
+            if self.has_converged() else self.execution_id + '-intermediate_configuration_pools.csv'
 
-        today = time.strftime("%d-%m-%Y")
-        output_dir = "output/" + today
-        path = pathlib.Path.cwd() / output_dir
-        pathlib.Path(path).mkdir(parents=True, exist_ok=True)
-        filename = (path / (self.execution_id + '-final_configuration.csv')) \
-            if self.has_converged() else (path / (self.execution_id + '-intermediate-configuration.csv'))
-        with open(filename, 'w', newline='') as file:
-            writer = csv.writer(file)
-            writer.writerows(row_list)
+        hlp.export_csv_file(row_list, filename)
 
     def get_pools_list(self):
         return list(self.pools.values())
 
-    def get_players_dict(self):
-        return {player.unique_id: player for player in self.schedule.agents}
+    def get_agents_dict(self):
+        return {agent.unique_id: agent for agent in self.schedule.agents}
 
-    def get_players_list(self):
+    def get_agents_list(self):
         return self.schedule.agents
 
     def get_status(self):
@@ -297,8 +300,8 @@ class Simulation(Model):
         Revise the perceived active stake and expected number of pools,
         to reflect the current state of the system
         The value for the active stake is calculated based on the currently delegated stake
-        Note that this value is an estimate that the players can easily calculate and use with the knowledge they have,
-        it's not necessarily equal to the sum of all active players' stake
+        Note that this value is an estimate that the agents can easily calculate and use with the knowledge they have,
+        it's not necessarily equal to the sum of all active agents' stake
         """
         # Revise active stake
         active_stake = sum([pool.stake for pool in self.pools.values()])
@@ -320,5 +323,8 @@ class Simulation(Model):
         if change_occured:
             self.pivot_steps.append(self.schedule.steps)
 
-    def print_time(self):
-        print("Model took  {:.2f} seconds to run.".format(time.time() - self.start_time))
+    def wrap_up_execution(self):
+        self.running = False
+        print("Execution {} took  {:.2f} seconds to run.".format(self.execution_id, time.time() - self.start_time))
+        self.export_pools_file()
+        self.export_agents_file()

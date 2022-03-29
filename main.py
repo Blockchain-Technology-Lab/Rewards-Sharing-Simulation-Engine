@@ -14,7 +14,7 @@ def main():
 
     parser = argparse.ArgumentParser(description='Pooling Games')
     parser.add_argument('--n', type=int, default=1000,
-                        help='The number of players (natural number). Default is 1000.')
+                        help='The number of agents (natural number). Default is 1000.')
     parser.add_argument('--k', nargs="+", type=int, default=100,
                         help='The k value of the system (natural number). Default is 100.')
     parser.add_argument('--alpha', nargs="+", type=float, default=0.3,
@@ -33,25 +33,25 @@ def main():
                         help='The utility increase ratio under which moves are disregarded. Default is 0%%.')
     parser.add_argument('--absolute_utility_threshold', nargs="+", type=float, default=1e-9,
                         help='The utility threshold under which moves are disregarded. Default is 1e-9.')
-    parser.add_argument('--player_activation_order', type=str, default='Random',
-                        help='Player activation order. Default is random.')
+    parser.add_argument('--agent_activation_order', type=str, default='Random',
+                        help='agent activation order. Default is random.')
     parser.add_argument('--seed', default=None,
                         help='Seed for reproducibility. Default is None, which means that no seed is given.')
     parser.add_argument("--min_steps_to_keep_pool", type=int, default=5,
-                        help='The number of steps for which a player remains idle after opening a pool. Default is 5.')
+                        help='The number of steps for which a agent remains idle after opening a pool. Default is 5.')
     parser.add_argument('--myopic_fraction', nargs="+", type=float, default=0,
-                        help='The fraction of myopic players in the simulation. Default is 0%%.')
+                        help='The fraction of myopic agents in the simulation. Default is 0%%.')
     parser.add_argument('--abstention_rate', nargs="+", type=float, default=0,
-                        help='The percentage of players that will abstain from the game in this run. Default is 0%%.')
+                        help='The percentage of agents that will abstain from the game in this run. Default is 0%%.')
     parser.add_argument('--pool_splitting', type=bool, default=True, action=argparse.BooleanOptionalAction,
-                        help='Are individual players allowed to create multiple pools? Default is yes.')
+                        help='Are individual agents allowed to create multiple pools? Default is yes.')
     parser.add_argument('--max_iterations', type=int, default=2000,
                         help='The maximum number of iterations of the system. Default is 2000.')
     parser.add_argument('--ms', type=int, default=10,
                         help='The minimum consecutive idle steps that are required to declare convergence. '
                              'Default is 10. But if min_steps_to_keep_pool > ms then ms = min_steps_to_keep_pool + 1.')
     parser.add_argument('--stake_distr_type', type=str, default='Pareto',
-                        help='The distribution type to use for the initial allocation of stake to the players.')
+                        help='The distribution type to use for the initial allocation of stake to the agents.')
     parser.add_argument('--extra_cost_type', type=str, default='fixed_fraction',
                         help='The method used to calculate the cost of any additional pool.')
     parser.add_argument('--execution_id', type=str, default='',
@@ -75,7 +75,7 @@ def main():
         pareto_param=args.pareto_param,
         relative_utility_threshold=args.relative_utility_threshold,
         absolute_utility_threshold=args.absolute_utility_threshold,
-        player_activation_order=args.player_activation_order.capitalize(),
+        agent_activation_order=args.agent_activation_order.capitalize(),
         seed=args.seed,
         min_steps_to_keep_pool=args.min_steps_to_keep_pool,
         myopic_fraction=args.myopic_fraction,
