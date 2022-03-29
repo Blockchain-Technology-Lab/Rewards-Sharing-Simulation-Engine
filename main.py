@@ -54,7 +54,7 @@ def main():
                         help='The distribution type to use for the initial allocation of stake to the players.')
     parser.add_argument('--extra_cost_type', type=str, default='fixed_fraction',
                         help='The method used to calculate the cost of any additional pool.')
-    parser.add_argument('--execution_id', type=str, default='unnamed-simulation',
+    parser.add_argument('--execution_id', type=str, default='',
                         help='An optional identifier for the specific simulation run, '
                              'which will be included in the output.')
     parser.add_argument('--reward_function_option', type=int, default=0,
@@ -91,7 +91,7 @@ def main():
 
     sim.run_model()
 
-    sim_df = sim.datacollector.get_model_vars_dataframe()
+    '''sim_df = sim.datacollector.get_model_vars_dataframe()
     execution_id = sim.execution_id
 
     day = time.strftime("%d-%m-%Y")
@@ -159,7 +159,7 @@ def plot_line(execution_id, data, color, title, x_label, y_label, filename, equi
     plt.xlabel(x_label)
     plt.ylabel(y_label)
     plt.legend()
-    plt.savefig(figures_dir + execution_id + "-" + filename + ".png", bbox_inches='tight')
+    plt.savefig(figures_dir + execution_id + "-" + filename + ".png", bbox_inches='tight')'''
 
 
 def main_with_profiling():
@@ -178,9 +178,9 @@ def main_with_profiling():
 
 if __name__ == "__main__":
     main()  # for profiling the code, comment this line and uncomment the one below
-    #main_with_profiling()
+    '''main_with_profiling()
     cache_funcs = [calculate_potential_profit, calculate_pool_reward, #calculate_cost_per_pool, calculate_myopic_pool_desirability,
                    calculate_delegator_reward_from_pool, calculate_operator_reward_from_pool, calculate_cost_per_pool_fixed_fraction,
                    calculate_pool_desirability, calculate_pool_stake_NM_from_rank, determine_pledge_per_pool]
     for func in cache_funcs:
-        print(func.__name__,': ', func.cache_info())
+        print(func.__name__,': ', func.cache_info())'''
