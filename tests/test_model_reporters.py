@@ -17,7 +17,7 @@ def test_get_controlled_stake_mean_abs_diff(mocker):
     total_stake = 1
     model = logic.sim.Simulation(total_stake=total_stake)
 
-    players_dict = {
+    agents_dict = {
         1: Stakeholder(unique_id=1, model=model, stake=0.01),
         2: Stakeholder(unique_id=2, model=model, stake=0.04)
     }
@@ -33,7 +33,7 @@ def test_get_controlled_stake_mean_abs_diff(mocker):
     pool3.stake = 0.05
     pools_list = [pool1, pool2, pool3]
 
-    mocker.patch('logic.sim.Simulation.get_players_dict', return_value=players_dict)
+    mocker.patch('logic.sim.Simulation.get_agents_dict', return_value=agents_dict)
     mocker.patch('logic.sim.Simulation.get_pools_list', return_value=pools_list)
 
     mean_abs_diff = get_controlled_stake_mean_abs_diff(model)
@@ -45,7 +45,7 @@ def test_get_controlled_stake_distr_stat_dist(mocker):
     total_stake = 1
     model = logic.sim.Simulation(total_stake=total_stake)
 
-    players_dict = {
+    agents_dict = {
         1: Stakeholder(unique_id=1, model=model, stake=0.01),
         2: Stakeholder(unique_id=2, model=model, stake=0.04),
         3: Stakeholder(unique_id=3, model=model, stake=0.01)
@@ -62,7 +62,7 @@ def test_get_controlled_stake_distr_stat_dist(mocker):
     pool3.stake = 0.05
     pools_list = [pool1, pool2, pool3]
 
-    mocker.patch('logic.sim.Simulation.get_players_dict', return_value=players_dict)
+    mocker.patch('logic.sim.Simulation.get_agents_dict', return_value=agents_dict)
     mocker.patch('logic.sim.Simulation.get_pools_list', return_value=pools_list)
     mocker.patch('logic.sim.Simulation.has_converged', return_value=True)
 
@@ -107,8 +107,8 @@ def test_get_min_aggregate_pledge(mocker):
 
 def test_get_optimal_min_aggregate_pledge(mocker):
     model = logic.sim.Simulation(k=10)
-    players = [Stakeholder(unique_id=x, model=model, stake=x) for x in range(1, 101)]
-    mocker.patch('logic.sim.Simulation.get_players_list', return_value=players)
+    agents = [Stakeholder(unique_id=x, model=model, stake=x) for x in range(1, 101)]
+    mocker.patch('logic.sim.Simulation.get_agents_list', return_value=agents)
     optimal_min_aggr_pledge = get_optimal_min_aggregate_pledge(model)
     assert optimal_min_aggr_pledge == (95 + 94 + 93 + 92 + 91)
 

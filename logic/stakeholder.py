@@ -26,19 +26,7 @@ class Stakeholder(Agent):
             strategy = Strategy()
         self.strategy = strategy
 
-
-    def check_for_correctness_delegations(self):
-        pools = self.model.pools
-        for pool_id, pool in pools.items():
-            if (self.unique_id in pool.delegators) != (pool_id in self.strategy.stake_allocations):
-                print(pool_id)
-                print(pool.delegators)
-                print(self.unique_id)
-                print(self.strategy.stake_allocations)
-
-
     def step(self):
-        #self.check_for_correctness_delegations()
         self.update_strategy()
         if "simultaneous" not in self.model.agent_activation_order.lower():
             # When agents make moves simultaneously, "step() activates the agent and stages any necessary changes,
@@ -115,6 +103,7 @@ class Stakeholder(Agent):
 
     def calculate_expected_utility(self, strategy):
         utility = 0
+
         # Calculate expected utility of operating own pools
         if len(strategy.owned_pools) > 0:
             utility += self.calculate_operator_utility_from_strategy(strategy)
@@ -128,7 +117,7 @@ class Stakeholder(Agent):
                 pool = pools[pool_id]
                 utility += self.calculate_delegator_utility_from_pool(pool, a)
             else:
-                raise PoolNotFoundError("agent {} considered delegating to a non-existing pool ({})!"
+                raise PoolNotFoundError("Agent {} considered delegating to a non-existing pool ({})!" #todo do we really need this?
                                         .format(self.unique_id, pool_id))
         return utility
 
@@ -358,6 +347,11 @@ class Stakeholder(Agent):
         choose the one with the highest (current) stake, as it offers higher short-term rewards.
         :return:
         """
+        if stake_to_delegate is None:
+            stake_to_delegate = self.stake
+        if stake_to_delegate < MIN_STAKE_UNIT:
+            return Strategy()
+
         all_pools_dict = self.model.pools
         saturation_point = self.model.beta
         # todo do I need to calculate myopic desirability in case of myopic agent?
@@ -377,11 +371,6 @@ class Stakeholder(Agent):
 
         heapq.heapify(relevant_pools_properties) # turn list into (min) heap
 
-        if stake_to_delegate is None:
-            stake_to_delegate = self.stake
-            if stake_to_delegate <= MIN_STAKE_UNIT:
-                return Strategy()
-
         # Remove the agent's stake from the pools in case it's being delegated
         for pool_id, allocation in self.strategy.stake_allocations.items():
             all_pools_dict[pool_id].update_delegation(new_delegation=0, delegator_id=self.unique_id)
@@ -393,7 +382,7 @@ class Stakeholder(Agent):
             best_pool_id = heapq.heappop(relevant_pools_properties)[3]
             best_pool = all_pools_dict[best_pool_id]
             stake_to_saturation = saturation_point - best_pool.stake
-            if stake_to_saturation <= 0:
+            if stake_to_saturation < MIN_STAKE_UNIT:
                 if best_saturated_pool is None:
                     best_saturated_pool = best_pool
                 continue
@@ -422,17 +411,13 @@ class Stakeholder(Agent):
         old_allocations = self.strategy.stake_allocations
         new_allocations = self.new_strategy.stake_allocations
         for pool_id in old_allocations.keys() - new_allocations.keys():
-            if current_pools[pool_id] is not None:  # todo can't really be none here, right? maybe in simultaneous act?
+            if current_pools[pool_id] is not None:  # todo can't really be none here, right? maybe in simultaneous act? check if else clause is needed (e.g. to update strategy)
                 # remove delegation
                 current_pools[pool_id].update_delegation(new_delegation=0, delegator_id=self.unique_id)
-            else:
-                print("problemo")
         for pool_id in new_allocations.keys() :
-            if current_pools[pool_id] is not None:  # todo can't really be none here, right? maybe in simultaneous act?
+            if current_pools[pool_id] is not None:  # todo can't really be none here, right? maybe in simultaneous act? check if else clause is needed (e.g. to update strategy)
                 # add / modify delegation
                 current_pools[pool_id].update_delegation(new_delegation=new_allocations[pool_id], delegator_id=self.unique_id)
-            else:
-                print("problemo")
 
 
         old_owned_pools = set(self.strategy.owned_pools.keys())
@@ -475,19 +460,7 @@ class Stakeholder(Agent):
         delegators = list(pool.delegators.keys())
         for agent_id in delegators:
             agent = agents[agent_id]
-            if pool.id in agent.strategy.stake_allocations.keys():
-                agent.strategy.stake_allocations.pop(pool.id)
-            else:
-                print('-------------------------------------------------')
-                print('n: ', self.model.n)
-                print('k: ', self.model.k)
-                print('alpha: ', self.model.alpha)
-                print('seed: ', self.model._seed)
-                print('pool id: ', pool.id)
-                print('agent id: ', agent.unique_id)
-                print('step: ', self.model.schedule.steps)
-                print('alleged delegation: ', pool.delegators[agent_id])
-                print('-------------------------------------------------')
+            agent.strategy.stake_allocations.pop(pool.id)
             pool.update_delegation(new_delegation=0, delegator_id=agent_id)
 
 

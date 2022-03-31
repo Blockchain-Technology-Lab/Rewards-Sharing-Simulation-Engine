@@ -213,12 +213,11 @@ class Simulation(Model):
         #self.datacollector.collect(self)
 
         current_step = self.schedule.steps
-        if current_step % self.revision_frequency == 0 and current_step > 0:
-            self.revise_beliefs()
-
         if current_step >= self.max_iterations:
             self.wrap_up_execution()
             return
+        if current_step % self.revision_frequency == 0 and current_step > 0:
+            self.revise_beliefs()
 
         # Activate all agents (in the order specified by self.schedule) to perform all their actions for one time step
         self.schedule.step()
@@ -264,8 +263,9 @@ class Simulation(Model):
              ] for agent_id in range(len(agents))
         ])
 
-        filename = self.execution_id + '-final_configuration_stakeholders.csv' \
-            if self.has_converged() else  self.execution_id + '-intermediate_configuration_stakeholders.csv'
+        suffix = '-final_configuration_stakeholders.csv' if self.has_converged() else '-intermediate_configuration_stakeholders.csv'
+        filename = self.execution_id + suffix
+
         hlp.export_csv_file(row_list, filename)
         
     def export_pools_file(self):
@@ -277,8 +277,8 @@ class Simulation(Model):
             [[pool.id, pool.owner, round(agents[pool.owner].stake, decimals), round(pool.pledge, decimals),
               round(pool.stake, decimals), round(agents[pool.owner].cost, decimals), round(pool.cost, decimals),
               round(pool.margin, decimals)] for pool in pools])
-        filename = self.execution_id + '-final_configuration_pools.csv'\
-            if self.has_converged() else self.execution_id + '-intermediate_configuration_pools.csv'
+        suffix = '-final_configuration_pools.csv' if self.has_converged() else '-intermediate_configuration_pools.csv'
+        filename = self.execution_id + suffix
 
         hlp.export_csv_file(row_list, filename)
 

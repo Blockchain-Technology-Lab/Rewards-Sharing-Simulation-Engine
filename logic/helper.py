@@ -22,7 +22,8 @@ MIN_COST_PER_POOL = 1e-6
 
 def generate_stake_distr_pareto(num_agents, pareto_param=2, seed=156, truncation_factor=-1, total_stake=-1):
     """
-    Generate a distribution for the players' initial stake (wealth),
+    Generate a distribution for the agents' initial stake (wealth),
+    sampling from a Pareto distribution
     sampling from a Pareto distribution
     :param pareto_param:
     :param num_agents:
@@ -77,7 +78,7 @@ def generate_stake_distr_flat(num_agents, total_stake=1):
 
 def generate_cost_distr_unfrm(num_agents, low, high, seed=156):
     """
-    Generate a distribution for the players' costs of operating pools,
+    Generate a distribution for the agents' costs of operating pools,
     sampling from a uniform distribution
     :param num_agents:
     :param low:
@@ -98,7 +99,7 @@ def generate_cost_distr_bands(num_agents, low, high, num_bands, seed=156):
 
 def generate_cost_distr_nrm(num_agents, low, high, mean, stddev):
     """
-    Generate a distribution for the players' costs of operating pools,
+    Generate a distribution for the agents' costs of operating pools,
     sampling from a truncated normal distribution
     """
     costs = stats.truncnorm.rvs(low, high,
@@ -316,7 +317,7 @@ def calculate_pool_stake_NM_from_rank(pool_pledge, pool_stake, beta, rank_in_top
 @lru_cache(maxsize=1024)
 def determine_pledge_per_pool(agent_stake, beta, num_pools):
     """
-    The players choose to allocate their entire stake as the pledge of their pools,
+    The agents choose to allocate their entire stake as the pledge of their pools,
     so they divide it equally among them
     However, if they saturate all their pools with pledge and still have remaining stake,
     then they don't allocate all of it to their pools, as a pool with such a pledge above saturation
@@ -324,7 +325,7 @@ def determine_pledge_per_pool(agent_stake, beta, num_pools):
     :return: list of pledge values
     """
     if num_pools <= 0:
-        raise ValueError("Player tried to calculate pledge for zero or less pools.")
+        raise ValueError("Agent tried to calculate pledge for zero or less pools.")
     return [min(agent_stake / num_pools, beta)] * num_pools
 
 def export_csv_file(rows, filename ):

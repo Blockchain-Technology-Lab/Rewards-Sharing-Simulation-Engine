@@ -60,7 +60,7 @@ model_params = {
         "slider", "Absolute utility threshold", 1e-9, 0.0, 00.1, 0.0000001,
         description="The absolute utility threshold under which moves are disregarded."
     ),
-    "player_activation_order": UserSettableParameter("choice", "Player activation order",
+    "agent_activation_order": UserSettableParameter("choice", "agent activation order",
                                                      value="Random",
                                                      choices=list(Simulation.agent_activation_orders.keys())),
     "seed": UserSettableParameter(
@@ -68,15 +68,15 @@ model_params = {
     ),
     "min_steps_to_keep_pool": UserSettableParameter(
         "slider", "Min steps to keep pool", 5, 1, 20, 1,
-        description="The number of steps for which a player remains idle after opening a pool."
+        description="The number of steps for which a agent remains idle after opening a pool."
     ),
     "myopic_fraction": UserSettableParameter(
         "slider", "Myopic fraction", 0, 0.0, 1.0, 0.01,
-        description="The fraction of myopic players in the simulation."
+        description="The fraction of myopic agents in the simulation."
     ),
     "abstention_rate": UserSettableParameter(
         "slider", "Abstaining fraction", 0.1, 0.0, 1.0, 0.01,
-        description="The percentage of players that will abstain from the game in this run."
+        description="The percentage of agents that will abstain from the game in this run."
     ),
     "pool_splitting": UserSettableParameter(
         "checkbox", "Allow pool splitting", False
