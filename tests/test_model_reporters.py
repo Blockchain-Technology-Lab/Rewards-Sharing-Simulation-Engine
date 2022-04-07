@@ -217,11 +217,59 @@ def test_get_gini_id_coeff_pool_count_k_agents():
     for pool in pools_1:
         pools[pool.id] = pool
     pools[3] = Pool(owner=2, cost=0.001, pledge=0.01, margin=0.1, alpha=0.3, beta=0.1, pool_id=11,
-                     reward_function_option=0, total_stake=1)
+                    reward_function_option=0, total_stake=1)
     pools[4] = Pool(owner=5, cost=0.001, pledge=0.06, margin=0.1, alpha=0.3, beta=0.1, pool_id=13,
-                     reward_function_option=0, total_stake=1)
+                    reward_function_option=0, total_stake=1)
     model.pools = pools
 
     g = get_gini_id_coeff_pool_count_k_agents(model)
     assert round(g, 3) == 0.56
+
+def test_get_nakamoto_coefficient():
+    model = logic.sim.Simulation()
+    pools = {}
+    pools_1 = [
+        Pool(owner=1, cost=0.001, pledge=0.01, margin=0.1, alpha=0.3, beta=0.1, pool_id=i,
+             reward_function_option=0, total_stake=1)
+        for i in range(5)]
+    for pool in pools_1:
+        pool.stake = 0.1
+        pools[pool.id] = pool
+
+    pools_2 = [
+        Pool(owner=2, cost=0.001, pledge=0.01, margin=0.1, alpha=0.3, beta=0.1, pool_id=i,
+             reward_function_option=0, total_stake=1)
+        for i in range(5, 8)]
+    for pool in pools_2:
+        pool.stake = 0.1
+        pools[pool.id] = pool
+
+    pools[8] = Pool(owner=3, cost=0.001, pledge=0.01, margin=0.1, alpha=0.3, beta=0.1, pool_id=11,
+                    reward_function_option=0, total_stake=1)
+    pools[8].stake = 0.1
+    pools[9] = Pool(owner=4, cost=0.001, pledge=0.06, margin=0.1, alpha=0.3, beta=0.1, pool_id=13,
+                    reward_function_option=0, total_stake=1)
+    pools[9].stake = 0.1
+    model.pools = pools
+
+    nc = get_nakamoto_coefficient(model)
+
+    assert nc == 2
+
+#todo review failing test
+def test_get_nakamoto_coefficient_total_stake_1():
+    model = logic.sim.Simulation()
+    pools = {}
+    for i in range(300):
+        pools[i] = Pool(owner=i, cost=0.001, pledge=0.001, margin=0.1, alpha=0.3, beta=0.1, pool_id=i,
+             reward_function_option=0, total_stake=1)
+        pools[i].stake = 1/300
+    model.pools = pools
+
+    nc = get_nakamoto_coefficient(model)
+
+    assert nc == 151
+
+
+
 
