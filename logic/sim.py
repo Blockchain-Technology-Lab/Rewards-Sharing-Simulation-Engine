@@ -99,7 +99,9 @@ class Simulation(Model):
         self.running = True  # for batch running and visualisation purposes
         self.schedule = self.agent_activation_orders[agent_activation_order](self)
 
-        self.total_stake = self.initialize_agents(cost_min, cost_max, pareto_param, stake_distr_source.lower(), imposed_total_stake=total_stake, seed=seed)
+        total_stake = self.initialize_agents(cost_min, cost_max, pareto_param, stake_distr_source.lower(), imposed_total_stake=total_stake, seed=seed)
+        self.total_stake = total_stake / (1 - abstention_rate)
+        print("Total stake (including abstaining fraction): ", self.total_stake)
 
         if self.total_stake <= 0:
             raise ValueError('Total stake must be > 0')
@@ -186,7 +188,6 @@ class Simulation(Model):
         #cost_distribution = hlp.generate_cost_distr_nrm(num_agents=self.n, low=cost_min, high=cost_max, mean=5e-6, stddev=5e-1)
 
         num_myopic_agents = int(self.myopic_fraction * self.n)
-        num_abstaining_agents = int(self.abstention_rate * self.n)
         unique_ids = [i for i in range(self.n)]
         self.random.shuffle(unique_ids)
         # Create agents
@@ -194,8 +195,8 @@ class Simulation(Model):
             agent = Stakeholder(
                 unique_id=unique_id,
                 model=self,
-                is_abstainer=(i < num_abstaining_agents), #(i == self.n - 1),todo fix allocation of abstaining agents for any distribution
-                is_myopic=(num_abstaining_agents <= i < num_abstaining_agents + num_myopic_agents),
+                is_abstainer=False,
+                is_myopic=(i < num_myopic_agents),
                 cost=cost_distribution[i],
                 stake=stake_distribution[i]
             )
