@@ -10,7 +10,7 @@ import random
 
 #import pandas as pd
 from mesa import Model
-#from mesa.datacollection import DataCollector
+from mesa.datacollection import DataCollector
 from mesa.time import BaseScheduler, SimultaneousActivation, RandomActivation
 
 from logic.stakeholder import Stakeholder
@@ -41,8 +41,8 @@ class Simulation(Model):
 
     }
 
-    def __init__(self, n=1000, k=100, alpha=0.3, stake_distr_type='Pareto', myopic_fraction=0, abstention_rate=0,
-                 abstention_known=False,relative_utility_threshold=0, absolute_utility_threshold=1e-9,
+    def __init__(self, n=1000, k=100, alpha=0.3, stake_distr_source='Pareto', myopic_fraction=0, abstention_rate=0,
+                 abstention_known=False, relative_utility_threshold=0, absolute_utility_threshold=1e-9,
                  min_steps_to_keep_pool=5, pool_splitting=True, seed=None, pareto_param=2.0, max_iterations=1000,
                  cost_min=1e-4, cost_max=1e-3, cost_factor=0.7, agent_activation_order="Random", total_stake=-1, ms=10,
                  extra_cost_type='fixed_fraction', reward_function_option=0, execution_id=''):
@@ -99,7 +99,8 @@ class Simulation(Model):
         self.running = True  # for batch running and visualisation purposes
         self.schedule = self.agent_activation_orders[agent_activation_order](self)
 
-        self.total_stake = self.initialize_agents(cost_min, cost_max, pareto_param, stake_distr_type, imposed_total_stake=total_stake, seed=seed)
+        self.total_stake = self.initialize_agents(cost_min, cost_max, pareto_param, stake_distr_source.lower(), imposed_total_stake=total_stake, seed=seed)
+
         if self.total_stake <= 0:
             raise ValueError('Total stake must be > 0')
         self.perceived_active_stake = self.total_stake
@@ -132,45 +133,52 @@ class Simulation(Model):
         self.initialise_pool_id_seq()  # initialise pool id sequence for the new model run
 
         # only include reporters that are needed for every STEP here
-        '''self.datacollector = DataCollector(
+        self.datacollector = DataCollector(
             model_reporters={
                 "#Pools": get_number_of_pools,
                 "Stake per entity": get_pool_stakes_by_agent,
                 "PoolSizes": get_pool_sizes,
+                "MaxPoolsPerAgent": get_max_pools_per_operator,
                 #"PoolSizesByAgent": get_pool_sizes_by_agent,
                 #"PoolSizesByPool": get_pool_sizes_by_pool,
                 #"DesirabilitiesByAgent": get_desirabilities_by_agent,
                 #"DesirabilitiesByPool": get_desirabilities_by_pool,
                 "StakePairs": get_stakes_n_margins,
                 "AvgPledge": get_avg_pledge,
-                "TotalPledge": get_total_pledge
+                "TotalPledge": get_total_pledge,
                 #"MedianPledge": get_median_pledge,
                 #"MeanAbsDiff": get_controlled_stake_mean_abs_diff,
                 #"StatisticalDistance": get_controlled_stake_distr_stat_dist,
-                #"NakamotoCoefficient": get_nakamoto_coefficient,
+                "NakamotoCoefficient": get_nakamoto_coefficient,
                 # "NCR": get_NCR,
                 # "MinAggregatePledge": get_min_aggregate_pledge,
                 # "PledgeRate": get_pledge_rate,
                 #"AreaCoverage": get_homogeneity_factor,
                 #"AvgMargin": get_avg_margin,
                 #"MedianMargin": get_median_margin,
-                #"AvgStkRank": get_avg_stk_rnk,
-                #"AvgCostRank": get_avg_cost_rnk
-            })'''
+                "AvgStkRank": get_avg_stk_rnk,
+                "AvgCostRank": get_avg_cost_rnk
+            })
 
         self.start_time = time.time()
         self.equilibrium_steps = []
         self.pivot_steps = []
 
-    def initialize_agents(self, cost_min, cost_max, pareto_param, stake_distr_type, imposed_total_stake, seed):
-        if stake_distr_type.lower() == 'flat':
-            # Distribute the total stake of the system evenly to all agents
-            stake_distribution = hlp.generate_stake_distr_flat(num_agents=self.n, total_stake= max(imposed_total_stake, 1))
-        else:
+    def initialize_agents(self, cost_min, cost_max, pareto_param, stake_distr_source, imposed_total_stake, seed):
+        if stake_distr_source == 'file':
+            stake_distribution = hlp.read_stake_distr_from_file(num_agents=self.n)
+        elif stake_distr_source == 'pareto':
             # Allocate stake to the agents, sampling from a Pareto distribution
             stake_distribution = hlp.generate_stake_distr_pareto(num_agents=self.n, pareto_param=pareto_param, seed=seed,
                                                                  total_stake=imposed_total_stake)#, truncation_factor=self.k)
+        elif stake_distr_source == 'flat':
+            # Distribute the total stake of the system evenly to all agents
+            stake_distribution = hlp.generate_stake_distr_flat(num_agents=self.n, total_stake= self.n)#max(imposed_total_stake, 1))
+        else:
+            raise ValueError("Unsupported stake distribution source '{}'.".format(stake_distr_source))
         total_stake = sum(stake_distribution)
+        print("Total stake: ", total_stake)
+        print("Max stake: ", max(stake_distribution))
 
         # Allocate cost to the agents, sampling from a uniform distribution
         cost_distribution = hlp.generate_cost_distr_unfrm(num_agents=self.n, low=cost_min, high=cost_max, seed=seed)
@@ -186,7 +194,7 @@ class Simulation(Model):
             agent = Stakeholder(
                 unique_id=unique_id,
                 model=self,
-                is_abstainer=(i < num_abstaining_agents),
+                is_abstainer=(i < num_abstaining_agents), #(i == self.n - 1),todo fix allocation of abstaining agents for any distribution
                 is_myopic=(num_abstaining_agents <= i < num_abstaining_agents + num_myopic_agents),
                 cost=cost_distribution[i],
                 stake=stake_distribution[i]
@@ -198,7 +206,6 @@ class Simulation(Model):
         self.id_seq = 0
 
     def get_next_pool_id(self):
-        #todo use for temp pools too (like now) or only for confirmed ones? e.g. use temp-id before official opening
         self.id_seq += 1
         return self.id_seq
 
@@ -210,7 +217,7 @@ class Simulation(Model):
         Execute one step of the simulation
         """
         self.get_status()
-        #self.datacollector.collect(self)
+        self.datacollector.collect(self)
 
         current_step = self.schedule.steps
         if current_step >= self.max_iterations:
@@ -252,14 +259,13 @@ class Simulation(Model):
         return self.consecutive_idle_steps >= self.min_consecutive_idle_steps_for_convergence
 
     def export_agents_file(self):
-        row_list = [["Agent id", "Stake", "Cost", "Potential Profit","Active","Status"]]
+        row_list = [["Agent id", "Stake", "Cost", "Potential Profit","Status"]]
         agents = self.get_agents_dict()
         decimals = 5
         row_list.extend([
             [agent_id, round(agents[agent_id].stake, decimals), round(agents[agent_id].cost, decimals),
              round(hlp.calculate_potential_profit(agents[agent_id].stake, agents[agent_id].cost, self.alpha, self.beta, self.reward_function_option, self.total_stake), decimals),
-             "No" if agents[agent_id].abstains else "Yes",
-             "Operator" if len(agents[agent_id].strategy.owned_pools) > 0 else "Delegator"
+             "Abstainer" if agents[agent_id].strategy is None else "Operator" if len(agents[agent_id].strategy.owned_pools) > 0 else "Delegator"
              ] for agent_id in range(len(agents))
         ])
 

@@ -20,14 +20,28 @@ MIN_STAKE_UNIT = 2.2e-17 #todo change to reflect how much 1 lovelace is dependin
 MIN_COST_PER_POOL = 1e-6
 
 
+def read_stake_distr_from_file(filename='stk-distribution-10000.csv', num_agents=10000, seed=42):
+    stk_dstr = []
+    with open(filename) as file:
+        reader = csv.reader(file)
+        for row in reader:
+            stk_dstr.append(float(row[0]))
+    if num_agents == len(stk_dstr):
+        return stk_dstr
+    rng = default_rng(seed=int(seed))
+    if num_agents < len(stk_dstr):
+        return rng.choice(stk_dstr, num_agents, replace=False)
+    return rng.choice(stk_dstr, num_agents, replace=True)
+
+
 def generate_stake_distr_pareto(num_agents, pareto_param=2, seed=156, truncation_factor=-1, total_stake=-1):
     """
     Generate a distribution for the agents' initial stake (wealth),
     sampling from a Pareto distribution
     sampling from a Pareto distribution
-    :param pareto_param:
-    :param num_agents:
-    :param total_stake:
+    :param pareto_param: the shape parameter to be used for the Pareto distribution
+    :param num_agents: the number of samples to draw
+    :param total_stake: the sum to normalize all stakes to, if positive
     :return:
     """
     rng = default_rng(seed=int(seed))
@@ -51,24 +65,6 @@ def truncate_pareto(rng, pareto_params, sample, truncation_factor):
             sample.append((rng.pareto(a) + 1) * m)
         else:
             return sample
-
-
-def generate_stake_distr_file(filename, num_agents, total_stake=1, seed=156):
-    # Sample from file that contains the (real) stake distribution
-    #distribution_file = 'stake_distribution_275.csv'
-    rng = default_rng(seed=int(seed))
-    stakes = []
-    with open(filename) as file:
-        reader = csv.reader(file)
-        # todo replace with sth more efficient (e.g. pandas)
-        for i, row in enumerate(reader):
-            if i > 0:  # skip header row
-                stake = float(row[-1])  # the last column represents the wallet's stake
-                if stake > 0:
-                    stakes.append(stake)
-    stake_sample = rng.choice(stakes, num_agents, replace=False)
-    normalized_stake_sample = normalize_distr(stake_sample, normal_sum=total_stake)
-    return normalized_stake_sample
 
 
 def generate_stake_distr_flat(num_agents, total_stake=1):

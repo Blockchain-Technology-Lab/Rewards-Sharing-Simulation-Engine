@@ -21,9 +21,10 @@ class Stakeholder(Agent):
         self.remaining_min_steps_to_keep_pool = 0
         self.new_strategy = None
 
-        if strategy is None:
-            # Initialise strategy to an "empty" strategy
-            strategy = Strategy()
+        if not is_abstainer:
+            if strategy is None:
+                # Initialise strategy to an "empty" strategy for agents that don't abstain
+                strategy = Strategy()
         self.strategy = strategy
 
     def step(self):
@@ -40,11 +41,6 @@ class Stakeholder(Agent):
     def update_strategy(self):
         if not self.abstains:
             self.make_move()
-        else:
-            # agent abstains from this round
-            if len(self.strategy.owned_pools) > 0 or len(self.strategy.stake_allocations) > 0:
-                # agent did not abstain in the previous round
-                self.new_strategy = Strategy()
 
     def advance(self):
         if self.new_strategy is not None:
@@ -117,7 +113,7 @@ class Stakeholder(Agent):
                 pool = pools[pool_id]
                 utility += self.calculate_delegator_utility_from_pool(pool, a)
             else:
-                raise PoolNotFoundError("Agent {} considered delegating to a non-existing pool ({})!" #todo do we really need this?
+                raise PoolNotFoundError("Agent {} considered delegating to a non-existing pool ({})!"
                                         .format(self.unique_id, pool_id))
         return utility
 
