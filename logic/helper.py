@@ -20,7 +20,7 @@ MIN_STAKE_UNIT = 2.2e-17 #todo change to reflect how much 1 lovelace is dependin
 MIN_COST_PER_POOL = 1e-6
 
 
-def read_stake_distr_from_file(filename='synthetic-stake-distribution-10K-active-agents', num_agents=10000, seed=42):
+def read_stake_distr_from_file(filename='synthetic-stake-distribution-10K-active-agents.csv', num_agents=10000, seed=42):
     stk_dstr = []
     with open(filename) as file:
         reader = csv.reader(file)
