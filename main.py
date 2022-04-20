@@ -7,7 +7,9 @@ import argparse
 import pickle as pkl
 import time
 import numpy as np
+import seaborn as sns
 
+sns.set_theme()
 
 def main():
     print("Let the Pooling Games begin!")
@@ -41,8 +43,8 @@ def main():
                         help='The number of steps for which a agent remains idle after opening a pool. Default is 5.')
     parser.add_argument('--myopic_fraction', nargs="+", type=float, default=0,
                         help='The fraction of myopic agents in the simulation. Default is 0%%.')
-    parser.add_argument('--abstention_rate', nargs="+", type=float, default=0,
-                        help='The percentage of agents that will abstain from the game in this run. Default is 0%%.')
+    parser.add_argument('--abstention_rate', type=float, default=0,
+                        help='The fraction of the total stake that remains inactive. Default is 0.')
     parser.add_argument('--pool_splitting', type=bool, default=True, action=argparse.BooleanOptionalAction,
                         help='Are individual agents allowed to create multiple pools? Default is yes.')
     parser.add_argument('--max_iterations', type=int, default=2000,
@@ -50,7 +52,7 @@ def main():
     parser.add_argument('--ms', type=int, default=10,
                         help='The minimum consecutive idle steps that are required to declare convergence. '
                              'Default is 10. But if min_steps_to_keep_pool > ms then ms = min_steps_to_keep_pool + 1.')
-    parser.add_argument('--stake_distr_type', type=str, default='Pareto',
+    parser.add_argument('--stake_distr_source', type=str, default='pareto',
                         help='The distribution type to use for the initial allocation of stake to the agents.')
     parser.add_argument('--extra_cost_type', type=str, default='fixed_fraction',
                         help='The method used to calculate the cost of any additional pool.')
@@ -83,7 +85,7 @@ def main():
         pool_splitting=args.pool_splitting,
         max_iterations=args.max_iterations,
         ms=args.ms,
-        stake_distr_type=args.stake_distr_type,
+        stake_distr_source=args.stake_distr_source,
         extra_cost_type=args.extra_cost_type,
         reward_function_option = args.reward_function_option,
         execution_id=args.execution_id
@@ -91,7 +93,7 @@ def main():
 
     sim.run_model()
 
-    '''sim_df = sim.datacollector.get_model_vars_dataframe()
+    sim_df = sim.datacollector.get_model_vars_dataframe()
     execution_id = sim.execution_id
 
     day = time.strftime("%d-%m-%Y")
@@ -119,6 +121,9 @@ def main():
     print('equilibrium steps: ', equilibrium_steps)
     print('pivot steps: ', pivot_steps)
 
+    plot_line(execution_id, sim_df["MaxPoolsPerAgent"], 'orange', "MaxPoolsPerAgent", "Round",
+              "MaxPoolsPerAgent", "MaxPoolsPerAgent", equilibrium_steps, pivot_steps, figures_dir, True)
+
     plot_line(execution_id, sim_df["#Pools"], 'C0', "Number of pools over time", "Round",
               "Pool count", "poolCount", equilibrium_steps, pivot_steps, figures_dir, True)
 
@@ -128,13 +133,17 @@ def main():
     plot_line(execution_id, sim_df["TotalPledge"], 'purple', "Total pledge over time", "Round",
               "Total pledge", "totalPledge", equilibrium_steps, pivot_steps, figures_dir, True)
 
+    plot_line(execution_id, sim_df["AvgStkRank"], 'green', "Avg stake rank of operators over time", "Round",
+              "Avg stake rank", "AvgStkRank", equilibrium_steps, pivot_steps, figures_dir, True)
+
     pool_sizes_by_step = sim_df['Stake per entity']
     pool_sizes_by_pool = np.array(list(pool_sizes_by_step)).T
     plt.figure(figsize=(10,5))
-    plt.stackplot(range(len(pool_sizes_by_step)), pool_sizes_by_pool)
+    col = sns.color_palette("hls", 77)
+    plt.stackplot(range(1, len(pool_sizes_by_step)), pool_sizes_by_pool[:,1:], colors=col, edgecolor='black', lw=0.1)
     plt.xlim(xmin=0.0)
     plt.xlabel("Round")
-    plt.ylabel("Stake per entity")
+    plt.ylabel("Stake per Operator")
     plt.savefig(figures_dir + "poolDynamics-" + execution_id + ".png", bbox_inches='tight')
 
 
@@ -146,7 +155,7 @@ def plot_line(execution_id, data, color, title, x_label, y_label, filename, equi
     equilibrium_colour = 'mediumseagreen'
     pivot_colour = 'gold'
 
-    plt.figure()
+    plt.figure(figsize=(10,5))
     data.plot(color=color)
     if show_equilibrium:
         for i, step in enumerate(equilibrium_steps):
@@ -159,7 +168,7 @@ def plot_line(execution_id, data, color, title, x_label, y_label, filename, equi
     plt.xlabel(x_label)
     plt.ylabel(y_label)
     plt.legend()
-    plt.savefig(figures_dir + execution_id + "-" + filename + ".png", bbox_inches='tight')'''
+    plt.savefig(figures_dir + execution_id + "-" + filename + ".png", bbox_inches='tight')
 
 
 def main_with_profiling():

@@ -31,7 +31,7 @@ def main():
     parser.add_argument('--alpha', nargs="+", type=float, default=0.3,
                         help='The alpha value of the system (decimal number between 0 and 1). Default is 0.3')
     parser.add_argument('--abstention_rate', nargs="+", type=float, default=0,
-                        help='The percentage of agents that will abstain from the game in this run. Default is 10%%.')
+                        help='The fraction of the total stake that remains inactive. Default is 0.')
     parser.add_argument('--pareto_param', nargs="+", type=float, default=2.0,
                         help='The shape value of the Pareto distribution for the initial stake allocation.')
     parser.add_argument('--cost_min', nargs="+", type=float, default=1e-4,
@@ -41,7 +41,7 @@ def main():
     parser.add_argument('--cost_factor', nargs="+", type=float, default=0.6,
                         help='The factor that determines how much an additional pool costs. '
                              'Default is 60%.')
-    parser.add_argument('--stake_distr_type', type=str, default='Pareto',
+    parser.add_argument('--stake_distr_source', type=str, default='Pareto',
                         help='The distribution type to use for the initial allocation of stake to the agents.')
     parser.add_argument('--extra_cost_type', type=str, default='fixed_fraction',
                         help='The method used to calculate the cost of any additional pool.')
@@ -91,7 +91,7 @@ def main():
     print("Variable params: ", variable_params)
 
     default_model_reporters = ["Pool count", "Nakamoto coefficient", "Number of pool splitters",
-                               "Cost efficient stakeholders", "Total pledge"]
+                               "Cost efficient stakeholders", "Total pledge", "Iterations"]
                                #"Gini-id", "Gini-id stake", "Gini-id stake (k)", "Gini-id (k)"]
                                #"Gini-id stake (fraction)", "Gini-id (fraction)"]  # , "Min-aggregate pledge"]
     additional_model_reporters = defaultdict(lambda: [])
@@ -112,7 +112,7 @@ def main():
         # nr_processes=1, # set number of processes to 1 only for debugging purposes
         variable_parameters=variable_params,
         fixed_parameters=fixed_params,
-        max_steps=args_dict['max_iterations'],
+        max_steps=args_dict['max_iterations'] + 1,
         iterations=1,
         model_reporters=model_reporters,
         execution_id=batch_run_id
