@@ -60,14 +60,8 @@ def main():
     args_dict.pop("seed")
     if seed == "None":
         seed = random.randint(0, 9999999)
-    batch_run_id += '-seed-' + str(seed)
 
     fixed_params = {
-        "execution_id": "temp",
-        "agent_activation_order": "Random",
-        "relative_utility_threshold": 0,
-        "myopic_fraction": 0,
-        "min_steps_to_keep_pool": 5,
         "seed": seed
     }
     variable_params = {}
@@ -142,15 +136,6 @@ def main():
         with open(cost_alpha_csv_file, "a+") as f:
             min_alpha_suitable_rows.to_csv(f, mode='a', index=False, header=f.tell()==0)
     '''
-
-    # Save data to csv file
-    output_dir = "output/"
-    today = time.strftime("%d-%m-%Y")
-    day_output_dir = output_dir + today + "/"
-    path = pathlib.Path.cwd() / day_output_dir
-    pathlib.Path(path).mkdir(parents=True, exist_ok=True)
-    batch_run_data = day_output_dir + batch_run_id + ".csv"
-    run_data_MP.to_csv(batch_run_data, index=False)
 
     # ordered dicts with data from each step of each run (the combinations of variable params act as the keys)
     # for example data_collector_model[(0.1, 0.02, 1)] shows the values of the parameters collected at model level

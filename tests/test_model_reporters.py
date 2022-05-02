@@ -13,34 +13,6 @@ def test_get_number_of_pools():
     assert True
 
 
-def test_get_controlled_stake_mean_abs_diff(mocker):
-    total_stake = 1
-    model = logic.sim.Simulation(total_stake=total_stake)
-
-    agents_dict = {
-        1: Stakeholder(unique_id=1, model=model, stake=0.01),
-        2: Stakeholder(unique_id=2, model=model, stake=0.04)
-    }
-
-    pool1 = Pool(owner=1, cost=0.001, pledge=0.01, margin=0.1, alpha=0.3, beta=0.1, pool_id=555,
-                 reward_function_option=0, total_stake=total_stake)
-    pool1.stake = 0.08
-    pool2 = Pool(owner=2, cost=0.001, pledge=0.01, margin=0.1, alpha=0.3, beta=0.1, pool_id=556,
-                 reward_function_option=0, total_stake=total_stake)
-    pool2.stake = 0.1
-    pool3 = Pool(owner=2, cost=0.001, pledge=0.01, margin=0.1, alpha=0.3, beta=0.1, pool_id=557,
-                 reward_function_option=0, total_stake=total_stake)
-    pool3.stake = 0.05
-    pools_list = [pool1, pool2, pool3]
-
-    mocker.patch('logic.sim.Simulation.get_agents_dict', return_value=agents_dict)
-    mocker.patch('logic.sim.Simulation.get_pools_list', return_value=pools_list)
-
-    mean_abs_diff = get_controlled_stake_mean_abs_diff(model)
-
-    assert pytest.approx(mean_abs_diff) == 0.09  # use approximation because of floating point operation error
-
-
 def test_get_controlled_stake_distr_stat_dist(mocker):
     total_stake = 1
     model = logic.sim.Simulation(total_stake=total_stake)

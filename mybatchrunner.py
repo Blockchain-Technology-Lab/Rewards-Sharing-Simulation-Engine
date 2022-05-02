@@ -2,6 +2,8 @@ from mesa.batchrunner import BatchRunnerMP
 from tqdm import tqdm
 import pandas as pd
 import csv
+import pathlib
+import logic.helper as hlp
 
 
 def write_to_csv(filepath, header, row):
@@ -19,7 +21,50 @@ class MyBatchRunner(BatchRunnerMP):
 
     def __init__(self, model_cls, execution_id, nr_processes=None, **kwargs):
         super().__init__(model_cls, nr_processes, **kwargs)
+        seq_id = hlp.read_seq_id() + 1
+        hlp.write_seq_id(seq_id)
+        execution_id = str(seq_id) + '-' + execution_id
         self.execution_id = execution_id
+
+        path = pathlib.Path.cwd() / "output" / execution_id
+        pathlib.Path(path).mkdir(parents=True)
+        self.directory = path
+
+    def _make_model_args_mp(self):
+        """Prepare all combinations of parameter values for `run_all`
+        Due to multiprocessing requirements of @StaticMethod takes different input, hence the similar function
+        Returns:
+            List of list with the form:
+            [[model_object, dictionary_of_kwargs, max_steps, iterations]]
+        """
+        total_iterations = self.iterations
+        all_kwargs = []
+
+        self.fixed_parameters.update({'parent_dir': self.directory})
+        count = len(self.parameters_list)
+        if count:
+            for i, params in enumerate(self.parameters_list):
+                seq_id = i + 1
+                execution_id = '-'.join([str(key) + '-' + str(value) for key, value in params.items()])
+                params.update({'seq_id': seq_id, 'execution_id': execution_id})
+                kwargs = params.copy()
+                kwargs.update(self.fixed_parameters)
+                # run each iteration specific number of times
+                for iter in range(self.iterations):
+                    kwargs_repeated = kwargs.copy()
+                    all_kwargs.append(
+                        [self.model_cls, kwargs_repeated, self.max_steps, iter]
+                    )
+
+        elif len(self.fixed_parameters):
+            count = 1
+            kwargs = self.fixed_parameters.copy()
+            all_kwargs.append(kwargs)
+
+        total_iterations *= count
+
+        return all_kwargs, total_iterations
+
 
     def _intermediate_result_prep_mp(self, params, model):
         """
@@ -30,17 +75,10 @@ class MyBatchRunner(BatchRunnerMP):
         @param params: tuple of the parameter values (variable and fixed) used for this run
         @param model: the simulation model produced for this run
         """
-
-        extra_cols = ["Run"]
         header = []
         if self.parameters_list:
             header = list(self.parameters_list[0].keys())
-        if self.fixed_parameters:
-            fixed_param_cols = list(self.fixed_parameters.keys())
-            header += fixed_param_cols
-        header += extra_cols
-
-        row = [param for param in params]
+        row = [param for param in params][:len(header)]
 
         if self.model_reporters:
             current_model_vars = self.collect_model_vars(model)
@@ -48,10 +86,9 @@ class MyBatchRunner(BatchRunnerMP):
             header.extend(current_model_vars.keys())
             row.extend([value for value in current_model_vars.values()])
 
-        this_batch_run_intermediate_results = "output/" + self.execution_id + "-intermediate-results.csv"
-        all_batch_run_intermediate_results = "output/batch-run-all-intermediate-results-v2.csv"
-        write_to_csv(this_batch_run_intermediate_results, header, row)
-        write_to_csv(all_batch_run_intermediate_results, header, row)
+        filename = 'aggregate-results-' + self.execution_id + '.csv'
+        filepath = self.directory / filename
+        write_to_csv(filepath, header, row)
 
     def _result_prep_mp(self, results):
         """
@@ -149,4 +186,3 @@ class MyBatchRunner(BatchRunnerMP):
         ordered = df[index_cols + list(sorted(rest_cols))]
         #ordered.sort_values(by="Run", inplace=True)
         return ordered
-

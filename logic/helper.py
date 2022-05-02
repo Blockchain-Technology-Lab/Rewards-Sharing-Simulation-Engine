@@ -5,6 +5,7 @@ Created on Sun Jun 13 08:15:26 2021
 @author: chris
 """
 from numpy.random import default_rng
+import numpy as np
 from scipy import stats
 import csv
 import pandas as pd
@@ -13,19 +14,24 @@ from math import sqrt
 from functools import lru_cache
 import heapq
 import time
+import json
 
 TOTAL_EPOCH_REWARDS_R = 1
 MAX_NUM_POOLS = 1000
 MIN_STAKE_UNIT = 2.2e-17 #todo change to reflect how much 1 lovelace is depending on total stake?
 MIN_COST_PER_POOL = 1e-6
 
-
 def read_stake_distr_from_file(filename='synthetic-stake-distribution-10K-active-agents.csv', num_agents=10000, seed=42):
     stk_dstr = []
-    with open(filename) as file:
-        reader = csv.reader(file)
-        for row in reader:
-            stk_dstr.append(float(row[0]))
+    try:
+        with open(filename) as file:
+            reader = csv.reader(file)
+            for row in reader:
+                stk_dstr.append(float(row[0]))
+    except FileNotFoundError:
+        print("Couldn't find file to read stake distribution from. Please make sure that the file exists or "
+              "use another option for the stake distribution source.")
+        raise
     if num_agents == len(stk_dstr):
         return stk_dstr
     rng = default_rng(seed=int(seed))
@@ -33,6 +39,16 @@ def read_stake_distr_from_file(filename='synthetic-stake-distribution-10K-active
         return rng.choice(stk_dstr, num_agents, replace=False)
     return rng.choice(stk_dstr, num_agents, replace=True)
 
+def generate_sake_distr_disparity(n, x=0.3, c=3):
+    stk_dstr = []
+    high_end_stake = x / c
+    low_end_stake = (1 - x) / (n - c)
+    stk_dstr.extend([high_end_stake for _ in range(c)])
+    stk_dstr.extend([low_end_stake for _ in range(n-c)])
+    print(sum(stk_dstr))
+    print(max(stk_dstr))
+    print(min(stk_dstr))
+    return stk_dstr
 
 def generate_stake_distr_pareto(num_agents, pareto_param=2, seed=156, truncation_factor=-1, total_stake=-1):
     """
@@ -85,11 +101,22 @@ def generate_cost_distr_unfrm(num_agents, low, high, seed=156):
     costs = rng.uniform(low=low, high=high, size=num_agents)
     return costs
 
-
 def generate_cost_distr_bands(num_agents, low, high, num_bands, seed=156):
     rng = default_rng(seed=seed)
     bands = rng.uniform(low=low, high=high, size=num_bands)
     costs = rng.choice(bands, num_agents)
+    return costs
+
+def generate_cost_distr_bands_manual(num_agents, low, high, num_bands, seed=156):
+    low_cost_agents = 5
+    rng = default_rng(seed=seed)
+    bands = rng.uniform(low=low, high=high, size=num_bands)
+    costs = rng.choice(bands, num_agents-3)
+    costs = np.append(costs, [low for _ in range(3)])
+
+    low_cost_agents = 5
+    common_cost = high#(low + high) / 2
+    costs = [low if i < low_cost_agents else common_cost for i in range(num_agents)]
     return costs
 
 
@@ -158,6 +185,8 @@ def calculate_pool_reward(relative_stake, relative_pledge, alpha, beta, reward_f
         return calculate_pool_reward_curve_pledge_benefit_min_first(relative_stake, relative_pledge, alpha, beta, curve_root, crossover_factor)
     elif reward_function_option == 6:
         return calculate_pool_reward_curve_pledge_benefit_no_min(relative_stake, relative_pledge, alpha, beta, curve_root, crossover_factor)
+    elif reward_function_option == 7:
+        return calculate_pool_reward_CIP_50(relative_stake, relative_pledge, beta)
     else:
         raise ValueError("Invalid option for reward function.")
 
@@ -205,6 +234,11 @@ def calculate_pool_reward_curve_pledge_benefit_no_min(relative_stake, relative_p
     stake_ = min(relative_stake, beta)
     r = (TOTAL_EPOCH_REWARDS_R / (1 + alpha)) * (
                 stake_ + (pledge_ * alpha * ((stake_ - pledge_ * (1 - stake_ / beta)) / beta)))
+    return r
+
+def calculate_pool_reward_CIP_50(relative_stake, relative_pledge, beta, theta=100):
+    pledge_factor = theta * relative_pledge
+    r = TOTAL_EPOCH_REWARDS_R * min(relative_stake, pledge_factor, beta)
     return r
 
 @lru_cache(maxsize=1024)
@@ -274,7 +308,7 @@ def generate_execution_id(args_dict):
     num_args_to_use = 5
     max_characters = 100
     primitive = (int, str, bool, float)
-    return "".join([str(key) + '-' + str(value) + '-' for key, value in list(args_dict.items())[:num_args_to_use]
+    return "-".join([str(key) + '-' + str(value) for key, value in list(args_dict.items())[:num_args_to_use]
                     if type(value) in primitive])[:max_characters]
 
 @lru_cache(maxsize=1024)
@@ -324,13 +358,35 @@ def determine_pledge_per_pool(agent_stake, beta, num_pools):
         raise ValueError("Agent tried to calculate pledge for zero or less pools.")
     return [min(agent_stake / num_pools, beta)] * num_pools
 
-def export_csv_file(rows, filename ):
-    today = time.strftime("%d-%m-%Y")
-    output_dir = "output/" + today
-    path = pathlib.Path.cwd() / output_dir
-    filename = path / filename
-    pathlib.Path(path).mkdir(parents=True, exist_ok=True)
-    with open(filename, 'w', newline='') as file:
+def export_csv_file(rows, filepath):
+    with open(filepath, 'w', newline='') as file:
         writer = csv.writer(file)
         writer.writerows(rows)
 
+def export_json_file(data, filepath):
+    with open(filepath, 'w', encoding='utf-8') as f:
+        json.dump(data, f, ensure_ascii=False, indent=4)
+
+def read_args_from_file(filepath):
+    try:
+        with open(filepath) as f:
+            args = json.load(f)
+        return args
+    except FileNotFoundError:
+        print("Couldn't find file to read parameter values from. Please make sure that the file exists under the name 'args.json'.")
+        raise
+    except ValueError:
+        print("Invalid format for file 'args.json'.")
+        raise
+
+def read_seq_id(filename='sequence.dat'):
+    try:
+        with open(filename, 'r') as f:
+            seq = int(f.read())
+    except FileNotFoundError:
+        seq = 0
+    return seq
+
+def write_seq_id(seq, filename='sequence.dat'):
+    with open(filename, 'w') as f:
+        f.write(str(seq))

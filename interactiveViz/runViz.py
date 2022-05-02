@@ -16,15 +16,15 @@ from interactiveViz.bubbleChartModule import BubbleChartModule
 from interactiveViz.myChartModule import MyChartModule
 
 #todo figure out how to add buttons next to the charts for downloading image upon request or sth similar
-poolsChart = MyChartModule([{"label": "#Pools", "title": "Number of pools over time", "xLabel": "Iteration",
+poolsChart = MyChartModule([{"label": "Pool count", "title": "Number of pools over time", "xLabel": "Iteration",
                              "yLabel": "Pool count", "tooltipText": " pools", "color": "Blue"}])
 
-poolDynamicsStackedChart = StackedChartModule([{"Label": "PoolSizes", "tooltipText": " Pool", "xLabel": "Iteration",
+poolDynamicsStackedChart = StackedChartModule([{"Label": "Stake per agent", "tooltipText": " Pool", "xLabel": "Iteration",
                                                 "yLabel": "Pool size (stake)", "Num_pools": MAX_NUM_POOLS}])
 
 poolScatterChart = BubbleChartModule([{"Label": "StakePairs"}])
 
-pledgeChart = MyChartModule([{"label": "AvgPledge", "title": "Average pledge over time", "xLabel": "Iteration",
+pledgeChart = MyChartModule([{"label": "Average pledge", "title": "Average pledge over time", "xLabel": "Iteration",
                               "yLabel": "Average pledge", "tooltipText": "", "color": "Red"}])
 
 model_params = {

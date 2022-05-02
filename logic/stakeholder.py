@@ -17,7 +17,7 @@ class Stakeholder(Agent):
         self.cost = cost  # the cost of running one pool for this agent
         self.stake = stake
         self.isMyopic = is_myopic
-        self.abstains = is_abstainer
+        self.abstains = is_abstainer #todo determine if still necessary with current definition of abstention rate
         self.remaining_min_steps_to_keep_pool = 0
         self.new_strategy = None
 
@@ -282,12 +282,12 @@ class Stakeholder(Agent):
         :return:
         """
         moves = dict()
+        max_new_pools_per_round = 1
         current_num_pools = len(self.strategy.owned_pools)
         if self.model.pool_splitting:
-            if self.remaining_min_steps_to_keep_pool > 0:
-                num_pools_options = {current_num_pools, current_num_pools + 1}
-            else:
-                num_pools_options = {i for i in range(1, current_num_pools + 2)}
+            num_pools_options = {max(i,1) for i in range(current_num_pools, current_num_pools + max_new_pools_per_round + 1)}
+            if self.remaining_min_steps_to_keep_pool <= 0:
+                num_pools_options.update(range(1, current_num_pools))
         else:
             # If pool splitting is not allowed by the model, there are no options
             num_pools_options = {1}

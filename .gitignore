@@ -1,8 +1,8 @@
 **.pyc
 **.py~
 **.csv
+**.dat
 **.spec
-**.tex
 **.pkl
 **/dist
 **/build
@@ -10,7 +10,6 @@
 venv
 .idea/
 node_modules
-figures
 __pycache__
 
 # Compiled source #

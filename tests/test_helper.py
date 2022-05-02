@@ -1,11 +1,8 @@
 import random
 
 import pytest
-
 import logic.helper as hlp
 
-
-# todo add more tests
 from logic.pool import Pool
 
 
@@ -30,10 +27,6 @@ def test_generate_stake_distr_flat():
     assert pytest.approx(sum(stk_distr)) == 1
 
 
-def test_generate_cost_distr():
-    assert True
-
-
 def test_normalize_distr():
     sample_dstr = [10, 8, 5, 5, 1, 0.5, 0.1]
 
@@ -42,10 +35,6 @@ def test_normalize_distr():
 
     nrm_dstr = hlp.normalize_distr(sample_dstr, normal_sum=156)
     assert sum(nrm_dstr) == 156
-
-
-def test_calculate_potential_profit():
-    assert True
 
 
 def test_calculate_pool_reward_variable_stake():
@@ -224,7 +213,6 @@ def test_calculate_pool_reward_curve_pledge_benefit():
 
 
 def test_calculate_pool_stake_nm():
-
     alpha = 0.3
     beta = 0.1
     k = 10
@@ -232,11 +220,11 @@ def test_calculate_pool_stake_nm():
     total_stake = 1
 
     pools = {i: Pool(pool_id=i, cost=0.0001, pledge=0.001, owner=i, alpha=alpha, beta=beta,
-                       reward_function_option=reward_func, total_stake=total_stake, margin=0) for i in range(1,11)}
+                     reward_function_option=reward_func, total_stake=total_stake, margin=0) for i in range(1, 11)}
 
     # pool does not belong in the top k, so stake_nm = pledge
     pool_11 = Pool(pool_id=11, cost=0.0001, pledge=0.001, owner=11, alpha=alpha, beta=beta,
-                       reward_function_option=reward_func, total_stake=total_stake, margin=0.2)
+                   reward_function_option=reward_func, total_stake=total_stake, margin=0.2)
     pools[11] = pool_11
     pool_stake_nm = hlp.calculate_pool_stake_NM(pool_id=11, pools=pools, beta=beta, k=k)
     assert pool_stake_nm == 0.001
@@ -280,4 +268,40 @@ def test_calculate_pool_stake_nm():
     pools[11] = pool_11
     pool_stake_nm = hlp.calculate_pool_stake_NM(pool_id=11, pools=pools, beta=beta, k=k)
     assert pool_stake_nm == 0.01
+
+
+def test_read_stake_distr_from_file():
+    # case 1: file exists and n == rows
+    assert True
+
+    # case 2: file exists and n < rows
+    assert True
+
+    # case 3: file exists and n > rows
+    assert True
+
+    # case 4: file does not exist
+    filename = 'fake-filename'
+    with pytest.raises(FileNotFoundError) as e_info:
+        hlp.read_stake_distr_from_file(filename=filename, num_agents=1000)
+    assert e_info.type == FileNotFoundError
+
+
+def test_write_read_seq_id():
+    hlp.write_seq_id(seq=555, filename='test-sequence.dat')
+
+    seq_id = hlp.read_seq_id(filename='test-sequence.dat')
+    assert seq_id == 555
+
+
+def test_calculate_pool_reward_cip_50():
+    theta = 100
+    relative_stake = 0.01
+    relative_pledge = 0.001
+    k = 100
+    beta = 1/k
+
+    r = hlp.calculate_pool_reward_CIP_50(relative_stake, relative_pledge, beta, theta)
+
+    assert r == 0.01
 

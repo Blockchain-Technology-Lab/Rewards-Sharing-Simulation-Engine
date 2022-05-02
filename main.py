@@ -62,6 +62,9 @@ def main():
     parser.add_argument('--reward_function_option', type=int, default=0,
                         help='The reward function to use in the simulation. 0 for the old function, 1 for the new one, '
                              '2 for alternative-1 and 3 for alternative-2.')
+    parser.add_argument('--input_from_file', type=bool, default=False, action=argparse.BooleanOptionalAction,
+                        help='If True then the input is read from a file (args.json) and any other command line '
+                             'arguments are discarded. Default is False.')
     args = parser.parse_args()
 
     # todo deal with invalid inputs, e.g. negative n
@@ -71,24 +74,29 @@ def main():
         n=args.n,
         k=args.k,
         alpha=args.alpha,
+        stake_distr_source=args.stake_distr_source,
+        myopic_fraction=args.myopic_fraction,
+        abstention_rate=args.abstention_rate,
+        #abtsention known
+        relative_utility_threshold=args.relative_utility_threshold,
+        absolute_utility_threshold=args.absolute_utility_threshold,
+        min_steps_to_keep_pool=args.min_steps_to_keep_pool,
+        pool_splitting=args.pool_splitting,
+        seed=args.seed,
+        pareto_param=args.pareto_param,
+        max_iterations=args.max_iterations,
         cost_min=args.cost_min,
         cost_max=args.cost_max,
         cost_factor=args.cost_factor,
-        pareto_param=args.pareto_param,
-        relative_utility_threshold=args.relative_utility_threshold,
-        absolute_utility_threshold=args.absolute_utility_threshold,
         agent_activation_order=args.agent_activation_order.capitalize(),
-        seed=args.seed,
-        min_steps_to_keep_pool=args.min_steps_to_keep_pool,
-        myopic_fraction=args.myopic_fraction,
-        abstention_rate=args.abstention_rate,
-        pool_splitting=args.pool_splitting,
-        max_iterations=args.max_iterations,
+        #total stake
         ms=args.ms,
-        stake_distr_source=args.stake_distr_source,
         extra_cost_type=args.extra_cost_type,
         reward_function_option = args.reward_function_option,
-        execution_id=args.execution_id
+        execution_id=args.execution_id,
+        #seq_id
+        #parent_dir
+        input_from_file=args.input_from_file
     )
 
     sim.run_model()
@@ -96,47 +104,34 @@ def main():
     sim_df = sim.datacollector.get_model_vars_dataframe()
     execution_id = sim.execution_id
 
-    day = time.strftime("%d-%m-%Y")
-    output_dir = "output/" + day + "/"
-
-    pickled_simulation_filename = "output/simulation-object-" + execution_id + ".pkl"
-    with open(pickled_simulation_filename, "wb") as pkl_file:
-        pkl.dump(sim, pkl_file)
-
-
-    figures_dir = output_dir + "figures/"
-    path = pathlib.Path.cwd() / figures_dir
-    pathlib.Path(path).mkdir(parents=True, exist_ok=True)
-
-    pool_nums = sim_df["#Pools"]
-    if sim.schedule.steps >= sim.max_iterations:
-        # If the max number of iterations was reached, then we save the data about the pool numbers
-        # in order to later analyse the statistical properties of the execution
-        filename = output_dir + execution_id + "-poolCount" + ".pkl"
-        with open(filename, "wb") as pkl_file:
-            pkl.dump(pool_nums, pkl_file)
+    execution_dir = sim.directory
+    figures_dir = execution_dir / "figures"
+    pathlib.Path(figures_dir).mkdir(parents=True, exist_ok=True)
 
     equilibrium_steps = sim.equilibrium_steps
     pivot_steps = sim.pivot_steps
     print('equilibrium steps: ', equilibrium_steps)
     print('pivot steps: ', pivot_steps)
 
-    plot_line(execution_id, sim_df["MaxPoolsPerAgent"], 'orange', "MaxPoolsPerAgent", "Round",
-              "MaxPoolsPerAgent", "MaxPoolsPerAgent", equilibrium_steps, pivot_steps, figures_dir, True)
+    plot_line(execution_id, sim_df["Max pools per operator"], 'orange', "MaxPoolsPerAgent", "Round",
+              "Max pools per operator", "Max pools per operator", equilibrium_steps, pivot_steps, figures_dir, True)
 
-    plot_line(execution_id, sim_df["#Pools"], 'C0', "Number of pools over time", "Round",
+    plot_line(execution_id, sim_df["Pool count"], 'C0', "Number of pools over time", "Round",
               "Pool count", "poolCount", equilibrium_steps, pivot_steps, figures_dir, True)
 
-    plot_line(execution_id, sim_df["AvgPledge"], 'red', "Average pledge over time", "Round",
-              "Average pledge", "avgPledge", equilibrium_steps, pivot_steps, figures_dir, True)
+    plot_line(execution_id, sim_df["Average pledge"], 'red', "Average pledge over time", "Round",
+              "Average pledge", "Average pledge", equilibrium_steps, pivot_steps, figures_dir, True)
 
-    plot_line(execution_id, sim_df["TotalPledge"], 'purple', "Total pledge over time", "Round",
-              "Total pledge", "totalPledge", equilibrium_steps, pivot_steps, figures_dir, True)
+    plot_line(execution_id, sim_df["Total pledge"], 'purple', "Total pledge over time", "Round",
+              "Total pledge", "Total pledge", equilibrium_steps, pivot_steps, figures_dir, True)
 
-    plot_line(execution_id, sim_df["AvgStkRank"], 'green', "Avg stake rank of operators over time", "Round",
-              "Avg stake rank", "AvgStkRank", equilibrium_steps, pivot_steps, figures_dir, True)
+    plot_line(execution_id, sim_df["Mean stake rank"], 'green', "Avg stake rank of operators over time", "Round",
+              "Mean stake rank", "Mean stake rank", equilibrium_steps, pivot_steps, figures_dir, True)
 
-    pool_sizes_by_step = sim_df['Stake per entity']
+    plot_line(execution_id, sim_df["Mean cost rank"], 'brown', "Avg cost rank of operators over time", "Round",
+              "Avg cost rank", "Mean cost rank", equilibrium_steps, pivot_steps, figures_dir, True)
+
+    pool_sizes_by_step = sim_df['Stake per agent']
     pool_sizes_by_pool = np.array(list(pool_sizes_by_step)).T
     plt.figure(figsize=(10,5))
     col = sns.color_palette("hls", 77)
@@ -144,13 +139,12 @@ def main():
     plt.xlim(xmin=0.0)
     plt.xlabel("Round")
     plt.ylabel("Stake per Operator")
-    plt.savefig(figures_dir + "poolDynamics-" + execution_id + ".png", bbox_inches='tight')
+    filename = "poolDynamics-" + execution_id + ".png"
+    plt.savefig(figures_dir / filename, bbox_inches='tight')
 
 
 def plot_line(execution_id, data, color, title, x_label, y_label, filename, equilibrium_steps, pivot_steps,
-              figures_dir, show_equilibrium=False):
-    path = pathlib.Path.cwd() / figures_dir
-    pathlib.Path(path).mkdir(parents=True, exist_ok=True)
+              path, show_equilibrium=False):
 
     equilibrium_colour = 'mediumseagreen'
     pivot_colour = 'gold'
@@ -168,7 +162,8 @@ def plot_line(execution_id, data, color, title, x_label, y_label, filename, equi
     plt.xlabel(x_label)
     plt.ylabel(y_label)
     plt.legend()
-    plt.savefig(figures_dir + execution_id + "-" + filename + ".png", bbox_inches='tight')
+    filename = execution_id + "-" + filename + ".png"
+    plt.savefig(path / filename , bbox_inches='tight')
 
 
 def main_with_profiling():

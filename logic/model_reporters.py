@@ -10,12 +10,6 @@ def get_number_of_pools(model):
     return len(model.pools)
 
 
-def get_final_number_of_pools(model):
-    if not model.has_converged():
-        return -1
-    return len(model.pools)
-
-
 def get_avg_margin(model):
     pools = model.get_pools_list()
     margins = [pool.margin for pool in pools]
@@ -29,37 +23,9 @@ def get_median_margin(model):
 
 
 def get_pool_sizes(model):
-    max_pools = MAX_NUM_POOLS - 1  # must be < max defined for the chart
-    pool_sizes = {i: 0 for i in range(max_pools)}
-    current_pools = model.pools
-    for pool_id in current_pools:
-        pool_sizes[pool_id] = current_pools[pool_id].stake
-    return dict(sorted(pool_sizes.items()))
-
-
-def get_pool_sizes_by_agent(model):  # !! attention: only works when one pool per agent!
-    return {pool.owner: pool.stake for pool in model.get_pools_list()}
-
-
-def get_pool_sizes_by_pool(model):
     pool_stakes = {pool_id: pool.stake for pool_id, pool in model.pools.items()}
     return [pool_stakes[i] if i in pool_stakes else 0 for i in range(1, MAX_NUM_POOLS)] \
         if len(pool_stakes) > 0 else [0] * MAX_NUM_POOLS
-
-
-def get_desirabilities_by_agent(model):
-    desirabilities = dict()
-    for pool in model.get_pools_list():
-        desirabilities[pool.owner] = hlp.calculate_pool_desirability(margin=pool.margin, potential_profit=pool.potential_profit)
-    return [desirabilities[i] if i in desirabilities else 0 for i in range(model.n)]
-
-
-def get_desirabilities_by_pool(model):
-    desirabilities = dict()
-    for id, pool in model.pools.items():
-        desirabilities[id] = hlp.calculate_pool_desirability(margin=pool.margin, potential_profit=pool.potential_profit)
-    return [desirabilities[i] if i in desirabilities else 0 for i in range(1, MAX_NUM_POOLS)] \
-        if len(desirabilities) > 0 else [0] * MAX_NUM_POOLS
 
 
 def get_avg_pledge(model):
@@ -78,10 +44,12 @@ def get_median_pledge(model):
 
 
 def get_avg_pools_per_operator(model):
-    current_pools = model.pools
+    current_pools = model.get_pools_list()
     current_num_pools = len(current_pools)
-    current_num_operators = len(set([pool.owner for pool in current_pools.values()]))
-    return current_num_pools / current_num_operators if current_num_operators > 0 else 0
+    if current_num_pools == 0:
+        return 0
+    current_num_operators = len(set([pool.owner for pool in current_pools]))
+    return current_num_pools / current_num_operators
 
 
 def get_max_pools_per_operator(model):
@@ -104,11 +72,11 @@ def get_median_pools_per_operator(model):
 
 def get_avg_sat_rate(model):
     sat_point = model.beta
-    current_pools = model.pools
+    current_pools = model.get_pools_list()
     if len(current_pools) == 0:
         return 0
-    sat_rates = [pool.stake / sat_point for pool in current_pools.values()]
-    return statistics.mean(sat_rates) if len(sat_rates) > 0 else 0
+    sat_rates = [pool.stake / sat_point for pool in current_pools]
+    return statistics.mean(sat_rates)
 
 
 def get_stakes_n_margins(model):
@@ -121,37 +89,6 @@ def get_stakes_n_margins(model):
         'pool_id': [pool.id for pool in pools],
         'owner_id': [pool.owner for pool in pools]
     }
-
-
-def get_total_delegated_stake(model):
-    agents = model.get_agents_list()
-    stake_from_pools = sum([pool.stake for pool in model.get_pools_list()])
-    stake_from_agents = sum([sum([a for a in agent.strategy.stake_allocations.values()])
-                              for agent in agents]) + \
-                         sum([sum([pledge for pledge in agent.strategy.pledges])
-                              for agent in agents])
-    return stake_from_pools, stake_from_agents
-
-
-def get_controlled_stake_mean_abs_diff(model):
-    """
-
-    :param model:
-    :return: the mean value of the absolute differences of the stake the agents control
-                (how they started vs how they ended up)
-    """
-    active_agents = {agent_id: agent for agent_id, agent in model.get_agents_dict().items() if
-                      not agent.abstains}
-    pools = model.get_pools_list()
-    if len(pools) == 0:
-        return 0
-    initial_controlled_stake = {agent_id: active_agents[agent_id].stake for agent_id in active_agents}
-    current_controlled_stake = {agent_id: 0 for agent_id in active_agents}
-    for pool in pools:
-        current_controlled_stake[pool.owner] += pool.stake
-    abs_diff = [abs(current_controlled_stake[agent_id] - initial_controlled_stake[agent_id])
-                for agent_id in active_agents]
-    return statistics.mean(abs_diff)
 
 
 def get_controlled_stake_distr_stat_dist(model):
@@ -237,10 +174,7 @@ def get_nakamoto_coefficient(model):
     return majority_control_agents
 
 
-def get_NCR(model):
-    nakamoto_coefficient = get_nakamoto_coefficient(model)
-    return nakamoto_coefficient / model.n if nakamoto_coefficient >= 0 else -1
-
+#todo do I need this?
 def get_optimal_min_aggregate_pledge(model):
     """
     In the optimal scenario (pledge-wise) there are k pools
@@ -297,7 +231,7 @@ def get_pledge_rate(model):
     Pledge rate is defined as: total_pledge / total_active_stake
     and can be used as an indication of the system's degree of decentralisation
     :param model: instance of the simulation
-    :return: the pledge rate of the final configuration (otherwise -1)
+    :return: the pledge rate of the model's current configuration
     """
     pools = model.get_pools_list()
     if len(pools) == 0:
@@ -330,6 +264,7 @@ def get_iterations(model):
     return model.schedule.steps
 
 
+#todo maybe use actual values instead of ranks?
 def get_avg_stk_rnk(model):
     pools = model.get_pools_list()
     all_agents = model.get_agents_dict()
@@ -337,7 +272,7 @@ def get_avg_stk_rnk(model):
     stakes = {agent_id: agent.stake for agent_id, agent in all_agents.items()}
     stake_ranks = hlp.calculate_ranks(stakes)
     pool_owner_stk_ranks = [stake_ranks[pool_owner] for pool_owner in pool_owner_ids]
-    return statistics.mean(pool_owner_stk_ranks) if len(pool_owner_stk_ranks) > 0 else 0
+    return round(statistics.mean(pool_owner_stk_ranks)) if len(pool_owner_stk_ranks) > 0 else 0
 
 
 def get_avg_cost_rnk(model):
@@ -346,8 +281,7 @@ def get_avg_cost_rnk(model):
     pool_owner_ids = {pool.owner for pool in pools}
     negative_cost_ranks = hlp.calculate_ranks({agent_id: -agent.cost for agent_id, agent in all_agents.items()})
     pool_owner_cost_ranks = [negative_cost_ranks[pool_owner] for pool_owner in pool_owner_ids]
-
-    return statistics.mean(pool_owner_cost_ranks) if len(pool_owner_cost_ranks) > 0 else 0
+    return round(statistics.mean(pool_owner_cost_ranks)) if len(pool_owner_cost_ranks) > 0 else 0
 
 
 def get_median_stk_rnk(model):
@@ -357,7 +291,7 @@ def get_median_stk_rnk(model):
     stakes = {agent_id: agent.stake for agent_id, agent in all_agents.items()}
     stake_ranks = hlp.calculate_ranks(stakes)
     pool_owner_stk_ranks = [stake_ranks[pool_owner] for pool_owner in pool_owner_ids]
-    return statistics.median(pool_owner_stk_ranks) if len(pool_owner_stk_ranks) > 0 else 0
+    return round(statistics.median(pool_owner_stk_ranks)) if len(pool_owner_stk_ranks) > 0 else 0
 
 
 def get_median_cost_rnk(model):
@@ -366,21 +300,19 @@ def get_median_cost_rnk(model):
     pool_owner_ids = {pool.owner for pool in pools}
     negative_cost_ranks = hlp.calculate_ranks({agent_id: -agent.cost for agent_id, agent in all_agents.items()})
     pool_owner_cost_ranks = [negative_cost_ranks[pool_owner] for pool_owner in pool_owner_ids]
-
-    return statistics.median(pool_owner_cost_ranks) if len(pool_owner_cost_ranks) > 0 else 0
+    return round(statistics.median(pool_owner_cost_ranks)) if len(pool_owner_cost_ranks) > 0 else 0
 
 
 def get_pool_splitter_count(model):
     pools = model.get_pools_list()
     if len(pools) == 0:
         return 0
-
     pool_operators = [pool.owner for pool in pools]
-
     cnt = collections.Counter(pool_operators)
     pool_splitters = [k for k, v in cnt.items() if v > 1]
 
     return len(pool_splitters)
+
 
 def get_cost_efficient_count(model):
     all_agents = model.get_agents_list()
@@ -390,10 +322,6 @@ def get_cost_efficient_count(model):
     ]
     positive_potential_profits = [pp for pp in potential_profits if pp > 0]
     return len(positive_potential_profits)
-
-
-def get_pool_stake_distribution_snapshot(model):
-    return [pool.stake for pool in model.get_pools_list()]
 
 
 def get_pool_stakes_by_agent(model):
@@ -479,9 +407,18 @@ def get_gini_id_coeff_stake_fraction(model):
     return gini_coefficient(stake_per_agent) / stake_per_agent.size
 
 
+def get_active_stake_pools(model):
+    return sum([pool.stake for pool in model.get_pools_list()])
+
+
+def get_active_stake_agents(model):
+    return sum([agent.stake for agent in model.schedule.agents])
+
+
 # note that any new model reporters should be added to the end, to maintain the colour allocation
+#todo make sure that all model reporters are here
 all_model_reporters = {
-    "Pool count": get_final_number_of_pools,
+    "Pool count": get_number_of_pools,
     "Average pledge": get_avg_pledge,
     "Total pledge": get_total_pledge,
     "Average pools per operator": get_avg_pools_per_operator,
@@ -490,7 +427,6 @@ all_model_reporters = {
     "Average saturation rate": get_avg_sat_rate,
     "Nakamoto coefficient": get_nakamoto_coefficient,
     "Statistical distance": get_controlled_stake_distr_stat_dist,
-    "Nakamoto coefficient rate": get_NCR,
     "Min-aggregate pledge": get_min_aggregate_pledge,
     "Pledge rate": get_pledge_rate,
     "Homogeneity factor": get_homogeneity_factor,
