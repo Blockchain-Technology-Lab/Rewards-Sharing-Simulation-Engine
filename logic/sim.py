@@ -8,6 +8,7 @@ import collections
 import sys
 import random
 import pickle as pkl
+import numpy as np
 from mesa import Model
 from mesa.datacollection import DataCollector
 from mesa.time import BaseScheduler, SimultaneousActivation, RandomActivation
@@ -15,7 +16,7 @@ from mesa.time import BaseScheduler, SimultaneousActivation, RandomActivation
 from logic.stakeholder import Stakeholder
 from logic.activations import SemiSimultaneousActivation
 import logic.helper as hlp
-from logic.model_reporters import *
+import logic.model_reporters as reporters
 
 class Simulation(Model):
     """
@@ -30,12 +31,13 @@ class Simulation(Model):
 
     }
 
+    #todo split into two classes? simulation (with max_iterations, steps_for_convergence etc) and system (with k, alpha etc)
     def __init__(self, n=1000, k=100, alpha=0.3, stake_distr_source='Pareto', myopic_fraction=0, abstention_rate=0,
                  abstention_known=False, relative_utility_threshold=0, absolute_utility_threshold=1e-9,
                  min_steps_to_keep_pool=5, pool_splitting=True, seed=None, pareto_param=2.0, max_iterations=1000,
-                 cost_min=1e-4, cost_max=1e-3, cost_factor=0.7, agent_activation_order="Random", total_stake=-1, ms=10,
-                 extra_cost_type='fixed_fraction', reward_function_option=0, execution_id='', seq_id=-1, parent_dir='',
-                 input_from_file=False):
+                 cost_min=1e-4, cost_max=1e-3, cost_factor=0.7, agent_activation_order="Random", total_stake=-1,
+                 steps_for_convergence=10, extra_cost_type='fixed_fraction', reward_function_option=0, execution_id='',
+                 seq_id=-1, parent_dir='', metrics=None, generate_graphs=True, input_from_file=False):
         # todo make sure that the input is valid? n > 0, 0 < k <= n
         if input_from_file:
             args = hlp.read_args_from_file("args.json")
@@ -46,6 +48,8 @@ class Simulation(Model):
             args.pop('__class__')
             args.pop('input_from_file')
             args.pop('args')
+        if args['metrics'] is None:
+            args['metrics'] = [1, 2, 3]
 
         seed = args['seed']
         if seed is None or seed == 'None':
@@ -56,7 +60,7 @@ class Simulation(Model):
         seq_id = args['seq_id']
         if seq_id == -1:
             seq_id = hlp.read_seq_id() + 1
-            hlp.write_seq_id(seq_id) #todo bad in case execution terminates early (but otherwise how to tell if from batch run or not? -> maybe bool?)
+            hlp.write_seq_id(seq_id)
         self.seq_id = seq_id
 
         execution_id = args['execution_id']
@@ -66,7 +70,7 @@ class Simulation(Model):
         execution_id = str(seq_id) + '-' + execution_id + '-seed-' + seed
         self.execution_id = execution_id
 
-        path = pathlib.Path.cwd() / "output" / parent_dir / self.execution_id
+        path = pathlib.Path.cwd() / "output" / args['parent_dir'] / self.execution_id
         pathlib.Path(path).mkdir(parents=True)
         self.directory = path
         self.export_args_file(args)
@@ -75,94 +79,56 @@ class Simulation(Model):
         self.current_era = 0
         total_eras = 1
 
-        '''adjustable_params = AdjustableParams(
-            k=[int(k_value) for k_value in args['k']] if isinstance(args['k'], list) else [int(args['k'])],
-            alpha=args['alpha'] if isinstance(args['alpha'], list) else [args['alpha']],
-            cost_factor=args['cost_factor'] if isinstance(args['cost_factor'], list) else [args['cost_factor']],
-            relative_utility_threshold=args['relative_utility_threshold'] if isinstance(args['relative_utility_threshold'], list)else [
-                args['relative_utility_threshold']],
-            absolute_utility_threshold=args['absolute_utility_threshold'] if isinstance(args['absolute_utility_threshold'], list) else [
-                args['absolute_utility_threshold']],
-            myopic_fraction=args['myopic_fraction'] if isinstance(args['myopic_fraction'], list) else [args['myopic_fraction']]
-        )
-
-        for attr_name, attr_values_list in zip(adjustable_params._fields, adjustable_params):
-            setattr(self, attr_name, attr_values_list[self.current_era])
-            if len(attr_values_list) > total_eras:
-                total_eras = len(attr_values_list)
-        self.total_eras = total_eras
-        self.adjustable_params = adjustable_params #todo do I need that or just loop again over args that are lists?
-
-        self.n = int(args['n'])
-        self.abstention_rate = args['abstention_rate']
-        self.min_steps_to_keep_pool = args['min_steps_to_keep_pool']
-        self.pool_splitting = args['pool_splitting']
-        self.max_iterations = args['max_iterations']
-        self.agent_activation_order = args['agent_activation_order']
-        self.extra_cost_type = args['extra_cost_type']
-        self.reward_function_option = args['reward_function_option']'''
-
-        #todo define which args should not be saved as class fields (e.g. cost min)
-        adjustable_params = {}
-        for key, value in args.items():
+        extra_fields = ['n', 'k', 'alpha', 'myopic_fraction', 'relative_utility_threshold', 'absolute_utility_threshold',
+                 'min_steps_to_keep_pool', 'pool_splitting', 'max_iterations', 'cost_factor', 'agent_activation_order',
+                  'extra_cost_type', 'reward_function_option', 'generate_graphs']
+        adjustable_params = {} #todo define which args should not be saved as adjustable params (e.g. abstention rate)
+        for field in extra_fields:
+            value = args[field]
             if isinstance(value, list):
                 # a number of values were given for this field, to be used in different eras
-                adjustable_params[key] = value # todo use int for k?
-                setattr(self, key, value[self.current_era])
+                adjustable_params[field] = value # todo use int for k?
+                setattr(self, field, value[self.current_era])
                 if len(value) > total_eras:
                     total_eras = len(value)
             else:
-                setattr(self, key, value)
+                setattr(self, field, value)
+
         self.total_eras = total_eras
         self.adjustable_params = adjustable_params
+        self.k = int(self.k)
 
-        if abstention_known:
+        if args['abstention_known']:
             # The system is aware of the abstention rate of the system, so it inflates k (and subsequently lowers beta)
             # to make it possible to end up with the original desired number of pools
-            self.k = int(self.k / (1 - self.abstention_rate))
+            self.k = int(self.k / (1 - args['abstention_rate']))
 
         self.running = True  # for batch running and visualisation purposes
         self.schedule = self.agent_activation_orders[self.agent_activation_order](self)
 
         total_stake = self.initialize_agents(args['cost_min'], args['cost_max'], args['pareto_param'], args['stake_distr_source'].lower(),
                                              imposed_total_stake=args['total_stake'], seed=seed)
-        self.total_stake = total_stake / (1 - self.abstention_rate)
+        self.total_stake = total_stake / (1 - args['abstention_rate'])
         print("Total stake (including abstaining fraction): ", self.total_stake)
 
         if self.total_stake <= 0:
             raise ValueError('Total stake must be > 0')
         self.perceived_active_stake = self.total_stake
         self.beta = self.total_stake / self.k
-        self.export_input_desc_file()
+        self.export_input_desc_file(seed)
 
         self.consecutive_idle_steps = 0  # steps towards convergence
         self.current_step_idle = True
-        self.min_consecutive_idle_steps_for_convergence = max(min_steps_to_keep_pool + 1, ms)
+        self.min_consecutive_idle_steps_for_convergence = max(min_steps_to_keep_pool + 1, args['steps_for_convergence'])
         self.pools = dict()
         self.revision_frequency = 10  # defines how often active stake and expected #pools are revised #todo read from json file?
         self.initialise_pool_id_seq()  # initialise pool id sequence for the new model run
 
         # metrics to track at every step of the simulation
-        self.datacollector = DataCollector( #todo make reporters configurable (e.g. assign a number to each of them and have list of numbers as input)
-            model_reporters={
-                "Pool count": get_number_of_pools,
-                "Nakamoto coefficient": get_nakamoto_coefficient,
-                "Max pools per operator": get_max_pools_per_operator,
-                "Average pools per operator": get_avg_pools_per_operator,
-                "Average pledge": get_avg_pledge,
-                "Median pledge": get_median_pledge,
-                "Total pledge": get_total_pledge,
-                "Pledge rate": get_pledge_rate,
-                # "MinAggregatePledge": get_min_aggregate_pledge,
-                #"StakePairs": get_stakes_n_margins,
-                "Statistical distance": get_controlled_stake_distr_stat_dist,
-                "Pool homogeneity factor": get_homogeneity_factor,
-                "Average margin": get_avg_margin,
-                "Median margin": get_median_margin,
-                "Mean stake rank": get_avg_stk_rnk,
-                "Mean cost rank": get_avg_cost_rnk,
-                "Stake per agent": get_pool_stakes_by_agent,
-            })
+        model_reporters = {
+            reporters.reporter_ids[reporter_id]: reporters.all_model_reporters[reporters.reporter_ids[reporter_id]] for
+            reporter_id in args['metrics']}
+        self.datacollector = DataCollector(model_reporters=model_reporters)
 
         self.start_time = time.time()
         self.equilibrium_steps = []
@@ -271,13 +237,14 @@ class Simulation(Model):
         filepath = self.directory / filename
         hlp.export_json_file(args, filepath)
 
-    def export_input_desc_file(self):
+    def export_input_desc_file(self, seed):
         # generate file that describes the state of the system at step 0
         descriptors = {
+            'Randomness seed': seed,
             'Total stake': self.total_stake,
-            'Active stake': get_active_stake_agents(self),
-            'Nakamoto coefficient prior': get_nakamoto_coefficient(self),
-            'Cost efficient agents': get_cost_efficient_count(self)
+            'Active stake': reporters.get_active_stake_agents(self),
+            'Nakamoto coefficient prior': reporters.get_nakamoto_coefficient(self),
+            'Cost efficient agents': reporters.get_cost_efficient_count(self)
         }
         filename = "input-descriptors.json"
         filepath = self.directory / filename
@@ -327,6 +294,23 @@ class Simulation(Model):
         with open(pickled_simulation_filepath, "wb") as pkl_file:
             pkl.dump(self, pkl_file)
 
+    def export_graphs(self):
+        figures_dir = self.directory / "figures"
+        pathlib.Path(figures_dir).mkdir(parents=True, exist_ok=True)
+
+        rng = np.random.default_rng(seed=156)
+        random_colours = rng.random((len(reporters.all_model_reporters), 3))
+        all_reporter_colours = dict(zip(reporters.all_model_reporters.keys(), random_colours))
+
+        df = self.datacollector.get_model_vars_dataframe()
+        for col in df.columns:
+            if isinstance(df[col][0], list):
+                hlp.plot_stack_area_chart(pool_sizes_by_step=df[col], execution_id=self.execution_id, path=figures_dir)
+            else:
+                hlp.plot_line(data=df[col], execution_id=self.execution_id, color=all_reporter_colours[col], title=col, x_label="Round",
+                          y_label=col, filename=col, equilibrium_steps=self.equilibrium_steps, pivot_steps=self.pivot_steps,
+                          path=figures_dir, show_equilibrium=True)
+
     def get_pools_list(self):
         return list(self.pools.values())
 
@@ -349,7 +333,7 @@ class Simulation(Model):
         it's not necessarily equal to the sum of all active agents' stake
         """
         # Revise active stake
-        active_stake = get_active_stake_pools(self)
+        active_stake = reporters.get_active_stake_pools(self)
         self.perceived_active_stake = active_stake
         # Revise expected number of pools, k  (note that the value of beta, which is used to calculate rewards, does not change in this case)
         self.k = math.ceil(round(active_stake / self.beta, 12))  # first rounding to 12 decimal digits to avoid floating point errors
@@ -375,3 +359,6 @@ class Simulation(Model):
         self.export_agents_file()
         self.export_metrics_file()
         self.save_model_state_pkl()
+        if self.generate_graphs:
+            self.export_graphs()
+

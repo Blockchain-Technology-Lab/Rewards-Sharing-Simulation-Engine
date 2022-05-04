@@ -1,15 +1,8 @@
 import logic.sim as simulation
-from logic.helper import *
 
 import pathlib
-import matplotlib.pyplot as plt
 import argparse
-import pickle as pkl
-import time
-import numpy as np
-import seaborn as sns
 
-sns.set_theme()
 
 def main():
     print("Let the Pooling Games begin!")
@@ -49,7 +42,7 @@ def main():
                         help='Are individual agents allowed to create multiple pools? Default is yes.')
     parser.add_argument('--max_iterations', type=int, default=2000,
                         help='The maximum number of iterations of the system. Default is 2000.')
-    parser.add_argument('--ms', type=int, default=10,
+    parser.add_argument('--steps_for_convergence', type=int, default=10,
                         help='The minimum consecutive idle steps that are required to declare convergence. '
                              'Default is 10. But if min_steps_to_keep_pool > ms then ms = min_steps_to_keep_pool + 1.')
     parser.add_argument('--stake_distr_source', type=str, default='pareto',
@@ -65,6 +58,10 @@ def main():
     parser.add_argument('--input_from_file', type=bool, default=False, action=argparse.BooleanOptionalAction,
                         help='If True then the input is read from a file (args.json) and any other command line '
                              'arguments are discarded. Default is False.')
+    parser.add_argument('--metrics', nargs="+", type=int, default=None,
+                        help='The list of ids that correspond to metrics that are tracked during the simulation. Default is [1,2,3]')
+    parser.add_argument('--generate_graphs', type=bool, default=True, action=argparse.BooleanOptionalAction,
+                        help='If True then the graphs are generated upon completion. Default is True.')
     args = parser.parse_args()
 
     # todo deal with invalid inputs, e.g. negative n
@@ -90,12 +87,14 @@ def main():
         cost_factor=args.cost_factor,
         agent_activation_order=args.agent_activation_order.capitalize(),
         #total stake
-        ms=args.ms,
+        steps_for_convergence=args.steps_for_convergence,
         extra_cost_type=args.extra_cost_type,
         reward_function_option = args.reward_function_option,
         execution_id=args.execution_id,
         #seq_id
         #parent_dir
+        metrics=args.metrics,
+        generate_graphs=args.generate_graphs,
         input_from_file=args.input_from_file
     )
 
@@ -112,58 +111,6 @@ def main():
     pivot_steps = sim.pivot_steps
     print('equilibrium steps: ', equilibrium_steps)
     print('pivot steps: ', pivot_steps)
-
-    plot_line(execution_id, sim_df["Max pools per operator"], 'orange', "MaxPoolsPerAgent", "Round",
-              "Max pools per operator", "Max pools per operator", equilibrium_steps, pivot_steps, figures_dir, True)
-
-    plot_line(execution_id, sim_df["Pool count"], 'C0', "Number of pools over time", "Round",
-              "Pool count", "poolCount", equilibrium_steps, pivot_steps, figures_dir, True)
-
-    plot_line(execution_id, sim_df["Average pledge"], 'red', "Average pledge over time", "Round",
-              "Average pledge", "Average pledge", equilibrium_steps, pivot_steps, figures_dir, True)
-
-    plot_line(execution_id, sim_df["Total pledge"], 'purple', "Total pledge over time", "Round",
-              "Total pledge", "Total pledge", equilibrium_steps, pivot_steps, figures_dir, True)
-
-    plot_line(execution_id, sim_df["Mean stake rank"], 'green', "Avg stake rank of operators over time", "Round",
-              "Mean stake rank", "Mean stake rank", equilibrium_steps, pivot_steps, figures_dir, True)
-
-    plot_line(execution_id, sim_df["Mean cost rank"], 'brown', "Avg cost rank of operators over time", "Round",
-              "Avg cost rank", "Mean cost rank", equilibrium_steps, pivot_steps, figures_dir, True)
-
-    pool_sizes_by_step = sim_df['Stake per agent']
-    pool_sizes_by_pool = np.array(list(pool_sizes_by_step)).T
-    plt.figure(figsize=(10,5))
-    col = sns.color_palette("hls", 77)
-    plt.stackplot(range(1, len(pool_sizes_by_step)), pool_sizes_by_pool[:,1:], colors=col, edgecolor='black', lw=0.1)
-    plt.xlim(xmin=0.0)
-    plt.xlabel("Round")
-    plt.ylabel("Stake per Operator")
-    filename = "poolDynamics-" + execution_id + ".png"
-    plt.savefig(figures_dir / filename, bbox_inches='tight')
-
-
-def plot_line(execution_id, data, color, title, x_label, y_label, filename, equilibrium_steps, pivot_steps,
-              path, show_equilibrium=False):
-
-    equilibrium_colour = 'mediumseagreen'
-    pivot_colour = 'gold'
-
-    plt.figure(figsize=(10,5))
-    data.plot(color=color)
-    if show_equilibrium:
-        for i, step in enumerate(equilibrium_steps):
-            label = "Equilibrium reached" if i == 0 else ""
-            plt.axvline(x=step, label=label, c=equilibrium_colour)  # todo if it exceeds max iterations??
-    for i, step in enumerate(pivot_steps):
-        label = "Parameter change" if i == 0 else ""
-        plt.plot(step, data[step], 'x', label=label, c=pivot_colour)
-    #plt.title(title)
-    plt.xlabel(x_label)
-    plt.ylabel(y_label)
-    plt.legend()
-    filename = execution_id + "-" + filename + ".png"
-    plt.savefig(path / filename , bbox_inches='tight')
 
 
 def main_with_profiling():

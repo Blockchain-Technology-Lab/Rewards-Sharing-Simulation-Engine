@@ -10,11 +10,16 @@ from scipy import stats
 import csv
 import pandas as pd
 import pathlib
-from math import sqrt
+from math import sqrt, floor, log10
 from functools import lru_cache
 import heapq
 import time
 import json
+import matplotlib.pyplot as plt
+from matplotlib import ticker
+import seaborn as sns
+
+sns.set_theme()
 
 TOTAL_EPOCH_REWARDS_R = 1
 MAX_NUM_POOLS = 1000
@@ -190,6 +195,7 @@ def calculate_pool_reward(relative_stake, relative_pledge, alpha, beta, reward_f
     else:
         raise ValueError("Invalid option for reward function.")
 
+#todo change names
 def calculate_pool_reward_old(relative_stake, relative_pledge, alpha, beta):
     pledge_ = min(relative_pledge, beta)
     stake_ = min(relative_stake, beta)
@@ -307,9 +313,11 @@ def save_as_latex_table(df, sim_id, output_dir):
 def generate_execution_id(args_dict):
     num_args_to_use = 5
     max_characters = 100
-    primitive = (int, str, bool, float)
-    return "-".join([str(key) + '-' + str(value) for key, value in list(args_dict.items())[:num_args_to_use]
-                    if type(value) in primitive])[:max_characters]
+    return "-".join([str(key) + '-' + str(value)
+                     if not isinstance(value, list)
+                     else str(key) + '-' + "-".join([str(v) for v in value])
+                     for key, value in list(args_dict.items())[:num_args_to_use]])[:max_characters]
+
 
 @lru_cache(maxsize=1024)
 def calculate_cost_per_pool(num_pools, initial_cost, cost_factor):
@@ -365,7 +373,7 @@ def export_csv_file(rows, filepath):
 
 def export_json_file(data, filepath):
     with open(filepath, 'w', encoding='utf-8') as f:
-        json.dump(data, f, ensure_ascii=False, indent=4)
+        json.dump(data, f, ensure_ascii=False, indent=4, default=lambda x: str(x))
 
 def read_args_from_file(filepath):
     try:
@@ -390,3 +398,70 @@ def read_seq_id(filename='sequence.dat'):
 def write_seq_id(seq, filename='sequence.dat'):
     with open(filename, 'w') as f:
         f.write(str(seq))
+
+def plot_line(data, execution_id, color, x_label, y_label, filename, equilibrium_steps, pivot_steps,
+              path, title='', show_equilibrium=False):
+    equilibrium_colour = 'mediumseagreen'
+    pivot_colour = 'gold'
+
+    plt.figure(figsize=(10,5))
+    data.plot(color=color)
+    if show_equilibrium:
+        for i, step in enumerate(equilibrium_steps):
+            label = "Equilibrium reached" if i == 0 else ""
+            plt.axvline(x=step, label=label, c=equilibrium_colour)  # todo if it exceeds max iterations??
+    for i, step in enumerate(pivot_steps):
+        label = "Parameter change" if i == 0 else ""
+        plt.plot(step, data[step], 'x', label=label, c=pivot_colour)
+    plt.title(title)
+    plt.xlabel(x_label)
+    plt.ylabel(y_label)
+    plt.legend()
+    filename = execution_id + "-" + filename + ".png"
+    plt.savefig(path / filename , bbox_inches='tight')
+
+def plot_stack_area_chart(pool_sizes_by_step, execution_id, path):
+    pool_sizes_by_pool = np.array(list(pool_sizes_by_step)).T
+    plt.figure(figsize=(10, 5))
+    col = sns.color_palette("hls", 77)
+    plt.stackplot(range(1, len(pool_sizes_by_step)), pool_sizes_by_pool[:, 1:], colors=col, edgecolor='black', lw=0.1)
+    plt.xlim(xmin=0.0)
+    plt.xlabel("Round")
+    plt.ylabel("Stake per Operator")
+    filename = "poolDynamics-" + execution_id + ".png"
+    plt.savefig(path / filename, bbox_inches='tight')
+
+def sci_notation(num, decimal_digits=1, precision=None, exponent=None):
+    if exponent is None:
+        exponent = int(floor(log10(abs(num))))
+    coeff = round(num / float(10 ** exponent), decimal_digits)
+    if precision is None:
+        precision = decimal_digits
+    return r"${0:.{2}f}\cdot10^{{{1:d}}}$".format(coeff, exponent,
+                                                  precision) if coeff > 1 else r"$10^{{{0:d}}}$".format(exponent)
+
+def plot_aggregate_data(df, variable_param, model_reporter, color, exec_id, output_dir, positive_only=True,
+                        log_axis=False):
+    path = output_dir / "figures"
+    pathlib.Path(path).mkdir(parents=True, exist_ok=True)
+
+    plt.figure()
+    if positive_only:
+        df = df[df[model_reporter] >= 0]
+    x = df[variable_param]
+    y = df[model_reporter]
+    plt.scatter(x, y, color=color)#, label='Reward function #0', zorder=0)
+    #xx = batch_run_data2['k']
+    #yy = batch_run_data2[model_reporter]
+    #plt.scatter(xx, yy, color='magenta', label='Reward function #4', zorder=1)
+    plt.xlabel(variable_param)
+    plt.ylabel(model_reporter)
+    if log_axis:
+        plt.xscale('log')
+        plt.gca().xaxis.set_major_formatter(
+            ticker.FuncFormatter(lambda t, _: t if t >= 0.1 else sci_notation(t, 0)))
+        plt.minorticks_off()
+    # plt.legend()
+    filename = exec_id + "-" + model_reporter + "-per-" + variable_param + ".png"
+    plt.savefig(path / filename, bbox_inches='tight')
+    plt.show()

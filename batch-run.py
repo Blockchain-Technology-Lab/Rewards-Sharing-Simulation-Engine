@@ -1,16 +1,15 @@
 import argparse
 import multiprocessing
-import pathlib
 import random
 
 from mybatchrunner import MyBatchRunner
 import time
 import numpy as np
-from math import floor, log10
 from collections import defaultdict
-from logic.model_reporters import all_model_reporters
 
+from logic.model_reporters import all_model_reporters
 import logic.sim as sim
+import logic.helper as hlp
 
 
 def main():
@@ -93,13 +92,14 @@ def main():
             "Average pledge", "Total pledge", "Max pools per operator", "Median pools per operator",
             "Average stake rank", "Average cost rank", "Median stake rank", "Median cost rank"
         ]'''
-    additional_model_reporters['k'] = ["Homogeneity factor"] #"Statistical distance"
+    additional_model_reporters['k'] = ["Pool homogeneity factor"] #"Statistical distance"
     additional_model_reporters['abstention_rate'] = ["Statistical distance", "Homogeneity factor"]
 
     variable_param =  list(variable_params.keys())[0]
     model_reporters = {
-        k: all_model_reporters[k] for k in set(default_model_reporters + additional_model_reporters[variable_param])
+        reporter: all_model_reporters[reporter] for reporter in set(default_model_reporters + additional_model_reporters[variable_param])
     }
+    print(model_reporters)
 
     batch_run_MP = MyBatchRunner(
         sim.Simulation,
@@ -116,7 +116,7 @@ def main():
     print("Batch run with multiprocessing:  {:.2f} seconds".format(time.time() - start_time))
 
     # Extract data from the batch runner
-    run_data_MP = batch_run_MP.get_model_vars_dataframe()
+    batch_run_data = batch_run_MP.get_model_vars_dataframe()
 
     '''if 'alpha' in variable_params:
         path = 'output/cost-stuff/'
@@ -127,7 +127,7 @@ def main():
         min_nc = min_ncr * fixed_params['n']
         if min_nc > fixed_params['k'] :
             min_nc = int(fixed_params['k']/3)
-        suitable_rows = run_data_MP[run_data_MP['Nakamoto coefficient'] >= min_nc]
+        suitable_rows = batch_run_data[batch_run_data['Nakamoto coefficient'] >= min_nc]
         # group by cost min, if applicable
         min_alpha_suitable_rows = suitable_rows.groupby(['n', 'k', 'cost_min']).agg({'alpha': 'min'})
         min_alpha_suitable_rows = min_alpha_suitable_rows.reset_index()
@@ -142,6 +142,15 @@ def main():
     # when α=0.1 and cost_max=0.02 (which happened to be the run with index 1)
     #data_collector_agents = batch_run_MP.get_collector_agents()
     #data_collector_model = batch_run_MP.get_collector_model()
+
+    rng = np.random.default_rng(seed=156)
+    random_colours = rng.random((len(all_model_reporters), 3))
+    all_reporter_colours = dict(zip(all_model_reporters.keys(), random_colours))
+
+    useLogAxis = True if variable_param == 'alpha' else False
+    for model_reporter in model_reporters:
+        hlp.plot_aggregate_data(batch_run_data, variable_param, model_reporter, all_reporter_colours[model_reporter],
+                            batch_run_id, batch_run_MP.directory, log_axis=useLogAxis)
 
 
 if __name__ == "__main__":

@@ -414,13 +414,12 @@ def get_active_stake_pools(model):
 def get_active_stake_agents(model):
     return sum([agent.stake for agent in model.schedule.agents])
 
-
-# note that any new model reporters should be added to the end, to maintain the colour allocation
 #todo make sure that all model reporters are here
 all_model_reporters = {
     "Pool count": get_number_of_pools,
-    "Average pledge": get_avg_pledge,
     "Total pledge": get_total_pledge,
+    "Average pledge": get_avg_pledge,
+    "Median pledge": get_median_pledge,
     "Average pools per operator": get_avg_pools_per_operator,
     "Max pools per operator": get_max_pools_per_operator,
     "Median pools per operator": get_median_pools_per_operator,
@@ -429,10 +428,10 @@ all_model_reporters = {
     "Statistical distance": get_controlled_stake_distr_stat_dist,
     "Min-aggregate pledge": get_min_aggregate_pledge,
     "Pledge rate": get_pledge_rate,
-    "Homogeneity factor": get_homogeneity_factor,
+    "Pool homogeneity factor": get_homogeneity_factor,
     "Iterations": get_iterations,
-    "Average stake rank": get_avg_stk_rnk,
-    "Average cost rank": get_avg_cost_rnk,
+    "Mean stake rank": get_avg_stk_rnk,
+    "Mean cost rank": get_avg_cost_rnk,
     "Median stake rank": get_median_stk_rnk,
     "Median cost rank": get_median_cost_rnk,
     "Opt min aggr pledge": get_optimal_min_aggregate_pledge,
@@ -443,5 +442,41 @@ all_model_reporters = {
     "Gini-id (k)": get_gini_id_coeff_pool_count_k_agents,
     "Gini-id stake (k)": get_gini_id_coeff_stake_k_agents,
     "Gini-id (fraction)": get_gini_id_coeff_pool_count_fraction,
-    "Gini-id stake (fraction)": get_gini_id_coeff_stake_fraction
+    "Gini-id stake (fraction)": get_gini_id_coeff_stake_fraction,
+    "Mean margin": get_avg_margin,
+    "Median margin": get_median_margin,
+    "Stake per agent": get_pool_stakes_by_agent,
+    "StakePairs": get_stakes_n_margins
+}
+
+reporter_ids = {
+    1: "Pool count",
+    2: "Total pledge",
+    3: "Average pledge",
+    4: "Median pledge",
+    5: "Average pools per operator",
+    6: "Max pools per operator",
+    7: "Median pools per operator",
+    8: "Average saturation rate",
+    9: "Nakamoto coefficient",
+    10: "Statistical distance",
+    11: "Min-aggregate pledge",
+    12: "Pledge rate",
+    13: "Pool homogeneity factor",
+    14: "Iterations",
+    15: "Mean stake rank",
+    16: "Mean cost rank",
+    17: "Median stake rank",
+    18: "Median cost rank",
+    19: "Opt min aggr pledge",
+    20: "Number of pool splitters",
+    21: "Cost efficient stakeholders",
+    22: "Gini-id",
+    23: "Gini-id stake",
+    24: "Gini-id (fraction)",
+    25: "Gini-id stake (fraction)",
+    26: "Mean margin",
+    27: "Median margin",
+    28: "Stake per agent",
+    29: "StakePairs"
 }
