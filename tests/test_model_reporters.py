@@ -197,6 +197,7 @@ def test_get_gini_id_coeff_pool_count_k_agents():
     g = get_gini_id_coeff_pool_count_k_agents(model)
     assert round(g, 3) == 0.56
 
+
 def test_get_nakamoto_coefficient():
     model = logic.sim.Simulation()
     pools = {}
@@ -228,14 +229,15 @@ def test_get_nakamoto_coefficient():
 
     assert nc == 2
 
-#todo review failing test
+
+# todo review failing test
 def test_get_nakamoto_coefficient_total_stake_1():
     model = logic.sim.Simulation()
     pools = {}
     for i in range(300):
         pools[i] = Pool(owner=i, cost=0.001, pledge=0.001, margin=0.1, alpha=0.3, beta=0.1, pool_id=i,
-             reward_function_option=0, total_stake=1)
-        pools[i].stake = 1/300
+                        reward_function_option=0, total_stake=1)
+        pools[i].stake = 1 / 300
     model.pools = pools
 
     nc = get_nakamoto_coefficient(model)
@@ -243,5 +245,20 @@ def test_get_nakamoto_coefficient_total_stake_1():
     assert nc == 151
 
 
+def test_get_median_stk_rnk(mocker):
+    model = logic.sim.Simulation()
+    agents = {x: Stakeholder(unique_id=x, model=model, stake=x) for x in range(1, 101)}
+    mocker.patch('logic.sim.Simulation.get_agents_dict', return_value=agents)
+    pools = []
+    for i in range(3):
+        pools.append(Pool(owner=100, cost=0.001, pledge=0.001, margin=0.1, alpha=0.3, beta=0.1, pool_id=i,
+                        reward_function_option=0, total_stake=1))
+    pools.append(Pool(owner=1, cost=0.001, pledge=0.001, margin=0.1, alpha=0.3, beta=0.1, pool_id=3,
+                    reward_function_option=0, total_stake=1))
+    pools.append(Pool(owner=2, cost=0.001, pledge=0.001, margin=0.1, alpha=0.3, beta=0.1, pool_id=4,
+                    reward_function_option=0, total_stake=1))
+    mocker.patch('logic.sim.Simulation.get_pools_list', return_value=pools)
 
+    median_stk_rank = get_median_stk_rnk(model)
 
+    assert median_stk_rank == 1

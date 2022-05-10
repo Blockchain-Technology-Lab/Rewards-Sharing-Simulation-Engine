@@ -49,7 +49,7 @@ class Simulation(Model):
             args.pop('input_from_file')
             args.pop('args')
         if args['metrics'] is None:
-            args['metrics'] = [1, 2, 3]
+            args['metrics'] = [1, 2, 4, 6, 17, 18, 21, 27, 28]
 
         seed = args['seed']
         if seed is None or seed == 'None':

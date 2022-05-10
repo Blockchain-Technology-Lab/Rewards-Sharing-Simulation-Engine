@@ -268,38 +268,34 @@ def get_iterations(model):
 def get_avg_stk_rnk(model):
     pools = model.get_pools_list()
     all_agents = model.get_agents_dict()
-    pool_owner_ids = {pool.owner for pool in pools}
     stakes = {agent_id: agent.stake for agent_id, agent in all_agents.items()}
     stake_ranks = hlp.calculate_ranks(stakes)
-    pool_owner_stk_ranks = [stake_ranks[pool_owner] for pool_owner in pool_owner_ids]
+    pool_owner_stk_ranks = [stake_ranks[pool.owner] for pool in pools]
     return round(statistics.mean(pool_owner_stk_ranks)) if len(pool_owner_stk_ranks) > 0 else 0
 
 
 def get_avg_cost_rnk(model):
     pools = model.get_pools_list()
     all_agents = model.get_agents_dict()
-    pool_owner_ids = {pool.owner for pool in pools}
     negative_cost_ranks = hlp.calculate_ranks({agent_id: -agent.cost for agent_id, agent in all_agents.items()})
-    pool_owner_cost_ranks = [negative_cost_ranks[pool_owner] for pool_owner in pool_owner_ids]
-    return round(statistics.mean(pool_owner_cost_ranks)) if len(pool_owner_cost_ranks) > 0 else 0
+    pool_owner_cost_ranks = [negative_cost_ranks[pool.owner] for pool in pools]
+    return round(statistics.mean(pool_owner_cost_ranks)) if len(pool_owner_cost_ranks) > 0 else -1
 
 
 def get_median_stk_rnk(model):
     pools = model.get_pools_list()
     all_agents = model.get_agents_dict()
-    pool_owner_ids = {pool.owner for pool in pools}
     stakes = {agent_id: agent.stake for agent_id, agent in all_agents.items()}
     stake_ranks = hlp.calculate_ranks(stakes)
-    pool_owner_stk_ranks = [stake_ranks[pool_owner] for pool_owner in pool_owner_ids]
-    return round(statistics.median(pool_owner_stk_ranks)) if len(pool_owner_stk_ranks) > 0 else 0
+    pool_owner_stk_ranks = [stake_ranks[pool.owner] for pool in pools]
+    return round(statistics.median(pool_owner_stk_ranks)) if len(pool_owner_stk_ranks) > 0 else -1
 
 
 def get_median_cost_rnk(model):
     pools = model.get_pools_list()
     all_agents = model.get_agents_dict()
-    pool_owner_ids = {pool.owner for pool in pools}
     negative_cost_ranks = hlp.calculate_ranks({agent_id: -agent.cost for agent_id, agent in all_agents.items()})
-    pool_owner_cost_ranks = [negative_cost_ranks[pool_owner] for pool_owner in pool_owner_ids]
+    pool_owner_cost_ranks = [negative_cost_ranks[pool.owner] for pool in pools]
     return round(statistics.median(pool_owner_cost_ranks)) if len(pool_owner_cost_ranks) > 0 else 0
 
 
