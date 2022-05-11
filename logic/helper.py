@@ -445,7 +445,7 @@ def plot_aggregate_data(df, variable_param, model_reporter, color, exec_id, outp
     path = output_dir / "figures"
     pathlib.Path(path).mkdir(parents=True, exist_ok=True)
 
-    plt.figure()
+    fig = plt.figure()
     if positive_only:
         df = df[df[model_reporter] >= 0]
     x = df[variable_param]
@@ -464,4 +464,5 @@ def plot_aggregate_data(df, variable_param, model_reporter, color, exec_id, outp
     # plt.legend()
     filename = exec_id + "-" + model_reporter + "-per-" + variable_param + ".png"
     plt.savefig(path / filename, bbox_inches='tight')
-    plt.show()
+    plt.close(fig)
+

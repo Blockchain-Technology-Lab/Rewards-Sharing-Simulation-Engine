@@ -88,16 +88,19 @@ def main():
                                #"Gini-id", "Gini-id stake", "Gini-id stake (k)", "Gini-id (k)"]
                                #"Gini-id stake (fraction)", "Gini-id (fraction)"]  # , "Min-aggregate pledge"]
     additional_model_reporters = defaultdict(lambda: [])
-    '''additional_model_reporters['alpha'] = [
-            "Average pledge", "Total pledge", "Max pools per operator", "Median pools per operator",
-            "Average stake rank", "Average cost rank", "Median stake rank", "Median cost rank"
-        ]'''
+    additional_model_reporters['alpha'] = [
+            #"Average pledge", "Total pledge",
+            "Max pools per operator", "Median pools per operator",
+            "Mean stake rank", "Mean cost rank", "Median stake rank", "Median cost rank"
+        ]
     additional_model_reporters['k'] = ["Pool homogeneity factor"] #"Statistical distance"
-    additional_model_reporters['abstention_rate'] = ["Statistical distance", "Homogeneity factor"]
+    additional_model_reporters['abstention_rate'] = ["Pool homogeneity factor"] #"Statistical distance"
 
-    variable_param =  list(variable_params.keys())[0]
+    current_additional_model_reporters = []
+    for variable_param in variable_params:
+        current_additional_model_reporters.extend(additional_model_reporters[variable_param])
     model_reporters = {
-        reporter: all_model_reporters[reporter] for reporter in set(default_model_reporters + additional_model_reporters[variable_param])
+        reporter: all_model_reporters[reporter] for reporter in set(default_model_reporters + current_additional_model_reporters)
     }
     print(model_reporters)
 
@@ -147,10 +150,11 @@ def main():
     random_colours = rng.random((len(all_model_reporters), 3))
     all_reporter_colours = dict(zip(all_model_reporters.keys(), random_colours))
 
-    useLogAxis = True if variable_param == 'alpha' else False
-    for model_reporter in model_reporters:
-        hlp.plot_aggregate_data(batch_run_data, variable_param, model_reporter, all_reporter_colours[model_reporter],
-                            batch_run_id, batch_run_MP.directory, log_axis=useLogAxis)
+    for variable_param in variable_params:
+        useLogAxis = True if variable_param == 'alpha' else False
+        for model_reporter in model_reporters:
+            hlp.plot_aggregate_data(batch_run_data, variable_param, model_reporter, all_reporter_colours[model_reporter],
+                                batch_run_id, batch_run_MP.directory, log_axis=useLogAxis)
 
 
 if __name__ == "__main__":
