@@ -30,7 +30,7 @@ class StackedChartModule(VisualizationElement):
     """
 
     package_includes = ["Chart.min.js"]
-    local_includes = ["StackedChartModule.js"]
+    local_includes = ["stackedChartModule.js"]
 
     def __init__(
         self,

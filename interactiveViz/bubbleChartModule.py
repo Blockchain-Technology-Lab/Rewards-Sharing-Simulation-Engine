@@ -25,7 +25,7 @@ class BubbleChartModule(VisualizationElement):
     """
 
     package_includes = ["Chart.min.js"]
-    local_includes = ["BubbleChartModule.js"]
+    local_includes = ["bubbleChartModule.js"]
 
     def __init__(
         self,
