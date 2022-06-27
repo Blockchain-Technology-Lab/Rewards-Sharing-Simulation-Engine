@@ -1,14 +1,12 @@
 # -*- coding: utf-8 -*-
 
-import csv
 import time
 import pathlib
 import math
-import collections
-import sys
 import random
 import pickle as pkl
 import numpy as np
+from sortedcontainers import SortedList
 from mesa import Model
 from mesa.datacollection import DataCollector
 from mesa.time import BaseScheduler, SimultaneousActivation, RandomActivation
@@ -23,7 +21,7 @@ class Simulation(Model):
     Simulation of staking behaviour in Proof-of-Stake Blockchains.
     """
 
-    agent_activation_orders = {
+    agent_activation_orders = { #todo move elsewhere
         "Random": RandomActivation,
         "Sequential": BaseScheduler,
         "Simultaneous": SimultaneousActivation, # note that during simultaneous activation agents apply their moves sequentially which may not be the expected behaviour
@@ -31,13 +29,14 @@ class Simulation(Model):
 
     }
 
-    #todo split into two classes? simulation (with max_iterations, steps_for_convergence etc) and system (with k, alpha etc)
+    #todo split into two classes? simulation (with max_iterations, steps_for_convergence etc) and system (with k, alpha, reward function option, etc)
     def __init__(self, n=1000, k=100, alpha=0.3, stake_distr_source='Pareto', myopic_fraction=0, abstention_rate=0,
-                 abstention_known=False, relative_utility_threshold=0, absolute_utility_threshold=1e-9,
-                 min_steps_to_keep_pool=5, pool_splitting=True, seed=None, pareto_param=2.0, max_iterations=1000,
-                 cost_min=1e-4, cost_max=1e-3, cost_factor=0.7, agent_activation_order="Random", total_stake=-1,
+                 abstention_known=False, relative_utility_threshold=0, absolute_utility_threshold=0,
+                 min_steps_to_keep_pool=0, pool_splitting=True, seed=None, pareto_param=2.0, max_iterations=1000,
+                 cost_min=1e-4, cost_max=1e-3, cost_factor=0.4, agent_activation_order="Random", total_stake=-1,
                  steps_for_convergence=10, extra_cost_type='fixed_fraction', reward_function_option=0, execution_id='',
-                 seq_id=-1, parent_dir='', metrics=None, generate_graphs=True, input_from_file=False):
+                 seq_id=-1, parent_dir='', metrics=None, generate_graphs=True, input_from_file=False,
+                 pool_opening_process='test'):
         # todo make sure that the input is valid? n > 0, 0 < k <= n
         if input_from_file:
             args = hlp.read_args_from_file("args.json")
@@ -49,7 +48,7 @@ class Simulation(Model):
             args.pop('input_from_file')
             args.pop('args')
         if args['metrics'] is None:
-            args['metrics'] = [1, 2, 4, 6, 17, 18, 21, 27, 28]
+            args['metrics'] = [1, 2, 4, 6, 17, 18, 26, 27, 28, 29, 30, 3]
 
         seed = args['seed']
         if seed is None or seed == 'None':
@@ -81,13 +80,13 @@ class Simulation(Model):
 
         extra_fields = ['n', 'k', 'alpha', 'myopic_fraction', 'relative_utility_threshold', 'absolute_utility_threshold',
                  'min_steps_to_keep_pool', 'pool_splitting', 'max_iterations', 'cost_factor', 'agent_activation_order',
-                  'extra_cost_type', 'reward_function_option', 'generate_graphs']
+                  'extra_cost_type', 'reward_function_option', 'generate_graphs', 'pool_opening_process']
         adjustable_params = {} #todo define which args should not be saved as adjustable params (e.g. abstention rate)
         for field in extra_fields:
             value = args[field]
             if isinstance(value, list):
                 # a number of values were given for this field, to be used in different eras
-                adjustable_params[field] = value # todo use int for k?
+                adjustable_params[field] = value
                 setattr(self, field, value[self.current_era])
                 if len(value) > total_eras:
                     total_eras = len(value)
@@ -96,8 +95,8 @@ class Simulation(Model):
 
         self.total_eras = total_eras
         self.adjustable_params = adjustable_params
-        self.k = int(self.k)
-
+        self.k = int(self.k) #todo could be done in one step for all int variables above?
+        self.n = int(self.n)
         if args['abstention_known']:
             # The system is aware of the abstention rate of the system, so it inflates k (and subsequently lowers beta)
             # to make it possible to end up with the original desired number of pools
@@ -109,13 +108,14 @@ class Simulation(Model):
         total_stake = self.initialize_agents(args['cost_min'], args['cost_max'], args['pareto_param'], args['stake_distr_source'].lower(),
                                              imposed_total_stake=args['total_stake'], seed=seed)
         self.total_stake = total_stake / (1 - args['abstention_rate'])
-        print("Total stake (including abstaining fraction): ", self.total_stake)
 
         if self.total_stake <= 0:
             raise ValueError('Total stake must be > 0')
         self.perceived_active_stake = self.total_stake
         self.beta = self.total_stake / self.k
+
         self.export_input_desc_file(seed)
+
 
         self.consecutive_idle_steps = 0  # steps towards convergence
         self.current_step_idle = True
@@ -123,6 +123,8 @@ class Simulation(Model):
         self.pools = dict()
         self.revision_frequency = 10  # defines how often active stake and expected #pools are revised #todo read from json file?
         self.initialise_pool_id_seq()  # initialise pool id sequence for the new model run
+
+        self.pool_desirabilities_n_pps = SortedList([(0, 0)] * self.k, key=hlp.negate_tuple)  # (desirability, potential profit) of the top k pools in descending order
 
         # metrics to track at every step of the simulation
         model_reporters = {
@@ -149,8 +151,6 @@ class Simulation(Model):
         else:
             raise ValueError("Unsupported stake distribution source '{}'.".format(stake_distr_source))
         total_stake = sum(stake_distribution)
-        print("Total stake: ", total_stake)
-        print("Max stake: ", max(stake_distribution))
 
         # Allocate cost to the agents, sampling from a uniform distribution
         #todo make cost distr configurable? allow reading from file maybe?
@@ -161,7 +161,7 @@ class Simulation(Model):
 
         num_myopic_agents = int(self.myopic_fraction * self.n)
         unique_ids = [i for i in range(self.n)]
-        self.random.shuffle(unique_ids)
+        #self.random.shuffle(unique_ids)
         # Create agents
         for i, unique_id in enumerate(unique_ids):
             agent = Stakeholder(
@@ -232,17 +232,23 @@ class Simulation(Model):
         """
         return self.consecutive_idle_steps >= self.min_consecutive_idle_steps_for_convergence
 
-    def export_args_file(self, args):
+    def export_args_file(self, args): #todo rename to metadata?
         filename = 'args.json'
         filepath = self.directory / filename
         hlp.export_json_file(args, filepath)
 
     def export_input_desc_file(self, seed):
         # generate file that describes the state of the system at step 0
+        stake_stats = reporters.get_stake_distr_stats(self)
         descriptors = {
             'Randomness seed': seed,
             'Total stake': self.total_stake,
             'Active stake': reporters.get_active_stake_agents(self),
+            'Max stake': stake_stats[0],
+            'Min stake': stake_stats[1],
+            'Mean stake': stake_stats[2],
+            'Median stake': stake_stats[3],
+            'Standard deviation of stake': stake_stats[4],
             'Nakamoto coefficient prior': reporters.get_nakamoto_coefficient(self),
             'Cost efficient agents': reporters.get_cost_efficient_count(self)
         }
@@ -250,16 +256,17 @@ class Simulation(Model):
         filepath = self.directory / filename
         hlp.export_json_file(descriptors, filepath)
 
-
     def export_agents_file(self):
-        row_list = [["Agent id", "Stake", "Cost", "Potential Profit","Status", "Pools owned"]]
+        row_list = [["Agent id", "Stake", "Cost", "Potential Profit","Status", "Pools owned", "Pool splitting profit", "Profitable pool splitter"]]
         agents = self.get_agents_dict()
         decimals = 15
         row_list.extend([
             [agent_id, round(agents[agent_id].stake, decimals), round(agents[agent_id].cost, decimals),
              round(hlp.calculate_potential_profit(agents[agent_id].stake, agents[agent_id].cost, self.alpha, self.beta, self.reward_function_option, self.total_stake), decimals),
              "Abstainer" if agents[agent_id].strategy is None else "Operator" if len(agents[agent_id].strategy.owned_pools) > 0 else "Delegator",
-             0 if agents[agent_id].strategy is None else len(agents[agent_id].strategy.owned_pools)
+             0 if agents[agent_id].strategy is None else len(agents[agent_id].strategy.owned_pools),
+             hlp.calculate_pool_splitting_profit(self.alpha, self.cost_factor, agents[agent_id].cost, agents[agent_id].stake / self.total_stake),
+             "YES" if hlp.calculate_pool_splitting_profit(self.alpha, self.cost_factor, agents[agent_id].cost, agents[agent_id].stake / self.total_stake) > 0 else "NO"
              ] for agent_id in range(len(agents))
         ])
 
@@ -269,14 +276,15 @@ class Simulation(Model):
         hlp.export_csv_file(row_list, filepath)
         
     def export_pools_file(self):
-        row_list = [["Pool id", "Owner id", "Owner stake", "Pool Pledge", "Pool stake", "Owner cost", "Pool cost", "Pool margin"]]
+        row_list = [["Pool id", "Owner id", "Owner stake", "Pool Pledge", "Pool stake", "Owner cost", "Pool cost",
+                     "Pool margin", "Pool PP", "Pool desirability"]]
         agents = self.get_agents_dict()
         pools = self.get_pools_list()
         decimals = 15
         row_list.extend(
             [[pool.id, pool.owner, round(agents[pool.owner].stake, decimals), round(pool.pledge, decimals),
               round(pool.stake, decimals), round(agents[pool.owner].cost, decimals), round(pool.cost, decimals),
-              round(pool.margin, decimals)] for pool in pools])
+              round(pool.margin, decimals), pool.potential_profit, pool.desirability] for pool in pools])
         prefix = 'final_configuration_pools-' if self.has_converged() else 'intermediate_configuration_pools-'
         filename = prefix + self.execution_id + '.csv'
         filepath = self.directory / filename
@@ -287,6 +295,28 @@ class Simulation(Model):
         filename = 'metrics-' + self.execution_id + '.csv'
         filepath = self.directory / filename
         df.to_csv(filepath, index_label='Round')
+
+    def export_output_desc_file(self, filename = "output-descriptors.json"):
+        # generate file that describes the state of the system at termination
+        descriptors = {
+            'Pool count': reporters.get_number_of_pools(self),
+            'Operator count': reporters.get_operator_count(self),
+            'Nakamoto coefficient': reporters.get_nakamoto_coefficient(self)
+        }
+        filepath = self.directory / filename
+        hlp.export_json_file(descriptors, filepath)
+
+    def append_to_experiment_tracker(self, filename='experiment-tracker.csv'):
+        # todo also include input descriptors here, like NC prior?
+        # todo add equilibrium step  / number of rounds
+        filepath = "output/" + filename
+        header = ["id", "n", "k", "alpha", "phi", "activation order", "reward function", # "stk distr", "min cost", "max cost",
+                  "descriptor", "-",
+                  "#pools", "#operators", "nakamoto coeff", "comments"]
+        row = [self.seq_id, self.n, self.k, self.alpha, self.cost_factor, self.agent_activation_order,
+               self.reward_function_option, self.execution_id[self.execution_id.index('-')+1:], "",
+               reporters.get_number_of_pools(self), reporters.get_operator_count(self), reporters.get_nakamoto_coefficient(self), ""]
+        hlp.write_to_csv(filepath, header, row)
 
     def save_model_state_pkl(self):
         filename = "simulation-object-" + self.execution_id + ".pkl"
@@ -301,11 +331,17 @@ class Simulation(Model):
         rng = np.random.default_rng(seed=156)
         random_colours = rng.random((len(reporters.all_model_reporters), 3))
         all_reporter_colours = dict(zip(reporters.all_model_reporters.keys(), random_colours))
+        all_reporter_colours['Mean pledge'] = 'red'
+        all_reporter_colours["Pool count"] = 'C0'
+        all_reporter_colours["Total pledge"] = 'purple'
+        all_reporter_colours["Nakamoto coefficient"] = 'pink'
 
         df = self.datacollector.get_model_vars_dataframe()
         for col in df.columns:
             if isinstance(df[col][0], list):
                 hlp.plot_stack_area_chart(pool_sizes_by_step=df[col], execution_id=self.execution_id, path=figures_dir)
+            elif isinstance(df[col][0], dict):
+                pass
             else:
                 hlp.plot_line(data=df[col], execution_id=self.execution_id, color=all_reporter_colours[col], title=col, x_label="Round",
                           y_label=col, filename=col, equilibrium_steps=self.equilibrium_steps, pivot_steps=self.pivot_steps,
@@ -349,6 +385,7 @@ class Simulation(Model):
                     self.k = int(self.k)
                     # update beta in case the value of k changes
                     self.beta = self.total_stake / self.k
+                    #todo if I care enough about it update k again in case of known abstention
         if change_occured:
             self.pivot_steps.append(self.schedule.steps)
 
@@ -358,6 +395,8 @@ class Simulation(Model):
         self.export_pools_file()
         self.export_agents_file()
         self.export_metrics_file()
+        self.export_output_desc_file()
+        self.append_to_experiment_tracker()
         self.save_model_state_pkl()
         if self.generate_graphs:
             self.export_graphs()

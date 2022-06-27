@@ -33,7 +33,6 @@ class Pool:
         self.desirability = hlp.calculate_pool_desirability(margin=self.margin, potential_profit=self.potential_profit)
 
     def update_delegation(self, new_delegation, delegator_id):
-
         if delegator_id in self.delegators:
             self.stake -= self.delegators[delegator_id]
         self.stake += new_delegation

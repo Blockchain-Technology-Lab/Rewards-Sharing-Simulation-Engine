@@ -49,6 +49,14 @@ def main():
                              '2 for alternative-1 and 3 for alternative-2.')
     parser.add_argument('--pool_splitting', type=bool, default=True, action=argparse.BooleanOptionalAction,
                         help='Are individual agents allowed to create multiple pools? Default is yes.')
+    parser.add_argument('--abstention_known', type=bool, default=False, action=argparse.BooleanOptionalAction,
+                        help='Is the abstention rate of the system known beforehand? Default is no.')
+    parser.add_argument('--relative_utility_threshold', nargs="+", type=float, default=0,
+                        help='The utility increase ratio under which moves are disregarded. Default is 0%%.')
+    parser.add_argument('--absolute_utility_threshold', nargs="+", type=float, default=0,
+                        help='The utility threshold under which moves are disregarded. Default is 1e-9.')
+    parser.add_argument('--pool_opening_process', type=str, default='local-search',
+                        help='The heuristic to use for determining a pool strategy. Options: local-search (default), plus-one.')
 
     args_dict = vars(parser.parse_args())
 
@@ -83,18 +91,22 @@ def main():
     print('-------------')
     print("Variable params: ", variable_params)
 
-    default_model_reporters = ["Pool count", "Nakamoto coefficient", "Number of pool splitters",
-                               "Cost efficient stakeholders", "Total pledge", "Iterations"]
+    default_model_reporters = ["Nakamoto coefficient", "Number of pool splitters",
+                               #"Cost efficient stakeholders",
+                               # "Iterations",
+                               "Total pledge"
+                               ]
                                #"Gini-id", "Gini-id stake", "Gini-id stake (k)", "Gini-id (k)"]
                                #"Gini-id stake (fraction)", "Gini-id (fraction)"]  # , "Min-aggregate pledge"]
     additional_model_reporters = defaultdict(lambda: [])
     additional_model_reporters['alpha'] = [
-            #"Average pledge", "Total pledge",
-            "Max pools per operator", "Median pools per operator",
-            "Mean stake rank", "Mean cost rank", "Median stake rank", "Median cost rank"
+        "Mean pledge", #"Total pledge",
+        "Max pools per operator", "Median pools per operator",
+        "Mean stake rank", "Mean cost rank", "Median stake rank", "Median cost rank"#,
+        #"Min-aggregate pledge"
         ]
-    additional_model_reporters['k'] = ["Pool homogeneity factor"] #"Statistical distance"
-    additional_model_reporters['abstention_rate'] = ["Pool homogeneity factor"] #"Statistical distance"
+    additional_model_reporters['k'] = ["Pool count", "Pool homogeneity factor"] #"Statistical distance"
+    additional_model_reporters['abstention_rate'] = ["Pool count", "Pool homogeneity factor"] #"Statistical distance"
 
     current_additional_model_reporters = []
     for variable_param in variable_params:
@@ -121,25 +133,6 @@ def main():
     # Extract data from the batch runner
     batch_run_data = batch_run_MP.get_model_vars_dataframe()
 
-    '''if 'alpha' in variable_params:
-        path = 'output/cost-stuff/'
-        cost_alpha_csv_file = path + "suitable-alpha.csv"
-        # determine which alpha values were good, from the ones that were tried
-        # we define a suitable value for alpha by taking the minimum value that gives NCR >= 3%
-        min_ncr = 0.03
-        min_nc = min_ncr * fixed_params['n']
-        if min_nc > fixed_params['k'] :
-            min_nc = int(fixed_params['k']/3)
-        suitable_rows = batch_run_data[batch_run_data['Nakamoto coefficient'] >= min_nc]
-        # group by cost min, if applicable
-        min_alpha_suitable_rows = suitable_rows.groupby(['n', 'k', 'cost_min']).agg({'alpha': 'min'})
-        min_alpha_suitable_rows = min_alpha_suitable_rows.reset_index()
-        #else:
-        #    min_alpha_suitable_rows = suitable_rows[suitable_rows.alpha == suitable_rows.alpha.min()][['n','k', 'cost_min', 'alpha']]
-        with open(cost_alpha_csv_file, "a+") as f:
-            min_alpha_suitable_rows.to_csv(f, mode='a', index=False, header=f.tell()==0)
-    '''
-
     # ordered dicts with data from each step of each run (the combinations of variable params act as the keys)
     # for example data_collector_model[(0.1, 0.02, 1)] shows the values of the parameters collected at model level
     # when α=0.1 and cost_max=0.02 (which happened to be the run with index 1)
@@ -149,6 +142,10 @@ def main():
     rng = np.random.default_rng(seed=156)
     random_colours = rng.random((len(all_model_reporters), 3))
     all_reporter_colours = dict(zip(all_model_reporters.keys(), random_colours))
+    all_reporter_colours['Mean pledge'] = 'red'
+    all_reporter_colours["Pool count"] = 'C0'
+    all_reporter_colours["Total pledge"] = 'purple'
+    all_reporter_colours["Nakamoto coefficient"] = 'pink'
 
     for variable_param in variable_params:
         useLogAxis = True if variable_param == 'alpha' else False
@@ -156,7 +153,12 @@ def main():
             hlp.plot_aggregate_data(batch_run_data, variable_param, model_reporter, all_reporter_colours[model_reporter],
                                 batch_run_id, batch_run_MP.directory, log_axis=useLogAxis)
 
+    vp = list(variable_params.keys())
+    if len(vp) == 2:
+        # plot heatmap when we have two variable parameters
+        hlp.plot_aggregate_data_heatmap(batch_run_data, vp, model_reporters, batch_run_MP.directory)
+
 
 if __name__ == "__main__":
-    #multiprocessing.freeze_support()  # needed for multiprocessing to work on windows systems (comment out line to run on linux or mac / uncomment for windows)
+    #multiprocessing.freeze_support()  # needed for multiprocessing to work on windows systems (comment out line to run on linux or mac / uncomment for windows) #todo is that still needed? if yes, detect os and act accordingly
     main()

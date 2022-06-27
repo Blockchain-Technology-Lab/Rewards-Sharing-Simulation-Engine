@@ -32,8 +32,8 @@ def main():
                         help='agent activation order. Default is random.')
     parser.add_argument('--seed', default=None,
                         help='Seed for reproducibility. Default is None, which means that no seed is given.')
-    parser.add_argument("--min_steps_to_keep_pool", type=int, default=5,
-                        help='The number of steps for which a agent remains idle after opening a pool. Default is 5.')
+    parser.add_argument("--min_steps_to_keep_pool", type=int, default=0,
+                        help='The number of steps for which a agent remains idle after opening a pool. Default is 0.')
     parser.add_argument('--myopic_fraction', nargs="+", type=float, default=0,
                         help='The fraction of myopic agents in the simulation. Default is 0%%.')
     parser.add_argument('--abstention_rate', type=float, default=0,
@@ -62,6 +62,11 @@ def main():
                         help='The list of ids that correspond to metrics that are tracked during the simulation. Default is [1,2,3]')
     parser.add_argument('--generate_graphs', type=bool, default=True, action=argparse.BooleanOptionalAction,
                         help='If True then the graphs are generated upon completion. Default is True.')
+    parser.add_argument('--abstention_known', type=bool, default=False, action=argparse.BooleanOptionalAction,
+                        help='Is the abstention rate of the system known beforehand? Default is no.')
+    parser.add_argument('--pool_opening_process', type=str, default='local-search',
+                        help='The heuristic to use for determining a pool strategy. Options: local-search (default), plus-one.')
+
     args = parser.parse_args()
 
     # todo deal with invalid inputs, e.g. negative n
@@ -74,7 +79,7 @@ def main():
         stake_distr_source=args.stake_distr_source,
         myopic_fraction=args.myopic_fraction,
         abstention_rate=args.abstention_rate,
-        #abtsention known
+        abstention_known = args.abstention_known,
         relative_utility_threshold=args.relative_utility_threshold,
         absolute_utility_threshold=args.absolute_utility_threshold,
         min_steps_to_keep_pool=args.min_steps_to_keep_pool,
@@ -95,7 +100,8 @@ def main():
         #parent_dir
         metrics=args.metrics,
         generate_graphs=args.generate_graphs,
-        input_from_file=args.input_from_file
+        input_from_file=args.input_from_file,
+        pool_opening_process=args.pool_opening_process
     )
 
     sim.run_model()

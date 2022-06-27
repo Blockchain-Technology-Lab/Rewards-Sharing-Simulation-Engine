@@ -26,7 +26,10 @@ MAX_NUM_POOLS = 1000
 MIN_STAKE_UNIT = 2.2e-17 #todo change to reflect how much 1 lovelace is depending on total stake?
 MIN_COST_PER_POOL = 1e-6
 
-def read_stake_distr_from_file(filename='synthetic-stake-distribution-10K-active-agents.csv', num_agents=10000, seed=42):
+#todo make this read from file only?
+def read_stake_distr_from_file(num_agents=10000, seed=42):
+    default_filename = 'synthetic-stake-distribution-10000-agents.csv'
+    filename = 'synthetic-stake-distribution-' + str(num_agents) + '-agents.csv'
     stk_dstr = []
     try:
         with open(filename) as file:
@@ -34,9 +37,15 @@ def read_stake_distr_from_file(filename='synthetic-stake-distribution-10K-active
             for row in reader:
                 stk_dstr.append(float(row[0]))
     except FileNotFoundError:
-        print("Couldn't find file to read stake distribution from. Please make sure that the file exists or "
-              "use another option for the stake distribution source.")
-        raise
+        try:
+            with open(default_filename) as file:
+                reader = csv.reader(file)
+                for row in reader:
+                    stk_dstr.append(float(row[0]))
+        except FileNotFoundError:
+            print("Couldn't find file to read stake distribution from. Please make sure that the file exists or "
+                  "use another option for the stake distribution source.")
+            raise
     if num_agents == len(stk_dstr):
         return stk_dstr
     rng = default_rng(seed=int(seed))
@@ -191,7 +200,7 @@ def calculate_pool_reward(relative_stake, relative_pledge, alpha, beta, reward_f
     elif reward_function_option == 6:
         return calculate_pool_reward_curve_pledge_benefit_no_min(relative_stake, relative_pledge, alpha, beta, curve_root, crossover_factor)
     elif reward_function_option == 7:
-        return calculate_pool_reward_CIP_50(relative_stake, relative_pledge, beta)
+        return calculate_pool_reward_CIP_50(relative_stake, relative_pledge, beta, L=alpha)
     else:
         raise ValueError("Invalid option for reward function.")
 
@@ -242,8 +251,8 @@ def calculate_pool_reward_curve_pledge_benefit_no_min(relative_stake, relative_p
                 stake_ + (pledge_ * alpha * ((stake_ - pledge_ * (1 - stake_ / beta)) / beta)))
     return r
 
-def calculate_pool_reward_CIP_50(relative_stake, relative_pledge, beta, theta=100):
-    pledge_factor = theta * relative_pledge
+def calculate_pool_reward_CIP_50(relative_stake, relative_pledge, beta, L=100):
+    pledge_factor = L * relative_pledge
     r = TOTAL_EPOCH_REWARDS_R * min(relative_stake, pledge_factor, beta)
     return r
 
@@ -274,12 +283,13 @@ def calculate_pool_stake_NM(pool_id, pools, beta, k):
         rank_in_top_k = True
     else:
         d = [(pool.desirability, pool.potential_profit, pool.stake, -pool_id) for pool_id, pool in pools.items()]
-        top_k_pools = heapq.nlargest(k, d)
+        top_k_pools = heapq.nlargest(k, d) #todo is this a bottleneck?
         top_k_pool_ids = [-p[3] for p in top_k_pools]
         rank_in_top_k = pool_id in top_k_pool_ids
 
     return calculate_pool_stake_NM_from_rank(pool_pledge=pool.pledge, pool_stake=pool.stake, beta=beta, rank_in_top_k=rank_in_top_k)
 
+#todo do I still need this?
 def calculate_ranks(ranking_dict, *tie_breaking_dicts, rank_ids=True):
     """
     Rank the values of a dictionary from highest to lowest (highest value gets rank 1, second highest rank 2 and so on)
@@ -340,6 +350,11 @@ def calculate_cost_per_pool_fixed_fraction(num_pools, initial_cost, cost_factor)
     return (initial_cost + (num_pools - 1) * cost_factor * initial_cost) / num_pools
 
 @lru_cache(maxsize=1024)
+def calculate_suitable_margin(potential_profit, target_desirability):
+    m = 1 - target_desirability / potential_profit if potential_profit > 0 else 0
+    return max(m, 0)
+
+@lru_cache(maxsize=1024)
 def calculate_pool_desirability(margin, potential_profit):
     return max((1 - margin) * potential_profit, 0)
 
@@ -347,6 +362,15 @@ def calculate_pool_desirability(margin, potential_profit):
 def calculate_myopic_pool_desirability(stake, pledge, cost, margin, alpha, beta, total_stake):
     current_profit = calculate_current_profit(stake, pledge, cost, alpha, beta, total_stake)
     return max((1 - margin) * current_profit, 0)
+
+@lru_cache(maxsize=1024)
+def calculate_operator_utility_from_pool(non_myopic_pool_stake, pledge, margin, cost, alpha, beta, reward_function_option, total_stake):
+    relative_pool_stake = non_myopic_pool_stake / total_stake
+    relative_pledge = pledge / total_stake
+    r = calculate_pool_reward(relative_pool_stake, relative_pledge, alpha, beta, reward_function_option, total_stake)
+    stake_fraction = pledge / non_myopic_pool_stake
+    return calculate_operator_reward_from_pool(pool_margin=margin, pool_cost=cost, pool_reward=r, operator_stake_fraction=stake_fraction)
+
 
 @lru_cache(maxsize=1024)
 def calculate_pool_stake_NM_from_rank(pool_pledge, pool_stake, beta, rank_in_top_k):
@@ -364,7 +388,8 @@ def determine_pledge_per_pool(agent_stake, beta, num_pools):
     """
     if num_pools <= 0:
         raise ValueError("Agent tried to calculate pledge for zero or less pools.")
-    return [min(agent_stake / num_pools, beta)] * num_pools
+    return min(agent_stake / num_pools, beta)
+
 
 def export_csv_file(rows, filepath):
     with open(filepath, 'w', newline='') as file:
@@ -399,17 +424,24 @@ def write_seq_id(seq, filename='sequence.dat'):
     with open(filename, 'w') as f:
         f.write(str(seq))
 
+def write_to_csv(filepath, header, row):
+    with open(filepath, 'a', newline='') as f:
+        writer = csv.writer(f)
+        if f.tell()==0:
+            writer.writerow(header)
+        writer.writerow(row)
+
 def plot_line(data, execution_id, color, x_label, y_label, filename, equilibrium_steps, pivot_steps,
               path, title='', show_equilibrium=False):
     equilibrium_colour = 'mediumseagreen'
     pivot_colour = 'gold'
 
-    plt.figure(figsize=(10,5))
+    fig = plt.figure(figsize=(10,5))
     data.plot(color=color)
     if show_equilibrium:
         for i, step in enumerate(equilibrium_steps):
             label = "Equilibrium reached" if i == 0 else ""
-            plt.axvline(x=step, label=label, c=equilibrium_colour)  # todo if it exceeds max iterations??
+            plt.axvline(x=step, label=label, c=equilibrium_colour)
     for i, step in enumerate(pivot_steps):
         label = "Parameter change" if i == 0 else ""
         plt.plot(step, data[step], 'x', label=label, c=pivot_colour)
@@ -419,17 +451,19 @@ def plot_line(data, execution_id, color, x_label, y_label, filename, equilibrium
     plt.legend()
     filename = execution_id + "-" + filename + ".png"
     plt.savefig(path / filename , bbox_inches='tight')
+    plt.close(fig)
 
 def plot_stack_area_chart(pool_sizes_by_step, execution_id, path):
-    pool_sizes_by_pool = np.array(list(pool_sizes_by_step)).T
-    plt.figure(figsize=(10, 5))
+    pool_sizes_by_agent = np.array(list(pool_sizes_by_step)).T
+    fig = plt.figure(figsize=(10, 5))
     col = sns.color_palette("hls", 77)
-    plt.stackplot(range(1, len(pool_sizes_by_step)), pool_sizes_by_pool[:, 1:], colors=col, edgecolor='black', lw=0.1)
+    plt.stackplot(range(1, len(pool_sizes_by_step)), pool_sizes_by_agent[:, 1:], colors=col, edgecolor='black', lw=0.1)
     plt.xlim(xmin=0.0)
     plt.xlabel("Round")
     plt.ylabel("Stake per Operator")
     filename = "poolDynamics-" + execution_id + ".png"
     plt.savefig(path / filename, bbox_inches='tight')
+    plt.close(fig)
 
 def sci_notation(num, decimal_digits=1, precision=None, exponent=None):
     if exponent is None:
@@ -450,10 +484,7 @@ def plot_aggregate_data(df, variable_param, model_reporter, color, exec_id, outp
         df = df[df[model_reporter] >= 0]
     x = df[variable_param]
     y = df[model_reporter]
-    plt.scatter(x, y, color=color)#, label='Reward function #0', zorder=0)
-    #xx = batch_run_data2['k']
-    #yy = batch_run_data2[model_reporter]
-    #plt.scatter(xx, yy, color='magenta', label='Reward function #4', zorder=1)
+    plt.scatter(x, y, color=color)
     plt.xlabel(variable_param)
     plt.ylabel(model_reporter)
     if log_axis:
@@ -466,3 +497,145 @@ def plot_aggregate_data(df, variable_param, model_reporter, color, exec_id, outp
     plt.savefig(path / filename, bbox_inches='tight')
     plt.close(fig)
 
+
+
+def plot_aggregate_data_2(df, variable_param, model_reporter, output_dir, colour_values='blue', labels = None, legend_param=None,
+                        positive_only=True, log_axis=False):
+    import matplotlib.colors as colors
+
+    path = output_dir / "figures"
+    pathlib.Path(path).mkdir(parents=True, exist_ok=True)
+
+    plt.figure()
+    if positive_only:
+        df = df[df[model_reporter] >= 0]
+    x = df[variable_param]
+    y = df[model_reporter]
+    scatter = plt.scatter(x, y, c=colour_values, norm=colors.Normalize(vmin=colour_values.min(), vmax=colour_values.max()), cmap='viridis') #if log_axis else colors.LogNorm(vmin=colour_values.min(), vmax=colour_values.max()))
+    # note: lognorm doesn't work when 0 is one of the values
+    plt.xlabel(variable_param)
+    if variable_param == 'alpha':
+        plt.xlabel('α')
+    plt.ylabel(model_reporter)
+    if log_axis:
+        plt.xscale('log')
+        plt.gca().xaxis.set_major_formatter(ticker.FuncFormatter(lambda t, _: t if t >= 0.1 else sci_notation(t, 0)))
+        plt.minorticks_off()
+    labels = [round(value,3) if value > 1e-3 else value for value in labels]
+    #plt.legend(handles=scatter.legend_elements()[0], labels=labels, title=legend_param)
+    if legend_param == 'pareto_param':
+        legend_param = 'Pareto shape parameter'
+    elif legend_param == 'cost_factor':
+        legend_param = 'φ'
+    plt.colorbar(label=legend_param)
+
+    filename = model_reporter + "-per-" + variable_param + ".png"
+    plt.savefig(path / filename, bbox_inches='tight')
+
+
+def plot_aggregate_data_heatmap(df, variables, model_reporters, output_dir):
+    path = output_dir / "figures"
+    pathlib.Path(path).mkdir(parents=True, exist_ok=True)
+
+    for reporter in model_reporters:
+        fig = plt.figure()
+        cols_to_keep = variables + [reporter]
+        df_ = df[cols_to_keep]
+        df_.set_index(variables, inplace=True)
+        unstacked_df = df_[reporter].unstack(level=0)
+
+        cbar_kws = {"orientation": "vertical",
+                    # "shrink":1,
+                    'extend': 'max',
+                    # 'extendfrac':0.1,
+                    # "ticks":np.arange(min_NC+1, initial_NC+1, step),
+                    # "drawedges":True,
+                    "label": reporter
+                    }
+
+        ax = sns.heatmap(unstacked_df, annot=True, annot_kws={"size": 12}, fmt='g', cbar_kws=cbar_kws, cmap='flare')
+
+        ax.invert_yaxis()
+        labels = [item.get_text() for item in ax.get_yticklabels()]
+        ax.set_yticklabels([str(round(float(label), 4)) for label in labels])
+
+        filename = 'heatmap-' + reporter + "-" + '-'.join(variables) + ".png"
+        plt.savefig(path / filename, bbox_inches='tight')
+        plt.close(fig)
+
+
+    def convert_currency(dollar_value, ada_price):
+        return dollar_value / ada_price
+
+def utility_from_profitable_pool(r, c, l, b, m):
+    return l / b * (r - c) * (1 - m) + m * (r - c)
+
+def util_by_margin_and_pools(agent, margin, num_pools):
+    total_stake = agent.model.total_stake
+    stake = agent.stake / total_stake
+    alpha = agent.model.alpha
+    k = agent.model.k
+    beta = agent.model.beta / total_stake
+    R = TOTAL_EPOCH_REWARDS_R
+    phi = agent.model.cost_factor
+    initial_cost = agent.cost
+
+    top_k_des = [d[0] for d in agent.model.pool_desirabilities_n_pps][:k]
+    top_k_des.reverse()
+
+    pledge_per_pool = np.where(stake / num_pools < beta, stake / num_pools, beta)
+    cost_per_pool = (1 + phi * num_pools - phi) * initial_cost / num_pools
+
+    reward_per_pool = R / (1 + alpha) * (beta + pledge_per_pool * alpha)
+    utility_per_pool = np.where(reward_per_pool - cost_per_pool > 0,
+                                utility_from_profitable_pool(reward_per_pool, cost_per_pool, pledge_per_pool, beta,
+                                                             margin), reward_per_pool - cost_per_pool)
+    desirability = (1 - margin) * (reward_per_pool - cost_per_pool)
+
+    margin_len = int(len(margin) / k)
+    d_cutoff = np.array(top_k_des*margin_len)
+    utility = np.where(desirability >= d_cutoff + num_pools * 0.00001, num_pools * utility_per_pool, 0)
+    return utility
+
+
+def plot_margin_pools_heatmap(agent):
+    from matplotlib import cm
+
+    k = agent.model.k
+
+    x = np.linspace(1, k, k)
+    # x = np.linspace(1, 10, 10)
+    y = np.linspace(0, 0.25, 1000)
+    X, Y = np.meshgrid(x, y)
+    zs = np.array(util_by_margin_and_pools(agent, np.ravel(Y), np.ravel(X)))
+    Z = zs.reshape(X.shape)
+
+    mappable = plt.cm.ScalarMappable(cmap=cm.coolwarm)
+    mappable.set_array(Z)
+
+    fig = plt.figure(figsize=(6, 5))
+    ax2 = fig.add_subplot(111)
+    ax2.set_ylabel('margin')
+    ax2.set_xlabel('number of owned top-k pools')
+
+    Z = np.ma.array(Z, mask=(Z == 0))
+    masked_cmap = mappable.cmap.copy()
+    masked_cmap.set_bad(color='black')
+
+    ax2.imshow(Z, cmap=masked_cmap, norm=mappable.norm, interpolation='none', aspect='auto',
+               origin='lower', extent=(np.min(X), np.max(X), np.min(Y), np.max(Y)))
+    plt.grid()
+
+    plt.colorbar(mappable, label='utility')
+    filename = 'heatmap-round-' + str(agent.model.schedule.steps) + '-agent-' + str(agent.unique_id) + '.png'
+    plt.savefig(agent.model.directory / filename, bbox_inches='tight')
+    plt.close(fig)
+    #plt.tight_layout()
+
+def calculate_pool_splitting_profit(alpha, phi, cost, relative_stake):
+    return (1 + alpha) * (1 - phi) * cost - TOTAL_EPOCH_REWARDS_R * relative_stake * alpha
+
+
+def negate_tuple(x):
+    # using function instead of lambda for pickling purposes
+    return -x[0]

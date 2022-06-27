@@ -174,22 +174,6 @@ def get_nakamoto_coefficient(model):
     return majority_control_agents
 
 
-#todo do I need this?
-def get_optimal_min_aggregate_pledge(model):
-    """
-    In the optimal scenario (pledge-wise) there are k pools
-    operated by the k richest agents (the ones who can pledge the highest amounts)
-    and having 1/k stake each.
-    In that case, any k/2 pools control half of the total stake,
-    therefore the k/2 pools controlled by the k/2 (or k/2 + 1 for odd k) "poorest" agents (among the k richest)
-    should define the optimal min-aggregate pledge.
-    Potential caveat: maybe doesn't generalise to when we have abstention
-    """
-    k = model.k
-    all_stakes = [agent.stake for agent in model.get_agents_list()]
-    relevant_stakes = sorted(all_stakes, reverse=True)[int(k/2):k]
-    return sum(relevant_stakes)
-
 def get_min_aggregate_pledge(model):
     """
     Solve optimisation problem using solver
@@ -264,7 +248,6 @@ def get_iterations(model):
     return model.schedule.steps
 
 
-#todo maybe use actual values instead of ranks?
 def get_avg_stk_rnk(model):
     pools = model.get_pools_list()
     all_agents = model.get_agents_dict()
@@ -323,6 +306,15 @@ def get_cost_efficient_count(model):
 def get_pool_stakes_by_agent(model):
     num_agents = model.n
     pool_stakes = [0 for _ in range(num_agents)]
+    current_pools = model.get_pools_list()
+    for pool in current_pools:
+        pool_stakes[pool.owner] += pool.stake
+    return pool_stakes
+
+
+def get_pool_stakes_by_agent_id(model):
+    num_agents = model.n
+    pool_stakes = {i: 0 for i in range(num_agents)}
     current_pools = model.get_pools_list()
     for pool in current_pools:
         pool_stakes[pool.owner] += pool.stake
@@ -410,11 +402,20 @@ def get_active_stake_pools(model):
 def get_active_stake_agents(model):
     return sum([agent.stake for agent in model.schedule.agents])
 
+
+def get_stake_distr_stats(model):
+    stake_distribution = np.array([agent.stake for agent in model.schedule.agents])
+    return stake_distribution.max(), stake_distribution.min(), stake_distribution.mean(), np.median(stake_distribution), stake_distribution.std()
+
+
+def get_operator_count(model):
+    return len({pool.owner for pool in model.get_pools_list()})
+
 #todo make sure that all model reporters are here
 all_model_reporters = {
     "Pool count": get_number_of_pools,
     "Total pledge": get_total_pledge,
-    "Average pledge": get_avg_pledge,
+    "Mean pledge": get_avg_pledge,
     "Median pledge": get_median_pledge,
     "Average pools per operator": get_avg_pools_per_operator,
     "Max pools per operator": get_max_pools_per_operator,
@@ -430,7 +431,6 @@ all_model_reporters = {
     "Mean cost rank": get_avg_cost_rnk,
     "Median stake rank": get_median_stk_rnk,
     "Median cost rank": get_median_cost_rnk,
-    "Opt min aggr pledge": get_optimal_min_aggregate_pledge,
     "Number of pool splitters": get_pool_splitter_count,
     "Cost efficient stakeholders": get_cost_efficient_count,
     "Gini-id": get_gini_id_coeff_pool_count,
@@ -442,13 +442,14 @@ all_model_reporters = {
     "Mean margin": get_avg_margin,
     "Median margin": get_median_margin,
     "Stake per agent": get_pool_stakes_by_agent,
+    "Stake per agent id": get_pool_stakes_by_agent_id,
     "StakePairs": get_stakes_n_margins
 }
 
 reporter_ids = {
     1: "Pool count",
     2: "Total pledge",
-    3: "Average pledge",
+    3: "Mean pledge",
     4: "Median pledge",
     5: "Average pools per operator",
     6: "Max pools per operator",
@@ -463,8 +464,7 @@ reporter_ids = {
     15: "Mean stake rank",
     16: "Mean cost rank",
     17: "Median stake rank",
-    18: "Median cost rank",
-    19: "Opt min aggr pledge",
+    18: "Median cost rank", #todo fix numbering
     20: "Number of pool splitters",
     21: "Cost efficient stakeholders",
     22: "Gini-id",
@@ -474,5 +474,6 @@ reporter_ids = {
     26: "Mean margin",
     27: "Median margin",
     28: "Stake per agent",
-    29: "StakePairs"
+    29: "StakePairs",
+    30: "Stake per agent id"
 }
