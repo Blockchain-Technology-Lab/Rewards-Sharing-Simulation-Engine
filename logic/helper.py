@@ -2,18 +2,15 @@
 """
 Created on Sun Jun 13 08:15:26 2021
 
-@author: chris
+@author: LadyChristina
 """
 from numpy.random import default_rng
 import numpy as np
 from scipy import stats
 import csv
-import pandas as pd
 import pathlib
 from math import sqrt, floor, log10
 from functools import lru_cache
-import heapq
-import time
 import json
 import matplotlib.pyplot as plt
 from matplotlib import ticker
@@ -271,24 +268,16 @@ def calculate_operator_reward_from_pool(pool_margin, pool_cost, pool_reward, ope
     pool_profit = pool_reward - pool_cost
     return pool_profit if pool_profit <= 0 else pool_profit * margin_factor
 
-def calculate_pool_stake_NM(pool_id, pools, beta, k):
+def calculate_pool_stake_NM(pool, pool_rankings, beta, k):
     """
     Calculate the non-myopic stake of a pool, given the pool and the state of the system (other active pools)
-    :param pool_id: the id of the pool that is examined
-    :param pools: dictionary of pools with the pool id as key and the pool object as value
+    :param pool:
+    :param pool_rankings:
     :param beta: the saturation point of the system
     :param k: the desired number of pools of the system
     :return: the value of the non-myopic stake of the pool with id pool_id
     """
-    pool = pools[pool_id]
-    if len(pools) <= k:
-        rank_in_top_k = True
-    else:
-        d = [(pool.desirability, pool.potential_profit, pool.stake, -pool_id) for pool_id, pool in pools.items()]
-        top_k_pools = heapq.nlargest(k, d) #todo is this a bottleneck?
-        top_k_pool_ids = [-p[3] for p in top_k_pools]
-        rank_in_top_k = pool_id in top_k_pool_ids
-
+    rank_in_top_k = pool_rankings.index(pool) < k #todo would it be faster to make list of ids and check for id?
     return calculate_pool_stake_NM_from_rank(pool_pledge=pool.pledge, pool_stake=pool.stake, beta=beta, rank_in_top_k=rank_in_top_k)
 
 #todo do I still need this?
@@ -573,7 +562,7 @@ def util_by_margin_and_pools(agent, margin, num_pools):
     phi = agent.model.cost_factor
     initial_cost = agent.cost
 
-    top_k_des = [d[0] for d in agent.model.pool_desirabilities_n_pps][:k]
+    top_k_des = [pool.desirability if pool is not None else 0 for pool in agent.model.pool_rankings][:k]
     top_k_des.reverse()
 
     pledge_per_pool = np.where(stake / num_pools < beta, stake / num_pools, beta)
@@ -628,7 +617,9 @@ def plot_margin_pools_heatmap(agent):
 def calculate_pool_splitting_profit(alpha, phi, cost, relative_stake):
     return (1 + alpha) * (1 - phi) * cost - TOTAL_EPOCH_REWARDS_R * relative_stake * alpha
 
-
-def negate_tuple(x):
-    # using function instead of lambda for pickling purposes
-    return -x[0]
+def sort_pools(pool):
+    if pool is None:
+        return 0, 0, 0
+    # sort pools based on their desirability
+    # break ties with potential profit and further ties with pool id
+    return -pool.desirability, -pool.potential_profit, pool.id

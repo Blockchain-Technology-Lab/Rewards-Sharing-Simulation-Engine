@@ -3,6 +3,7 @@ from mesa import Agent
 from copy import deepcopy
 import heapq
 import math
+from sortedcontainers import SortedList
 
 import logic.helper as hlp
 from logic.pool import Pool
@@ -98,7 +99,8 @@ class Stakeholder(Agent):
         margins = [] # note that pools by the same agent may end up with different margins  because of the different pools they aim to outperform
         utility = 0
         for t in range(1, num_pools+1):
-            target_desirability, target_pp = self.model.pool_desirabilities_n_pps[self.model.k - t] #todo what if that's own pool???
+            target_pool = self.model.pool_rankings[self.model.k - t] #todo what if that's own pool???
+            target_desirability, target_pp =  (target_pool.desirability, target_pool.potential_profit) if target_pool is not None else (0, 0)
             target_desirability += boost
             if potential_profit_per_pool < target_desirability:
                 # can't reach target desirability even with zero margin, so we can assume that the pool won't be in the top k
@@ -204,24 +206,25 @@ class Stakeholder(Agent):
         return utility
 
     def calculate_operator_utility_from_strategy(self, strategy):
+        potential_pools = strategy.owned_pools.values()
+        temp_rankings = SortedList([pool for pool in self.model.pool_rankings if pool is not None and pool.owner != self.unique_id], key=hlp.sort_pools) #todo maybe mre efficient way to copy / slice sorted list
+        temp_rankings.update(potential_pools)
+
         utility = 0
-        potential_pools = strategy.owned_pools
-        fixed_pools = {pool_id: pool for pool_id, pool in self.model.pools.items() if pool.owner != self.unique_id}
-        all_considered_pools = fixed_pools | potential_pools
-        for pool in potential_pools.values():
-            pool_utility = self.calculate_operator_utility_from_pool(pool, all_considered_pools)
+        for pool in potential_pools:
+            pool_utility = self.calculate_operator_utility_from_pool(pool, temp_rankings)
             utility += pool_utility
         return utility
 
-    def calculate_operator_utility_from_pool(self, pool, all_pools):
+    def calculate_operator_utility_from_pool(self, pool, all_pool_rankings):
         '''pool_stake = pool.stake if self.isMyopic else hlp.calculate_pool_stake_NM(pool.id,
                                                                                   all_pools,
                                                                                   beta,
                                                                                   self.model.k
                                                                                   )'''  # assuming there is no myopic play for pool owners
         pool_stake = hlp.calculate_pool_stake_NM(
-            pool.id,
-            all_pools,
+            pool,
+            all_pool_rankings,
             self.model.beta,
             self.model.k
         )
@@ -238,8 +241,8 @@ class Stakeholder(Agent):
         current_stake = pool.stake - previous_allocation_to_pool + stake_allocation
         non_myopic_stake = max(
             hlp.calculate_pool_stake_NM(
-                pool.id,
-                self.model.pools,
+                pool,
+                self.model.pool_rankings,
                 self.model.beta,
                 self.model.k
             ),
@@ -284,59 +287,16 @@ class Stakeholder(Agent):
         # so, effectively, the agent is comparing his best-case desirability with the desirabilities of the current pools
         return potential_profit > 0 and any(desirability < potential_profit for desirability in existing_desirabilities)
 
-    def calculate_margin(self, pool):
+    def calculate_margin(self, pool): #todo add test
         """
-        Inspired by "perfect strategies", the agent ranks all existing pools based on their potential
+        The agent ranks all existing pools based on their potential
         profit and chooses a margin that can guarantee the pool's desirability (non-zero only if the pool
         ranks in the top k)
         :return: float, the margin that the agent will set for this pool
         """
-        all_pools = self.model.pools
-        temp_pool = None
-        if pool.id in all_pools:
-            temp_pool = all_pools[pool.id]
-        all_pools[pool.id] = pool
-
-        potential_profits = [pool.potential_profit for pool in all_pools.values()]
-        k = self.model.k
-        top_potential_profits = heapq.nlargest(k+1, potential_profits)#todo is this a bottleneck?
-
-        # find the pool that is ranked at position k+1, if such pool exists
-        reference_potential_profit = top_potential_profits[-1]
+        reference_pool = self.model.pool_rankings[self.model.k-1]
+        reference_potential_profit = reference_pool.potential_profit if reference_pool is not None else 0
         margin = max(1 - (reference_potential_profit / pool.potential_profit), 0)
-
-        # make sure that model fields are left intact
-        if temp_pool is None:
-            all_pools.pop(pool.id)
-        else:
-            all_pools[pool.id] = temp_pool
-
-        return margin
-
-    def calculate_margin_perfect_strategy(self):
-        """
-        Based on "perfect strategies", the agent ranks all agents based on their potential
-        profit of operating one pool and chooses a margin that can keep his pool competitive
-        :return: float, the margin that the agent will use for their pool(s)
-        """
-        # first calculate the potential profits of all agents
-        agents = self.model.get_agents_list()
-        potential_profits = [hlp.calculate_potential_profit(agent.stake, agent.cost, self.model.alpha, self.model.beta,
-                                                            self.model.reward_function_option, self.model.total_stake)
-                             for agent in agents]
-        current_agent_pp = hlp.calculate_potential_profit(self.stake, self.cost, self.model.alpha, self.model.beta,
-                                                           self.model.reward_function_option, self.model.total_stake)
-        k = self.model.k
-        n = len(agents)
-        if k < n:
-            top_potential_profits = heapq.nlargest(k + 1, potential_profits)
-            # find the pool that is ranked at position k+1, if such pool exists
-            reference_potential_profit = top_potential_profits[-1]
-        else:
-            reference_potential_profit = 0
-
-        # todo possible improvement: keep track of all agents who have opened pools and their potential profits
-        margin = max(1 - (reference_potential_profit / current_agent_pp), 0)
         return margin
 
     def determine_pools_to_keep(self, num_pools_to_keep):
@@ -362,7 +322,7 @@ class Stakeholder(Agent):
         :return:
         """
         moves = dict()
-        max_new_pools_per_round = 10
+        max_new_pools_per_round = 1
         current_num_pools = len(self.strategy.owned_pools)
         if self.model.pool_splitting:
             num_pools_options = {max(i,1) for i in range(current_num_pools, current_num_pools + max_new_pools_per_round + 1)}
@@ -419,7 +379,8 @@ class Stakeholder(Agent):
     def find_delegation_move(self, stake_to_delegate=None):
         """
         Choose a delegation move based on the desirability of the existing pools. If two or more pools are tied,
-        choose the one with the highest (current) stake, as it offers higher short-term rewards.
+        choose the one with the highest potential profit, as it promises higher potential rewards (further ties are
+        broken using ids, so that older pools are preferred).
         :return:
         """
         if stake_to_delegate is None:
@@ -428,23 +389,16 @@ class Stakeholder(Agent):
             return Strategy()
 
         all_pools_dict = self.model.pools
-        saturation_point = self.model.beta
+        saturation_point = self.model.beta #todo for alternative reward schemes each pool may have its own saturation point
         # todo do I need to calculate myopic desirability in case of myopic agent?
-        relevant_pools_properties = [
-            (
-                -pool.desirability,
-                -pool.potential_profit,
-                -pool.stake,
-                pool.id
-            )
-               for pool in all_pools_dict.values()
-               if pool.owner != self.unique_id and not pool.is_private
+        eligible_pools_ranked = [
+            pool
+            for pool in self.model.pool_rankings
+            if pool is not None and pool.owner != self.unique_id and not pool.is_private
         ]
         # Only proceed if there are public pools in the system that don't belong to the current agent
-        if len(relevant_pools_properties) == 0:
+        if len(eligible_pools_ranked) == 0:
             return Strategy()
-
-        heapq.heapify(relevant_pools_properties) # turn list into (min) heap
 
         # Remove the agent's stake from the pools in case it's being delegated
         for pool_id, allocation in self.strategy.stake_allocations.items():
@@ -452,10 +406,10 @@ class Stakeholder(Agent):
 
         allocations = dict()
         best_saturated_pool = None
-        while len(relevant_pools_properties) > 0:
+        while len(eligible_pools_ranked) > 0:
             # first attempt to delegate to unsaturated pools
-            best_pool_id = heapq.heappop(relevant_pools_properties)[3]
-            best_pool = all_pools_dict[best_pool_id]
+            best_pool_id = eligible_pools_ranked.pop(0).id
+            best_pool = all_pools_dict[best_pool_id] #todo check if this is the same or different as eligible_pools_ranked[0] in all cases, i.e. do pools get updated in the sortedlist?
             stake_to_saturation = saturation_point - best_pool.stake
             if stake_to_saturation < MIN_STAKE_UNIT:
                 if best_saturated_pool is None:
@@ -463,7 +417,7 @@ class Stakeholder(Agent):
                 continue
             allocation = min(stake_to_delegate, stake_to_saturation)
             stake_to_delegate -= allocation
-            allocations[best_pool.id] = allocation
+            allocations[best_pool_id] = allocation
             if stake_to_delegate < MIN_STAKE_UNIT:
                 break
         if stake_to_delegate >= MIN_STAKE_UNIT and best_saturated_pool is not None:
@@ -516,23 +470,17 @@ class Stakeholder(Agent):
         if updated_pool.is_private and updated_pool.stake > updated_pool.pledge:
             # undelegate stake in case the pool turned from public to private
             self.remove_delegations(updated_pool)
-        # update top k desirability list if needed
-        pool_desirability =updated_pool.desirability
-        pool_pp = updated_pool.potential_profit
+        # update pool rankings
         old_pool = self.strategy.owned_pools[pool_id]
-        # remove the desirability of the old pool
-        self.model.pool_desirabilities_n_pps.remove((old_pool.desirability, old_pool.potential_profit))
-        # add desirability of updated pool
-        self.model.pool_desirabilities_n_pps.add((updated_pool.desirability, updated_pool.potential_profit))
+        self.model.pool_rankings.remove(old_pool)
+        self.model.pool_rankings.add(updated_pool)
         return updated_pool
 
     def open_pool(self, pool_id):
         self.model.pools[pool_id] = self.strategy.owned_pools[pool_id]
         self.remaining_min_steps_to_keep_pool = self.model.min_steps_to_keep_pool
-        # update top k desirability list if needed
-        pool_desirability = self.strategy.owned_pools[pool_id].desirability
-        pool_pp = self.strategy.owned_pools[pool_id].potential_profit
-        self.model.pool_desirabilities_n_pps.add((pool_desirability, pool_pp))
+        # include in pool rankings
+        self.model.pool_rankings.add(self.strategy.owned_pools[pool_id])
 
     def close_pool(self, pool_id):
         pools = self.model.pools
@@ -546,9 +494,7 @@ class Stakeholder(Agent):
         self.remove_delegations(pool)
         pools.pop(pool_id)
         # remove from top k desirabilities
-        self.model.pool_desirabilities_n_pps.remove((pool.desirability, pool.potential_profit))
-        if len(self.model.pool_desirabilities_n_pps) < self.model.k:
-            self.model.pool_desirabilities_n_pps.add((0,0))
+        self.model.pool_rankings.remove(pool)
 
     def remove_delegations(self, pool):
         agents = self.model.get_agents_dict()

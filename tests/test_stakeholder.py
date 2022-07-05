@@ -24,26 +24,6 @@ def test_calculate_operator_utility():
     assert utility == 0.0148638461538461537
 
 
-def test_calculate_margin_perfect_strategy(mocker):
-    total_stake = 1
-    model = Simulation(k=2, total_stake=total_stake)
-    agent1 = Stakeholder(1, model, stake=0.001, cost=0.001)
-    agent2 = Stakeholder(2, model, stake=0.002, cost=0.001)
-    agent3 = Stakeholder(3, model, stake=0.003, cost=0.001)
-    agent4 = Stakeholder(4, model, stake=0.0001, cost=0.001)
-
-    agents_list = [agent1, agent2, agent3, agent4]
-    mocker.patch('logic.sim.Simulation.get_agents_list', return_value=agents_list)
-
-    agent1_margin = agent1.calculate_margin_perfect_strategy()
-    agent2_margin = agent2.calculate_margin_perfect_strategy()
-    agent3_margin = agent3.calculate_margin_perfect_strategy()
-    agent4_margin = agent4.calculate_margin_perfect_strategy()
-
-    assert agent1_margin == agent4_margin == 0
-    assert agent3_margin > agent2_margin > 0
-
-
 def test_calculate_margin_semi_perfect_strategy():
     total_stake = 1
     model = Simulation(k=2, total_stake=total_stake)

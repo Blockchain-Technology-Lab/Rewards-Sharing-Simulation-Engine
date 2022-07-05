@@ -124,7 +124,7 @@ class Simulation(Model):
         self.revision_frequency = 10  # defines how often active stake and expected #pools are revised #todo read from json file?
         self.initialise_pool_id_seq()  # initialise pool id sequence for the new model run
 
-        self.pool_desirabilities_n_pps = SortedList([(0, 0)] * self.k, key=hlp.negate_tuple)  # (desirability, potential profit) of the top k pools in descending order
+        self.pool_rankings = SortedList([None] * (self.k+1), key=hlp.sort_pools) # all pools ranked from best to worst #todo do I need Nones?
 
         # metrics to track at every step of the simulation
         model_reporters = {

@@ -119,19 +119,6 @@ def test_calculate_pool_reward_variable_pledge_alpha_zero():
     assert results[0] == results[1] == results[2]
 
 
-def test_calculate_pool_saturation_prob():
-    assert True
-
-
-def test_calculate_pool_stake_nm_my_way():
-    assert True
-
-
-def test_calculate_pool_stake_nm():
-    # define pool, pools, pool_index, alpha, beta, k
-    assert True
-
-
 def test_calculate_ranks():
     desirabilities = {5: 0.2, 3: 0.3, 1: 0.1, 12: 0.9, 8: 0.8}
     ranks = {5: 4, 3: 3, 1: 5, 12: 1, 8: 2}
@@ -226,47 +213,47 @@ def test_calculate_pool_stake_nm():
     pool_11 = Pool(pool_id=11, cost=0.0001, pledge=0.001, owner=11, alpha=alpha, beta=beta,
                    reward_function_option=reward_func, total_stake=total_stake, margin=0.2)
     pools[11] = pool_11
-    pool_stake_nm = hlp.calculate_pool_stake_NM(pool_id=11, pools=pools, beta=beta, k=k)
+    ranks = list(pools.values())
+    ranks.sort(key=hlp.sort_pools)
+    pool_stake_nm = hlp.calculate_pool_stake_NM(pool=pool_11, pool_rankings=ranks, beta=beta, k=k)
     assert pool_stake_nm == 0.001
 
     # pool belongs in the top k and pool_stake < beta, so stake_nm = beta
     pool_11 = Pool(pool_id=11, cost=0.0001, pledge=0.002, owner=11, alpha=alpha, beta=beta,
                    reward_function_option=reward_func, total_stake=total_stake, margin=0)
     pools[11] = pool_11
-    pool_stake_nm = hlp.calculate_pool_stake_NM(pool_id=11, pools=pools, beta=beta, k=k)
+    ranks = list(pools.values())
+    ranks.sort(key=hlp.sort_pools)
+    pool_stake_nm = hlp.calculate_pool_stake_NM(pool=pool_11, pool_rankings=ranks, beta=beta, k=k)
     assert pool_stake_nm == 0.1
 
     # pool belongs in the top k and pool_stake > beta, so stake_nm = pool_stake
     pool_11 = Pool(pool_id=11, cost=0.0001, pledge=0.2, owner=11, alpha=alpha, beta=beta,
                    reward_function_option=reward_func, total_stake=total_stake, margin=0)
     pools[11] = pool_11
-    pool_stake_nm = hlp.calculate_pool_stake_NM(pool_id=11, pools=pools, beta=beta, k=k)
+    ranks = list(pools.values())
+    ranks.sort(key=hlp.sort_pools)
+    pool_stake_nm = hlp.calculate_pool_stake_NM(pool=pool_11, pool_rankings=ranks, beta=beta, k=k)
     assert pool_stake_nm == 0.2
 
-    # pool belongs in the top k because of (stake) tie breaking, so stake_nm = beta
-    pool_11 = Pool(pool_id=11, cost=0.0001, pledge=0.001, owner=11, alpha=alpha, beta=beta,
-                   reward_function_option=reward_func, total_stake=total_stake, margin=0)
-    pool_11.stake = 0.005
-    pools[11] = pool_11
-    pool_stake_nm = hlp.calculate_pool_stake_NM(pool_id=11, pools=pools, beta=beta, k=k)
-    assert pool_stake_nm == 0.1
-    assert hlp.calculate_pool_stake_NM(pool_id=10, pools=pools, beta=beta, k=k) == 0.001
-    assert hlp.calculate_pool_stake_NM(pool_id=9, pools=pools, beta=beta, k=k) == 0.1
-
-    # pool doesn't belong in the top k because of (id) tie breaking, so stake_nm = pool_stake
+    # pool doesn't belong in the top k because of (id) tie breaking, so stake_nm = pool_pledge
     pool_11 = Pool(pool_id=11, cost=0.0001, pledge=0.001, owner=11, alpha=alpha, beta=beta,
                    reward_function_option=reward_func, total_stake=total_stake, margin=0)
     pools[11] = pool_11
-    pool_stake_nm = hlp.calculate_pool_stake_NM(pool_id=11, pools=pools, beta=beta, k=k)
+    ranks = list(pools.values())
+    ranks.sort(key=hlp.sort_pools)
+    pool_stake_nm = hlp.calculate_pool_stake_NM(pool=pool_11, pool_rankings=ranks, beta=beta, k=k)
     assert pool_stake_nm == 0.001
 
     # there are less than k pools, so pool necessarily in the top k
-    k = 100
+    k = 100 # increase k
     beta = 0.01
     pool_11 = Pool(pool_id=11, cost=0.001, pledge=0.00001, owner=11, alpha=alpha, beta=beta,
                    reward_function_option=reward_func, total_stake=total_stake, margin=0)
     pools[11] = pool_11
-    pool_stake_nm = hlp.calculate_pool_stake_NM(pool_id=11, pools=pools, beta=beta, k=k)
+    ranks = list(pools.values())
+    ranks.sort(key=hlp.sort_pools)
+    pool_stake_nm = hlp.calculate_pool_stake_NM(pool=pool_11, pool_rankings=ranks, beta=beta, k=k)
     assert pool_stake_nm == 0.01
 
 
