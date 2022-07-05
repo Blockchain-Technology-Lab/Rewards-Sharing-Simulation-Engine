@@ -89,7 +89,7 @@ class Stakeholder(Agent):
 
 
     def calculate_margins_and_utility(self, num_pools):
-        cost_per_pool = hlp.calculate_cost_per_pool_fixed_fraction(num_pools, self.cost, self.model.cost_factor)
+        cost_per_pool = hlp.calculate_cost_per_pool(num_pools, self.cost, self.model.cost_factor)
         pledge_per_pool = hlp.determine_pledge_per_pool(self.stake, self.model.beta, num_pools)
         potential_profit_per_pool = hlp.calculate_potential_profit(pledge_per_pool, cost_per_pool, self.model.alpha,
                                                                    self.model.beta, self.model.reward_function_option,
@@ -380,8 +380,7 @@ class Stakeholder(Agent):
     def find_operator_move(self, num_pools, owned_pools, margins=[]):
         pledge = hlp.determine_pledge_per_pool(agent_stake=self.stake, beta=self.model.beta, num_pools=num_pools)
 
-        cost_per_pool = hlp.calculate_cost_per_pool_fixed_fraction(num_pools=num_pools, initial_cost=self.cost, cost_factor=self.model.cost_factor) if \
-            self.model.extra_cost_type == 'fixed_fraction' else hlp.calculate_cost_per_pool(num_pools=num_pools, initial_cost=self.cost, cost_factor=self.model.cost_factor)
+        cost_per_pool = hlp.calculate_cost_per_pool(num_pools=num_pools, initial_cost=self.cost, cost_factor=self.model.cost_factor)
         for i, (pool_id, pool) in enumerate(owned_pools.items()):
             # For pools that already exist, modify them to match the new strategy
             pool.stake -= pool.pledge - pledge

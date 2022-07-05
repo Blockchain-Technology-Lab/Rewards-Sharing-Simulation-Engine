@@ -194,7 +194,7 @@ def calculate_pool_reward(relative_stake, relative_pledge, alpha, beta, reward_f
     elif reward_function_option == 3:
         return calculate_pool_reward_new_sqrt(relative_stake, relative_pledge, alpha, beta)
     elif reward_function_option == 4:
-        return calculate_pool_reward_curve_pledge_benefit(relative_stake, relative_pledge, alpha, beta, curve_root, crossover_factor)
+        return calculate_pool_reward_curve_pledge_benefit(relative_stake, relative_pledge, alpha, beta, curve_root, crossover_factor, total_stake)
     elif reward_function_option == 5:
         return calculate_pool_reward_curve_pledge_benefit_min_first(relative_stake, relative_pledge, alpha, beta, curve_root, crossover_factor)
     elif reward_function_option == 6:
@@ -205,10 +205,10 @@ def calculate_pool_reward(relative_stake, relative_pledge, alpha, beta, reward_f
         raise ValueError("Invalid option for reward function.")
 
 #todo change names
-def calculate_pool_reward_old(relative_stake, relative_pledge, alpha, beta):
-    pledge_ = min(relative_pledge, beta)
-    stake_ = min(relative_stake, beta)
-    r = (TOTAL_EPOCH_REWARDS_R / (1 + alpha)) * (stake_ + (pledge_ * alpha * ((stake_ - pledge_ * (1 - stake_ / beta)) / beta)))
+def calculate_pool_reward_old(relative_stake, relative_pledge, alpha, relative_beta):
+    pledge_ = min(relative_pledge, relative_beta)
+    stake_ = min(relative_stake, relative_beta)
+    r = (TOTAL_EPOCH_REWARDS_R / (1 + alpha)) * (stake_ + (pledge_ * alpha * ((stake_ - pledge_ * (1 - stake_ / relative_beta)) / relative_beta)))
     return r
 
 def calculate_pool_reward_new(relative_stake, relative_pledge, alpha, beta):
@@ -229,10 +229,12 @@ def calculate_pool_reward_new_sqrt(relative_stake, relative_pledge, alpha, beta)
     r = (TOTAL_EPOCH_REWARDS_R / (1 + alpha)) * stake_ * (1 + (alpha * sqrt(pledge_) / beta))
     return r
 
-def calculate_pool_reward_curve_pledge_benefit(relative_stake, relative_pledge, alpha, beta, curve_root, crossover_factor):
-    crossover = beta / crossover_factor
-    pledge_ = (relative_pledge ** (1 / curve_root)) * (crossover ** ((curve_root - 1) / curve_root))
-    return calculate_pool_reward_old(relative_stake, pledge_, alpha, beta)
+def calculate_pool_reward_curve_pledge_benefit(relative_stake, relative_pledge, alpha, relative_beta, curve_root,
+                                               crossover_factor, total_stake):
+    crossover = relative_beta * total_stake / crossover_factor
+    pledge = relative_pledge * total_stake
+    pledge_factor = (pledge ** (1 / curve_root)) * (crossover ** ((curve_root - 1) / curve_root)) / total_stake
+    return calculate_pool_reward_old(relative_stake, pledge_factor, alpha, relative_beta)
 
 def calculate_pool_reward_curve_pledge_benefit_min_first(relative_stake, relative_pledge, alpha, beta, curve_root, crossover_factor):
     crossover = beta / crossover_factor
@@ -328,25 +330,16 @@ def generate_execution_id(args_dict):
                      else str(key) + '-' + "-".join([str(v) for v in value])
                      for key, value in list(args_dict.items())[:num_args_to_use]])[:max_characters]
 
-
 @lru_cache(maxsize=1024)
 def calculate_cost_per_pool(num_pools, initial_cost, cost_factor):
     """
-    Calculate the average cost of an agent's pools, assuming that any additional pool costs less than the previous one
-    Specifically if the first pool costs c1 and we use a factor of 0.6 then a second pool would cost c2 = 0.6 * c1,
-    a third pool would cost c3 = 0.6 * c2 = 0.6^2 * c1, and so on. Can be calculated using the sum of a geometrical sequence.
+    Calculate the average cost of an agent's pools, assuming that any additional pool costs less than the first one
+    Specifically, if the first pool costs c1 and we use a factor of 0.6 then any subsequent pool would cost c2 = 0.6 * c1
     @param num_pools:
     @param initial_cost:
     @param cost_factor:
     @return:
     """
-    if cost_factor < 1:
-        return max((initial_cost * (1 - cost_factor ** num_pools) / (1 - cost_factor)) / num_pools, MIN_COST_PER_POOL)
-    else:
-        return initial_cost
-
-@lru_cache(maxsize=1024)
-def calculate_cost_per_pool_fixed_fraction(num_pools, initial_cost, cost_factor):
     return (initial_cost + (num_pools - 1) * cost_factor * initial_cost) / num_pools
 
 @lru_cache(maxsize=1024)
