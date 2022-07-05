@@ -292,6 +292,9 @@ class Stakeholder(Agent):
         ranks in the top k)
         :return: float, the margin that the agent will set for this pool
         """
+        if pool.is_private:
+            return 0
+
         reference_pool = self.model.pool_rankings[self.model.k-1]
         reference_potential_profit = reference_pool.potential_profit if reference_pool is not None else 0
         margin = max(1 - (reference_potential_profit / pool.potential_profit), 0)
@@ -323,9 +326,13 @@ class Stakeholder(Agent):
         max_new_pools_per_round = 1
         current_num_pools = len(self.strategy.owned_pools)
         if self.model.pool_splitting:
-            num_pools_options = {max(i,1) for i in range(current_num_pools, current_num_pools + max_new_pools_per_round + 1)}
-            if self.remaining_min_steps_to_keep_pool <= 0:
-                num_pools_options.update(range(1, current_num_pools))
+            if current_num_pools == 0:
+                # If the agent hasn't made any pools yet, consider operating up to as many pools as they can saturate with pledge + 1
+                num_pools_options = {i for i in range(1, math.ceil(self.stake / self.model.beta)+1)}
+            else:
+                num_pools_options = {max(i,1) for i in range(current_num_pools, current_num_pools + max_new_pools_per_round + 1)}
+                if self.remaining_min_steps_to_keep_pool <= 0:
+                    num_pools_options.update(range(1, current_num_pools))
         else:
             # If pool splitting is not allowed by the model, there are no options
             num_pools_options = {1}
