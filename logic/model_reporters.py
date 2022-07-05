@@ -71,7 +71,7 @@ def get_median_pools_per_operator(model):
 
 
 def get_avg_sat_rate(model):
-    sat_point = model.beta
+    sat_point = model.beta #todo update or remove
     current_pools = model.get_pools_list()
     if len(current_pools) == 0:
         return 0
@@ -296,7 +296,8 @@ def get_pool_splitter_count(model):
 def get_cost_efficient_count(model):
     all_agents = model.get_agents_list()
     potential_profits = [
-        hlp.calculate_potential_profit(agent.stake, agent.cost, model.alpha, model.beta, model.reward_function_option, model.total_stake)
+        hlp.calculate_potential_profit(agent.stake, agent.cost, hlp.calculate_pool_saturation_point(pool_pledge=agent.stake, L=model.L, beta=model.beta),
+                                       model.L, model.beta, model.total_stake)
         for agent in all_agents
     ]
     positive_potential_profits = [pp for pp in potential_profits if pp > 0]

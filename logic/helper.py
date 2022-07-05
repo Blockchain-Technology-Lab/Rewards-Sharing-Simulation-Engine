@@ -158,99 +158,34 @@ def normalize_distr(dstr, normal_sum=1):
     return nrm_dstr
 
 @lru_cache(maxsize=1024)
-def calculate_potential_profit(pledge, cost, alpha, beta, reward_function_option, total_stake):
+def calculate_potential_profit(pledge, cost, saturation_point, L, beta, total_stake):
     """
     Calculate a pool's potential profit, which can be defined as the profit it would get at saturation level
     :param pledge:
     :param cost:
-    :param alpha:
+    :param L:
     :param beta:
     :return: float, the maximum possible profit that this pool can yield
     """
-    relative_stake = beta / total_stake
+    relative_stake = saturation_point / total_stake
     relative_pledge = pledge / total_stake
-    potential_reward = calculate_pool_reward(relative_stake, relative_pledge, alpha, beta, reward_function_option, total_stake)
+    relative_beta = beta / total_stake
+    potential_reward = calculate_pool_reward(relative_stake, relative_pledge, L, relative_beta)
     return potential_reward - cost
 
 @lru_cache(maxsize=1024)
-def calculate_current_profit(stake, pledge, cost, alpha, beta, reward_function_option, total_stake):
+def calculate_current_profit(stake, pledge, cost, L, beta, total_stake):
     relative_pledge = pledge / total_stake
     relative_stake = stake / total_stake
-    reward = calculate_pool_reward(relative_stake, relative_pledge, alpha, beta, reward_function_option, total_stake)
+    relative_beta = beta / total_stake
+    reward = calculate_pool_reward(relative_stake, relative_pledge, L, relative_beta)
     return reward - cost
 
 @lru_cache(maxsize=1024)
-def calculate_pool_reward(relative_stake, relative_pledge, alpha, beta, reward_function_option, total_stake, curve_root=3, crossover_factor=8):
-    beta = beta / total_stake
-    if reward_function_option == 0:
-        return calculate_pool_reward_old(relative_stake, relative_pledge, alpha, beta)
-    elif reward_function_option == 1:
-        return calculate_pool_reward_new(relative_stake, relative_pledge, alpha, beta)
-    elif reward_function_option == 2:
-        return calculate_pool_reward_flat_pledge_benefit(relative_stake, relative_pledge, alpha, beta)
-    elif reward_function_option == 3:
-        return calculate_pool_reward_new_sqrt(relative_stake, relative_pledge, alpha, beta)
-    elif reward_function_option == 4:
-        return calculate_pool_reward_curve_pledge_benefit(relative_stake, relative_pledge, alpha, beta, curve_root, crossover_factor, total_stake)
-    elif reward_function_option == 5:
-        return calculate_pool_reward_curve_pledge_benefit_min_first(relative_stake, relative_pledge, alpha, beta, curve_root, crossover_factor)
-    elif reward_function_option == 6:
-        return calculate_pool_reward_curve_pledge_benefit_no_min(relative_stake, relative_pledge, alpha, beta, curve_root, crossover_factor)
-    elif reward_function_option == 7:
-        return calculate_pool_reward_CIP_50(relative_stake, relative_pledge, beta, L=alpha)
-    else:
-        raise ValueError("Invalid option for reward function.")
+def calculate_pool_reward(relative_stake, relative_pledge, L, relative_beta):
+    return calculate_pool_reward_CIP_50(relative_stake, relative_pledge, relative_beta, L)
 
-#todo change names
-def calculate_pool_reward_old(relative_stake, relative_pledge, alpha, relative_beta):
-    pledge_ = min(relative_pledge, relative_beta)
-    stake_ = min(relative_stake, relative_beta)
-    r = (TOTAL_EPOCH_REWARDS_R / (1 + alpha)) * (stake_ + (pledge_ * alpha * ((stake_ - pledge_ * (1 - stake_ / relative_beta)) / relative_beta)))
-    return r
-
-def calculate_pool_reward_new(relative_stake, relative_pledge, alpha, beta):
-    pledge_ = min(relative_pledge, beta)
-    stake_ = min(relative_stake, beta)
-    r = (TOTAL_EPOCH_REWARDS_R / (1 + alpha)) * stake_ * (1 + (alpha * pledge_ / beta))
-    return r
-
-def calculate_pool_reward_flat_pledge_benefit(relative_stake, relative_pledge, alpha, beta):
-    pledge_ = min(relative_pledge, beta)
-    stake_ = min(relative_stake, beta)
-    r = (TOTAL_EPOCH_REWARDS_R / (1 + alpha)) * (stake_ + alpha * pledge_)
-    return r
-
-def calculate_pool_reward_new_sqrt(relative_stake, relative_pledge, alpha, beta):
-    pledge_ = min(relative_pledge, beta)
-    stake_ = min(relative_stake, beta)
-    r = (TOTAL_EPOCH_REWARDS_R / (1 + alpha)) * stake_ * (1 + (alpha * sqrt(pledge_) / beta))
-    return r
-
-def calculate_pool_reward_curve_pledge_benefit(relative_stake, relative_pledge, alpha, relative_beta, curve_root,
-                                               crossover_factor, total_stake):
-    crossover = relative_beta * total_stake / crossover_factor
-    pledge = relative_pledge * total_stake
-    pledge_factor = (pledge ** (1 / curve_root)) * (crossover ** ((curve_root - 1) / curve_root)) / total_stake
-    return calculate_pool_reward_old(relative_stake, pledge_factor, alpha, relative_beta)
-
-def calculate_pool_reward_curve_pledge_benefit_min_first(relative_stake, relative_pledge, alpha, beta, curve_root, crossover_factor):
-    crossover = beta / crossover_factor
-    pledge = min(relative_pledge, beta)
-    pledge_ = (pledge ** (1 / curve_root)) * (crossover ** ((curve_root - 1) / curve_root))
-    stake_ = min(relative_stake, beta)
-    r = (TOTAL_EPOCH_REWARDS_R / (1 + alpha)) * (
-                stake_ + (pledge_ * alpha * ((stake_ - pledge_ * (1 - stake_ / beta)) / beta)))
-    return r
-
-def calculate_pool_reward_curve_pledge_benefit_no_min(relative_stake, relative_pledge, alpha, beta, curve_root, crossover_factor):
-    crossover = beta / crossover_factor
-    pledge_ = (relative_pledge ** (1 / curve_root)) * (crossover ** ((curve_root - 1) / curve_root))
-    stake_ = min(relative_stake, beta)
-    r = (TOTAL_EPOCH_REWARDS_R / (1 + alpha)) * (
-                stake_ + (pledge_ * alpha * ((stake_ - pledge_ * (1 - stake_ / beta)) / beta)))
-    return r
-
-def calculate_pool_reward_CIP_50(relative_stake, relative_pledge, beta, L=100):
+def calculate_pool_reward_CIP_50(relative_stake, relative_pledge, beta, L):
     pledge_factor = L * relative_pledge
     r = TOTAL_EPOCH_REWARDS_R * min(relative_stake, pledge_factor, beta)
     return r
@@ -268,17 +203,17 @@ def calculate_operator_reward_from_pool(pool_margin, pool_cost, pool_reward, ope
     pool_profit = pool_reward - pool_cost
     return pool_profit if pool_profit <= 0 else pool_profit * margin_factor
 
-def calculate_pool_stake_NM(pool, pool_rankings, beta, k):
+def calculate_pool_stake_NM(pool, pool_rankings, total_stake):
     """
     Calculate the non-myopic stake of a pool, given the pool and the state of the system (other active pools)
     :param pool:
     :param pool_rankings:
-    :param beta: the saturation point of the system
-    :param k: the desired number of pools of the system
     :return: the value of the non-myopic stake of the pool with id pool_id
     """
-    rank_in_top_k = pool_rankings.index(pool) < k #todo would it be faster to make list of ids and check for id?
-    return calculate_pool_stake_NM_from_rank(pool_pledge=pool.pledge, pool_stake=pool.stake, beta=beta, rank_in_top_k=rank_in_top_k)
+    rank = pool_rankings.index(pool)
+    better_pools_potential_stake = sum([p.saturation_point for p in pool_rankings[:rank]])
+    rank_in_top_pools = better_pools_potential_stake + MIN_STAKE_UNIT < total_stake
+    return calculate_pool_stake_NM_from_rank(pool_pledge=pool.pledge, pool_stake=pool.stake, pool_saturation_point=pool.saturation_point, rank_in_top_pools=rank_in_top_pools)
 
 #todo do I still need this?
 def calculate_ranks(ranking_dict, *tie_breaking_dicts, rank_ids=True):
@@ -341,22 +276,23 @@ def calculate_pool_desirability(margin, potential_profit):
     return max((1 - margin) * potential_profit, 0)
 
 @lru_cache(maxsize=1024)
-def calculate_myopic_pool_desirability(stake, pledge, cost, margin, alpha, beta, total_stake):
-    current_profit = calculate_current_profit(stake, pledge, cost, alpha, beta, total_stake)
+def calculate_myopic_pool_desirability(stake, pledge, cost, margin, L, beta, total_stake):
+    current_profit = calculate_current_profit(stake, pledge, cost, L, beta, total_stake)
     return max((1 - margin) * current_profit, 0)
 
 @lru_cache(maxsize=1024)
-def calculate_operator_utility_from_pool(non_myopic_pool_stake, pledge, margin, cost, alpha, beta, reward_function_option, total_stake):
+def calculate_operator_utility_from_pool(non_myopic_pool_stake, pledge, margin, cost, L, beta, total_stake):
     relative_pool_stake = non_myopic_pool_stake / total_stake
     relative_pledge = pledge / total_stake
-    r = calculate_pool_reward(relative_pool_stake, relative_pledge, alpha, beta, reward_function_option, total_stake)
+    relative_beta = beta / total_stake
+    r = calculate_pool_reward(relative_pool_stake, relative_pledge, L, relative_beta)
     stake_fraction = pledge / non_myopic_pool_stake
     return calculate_operator_reward_from_pool(pool_margin=margin, pool_cost=cost, pool_reward=r, operator_stake_fraction=stake_fraction)
 
 
 @lru_cache(maxsize=1024)
-def calculate_pool_stake_NM_from_rank(pool_pledge, pool_stake, beta, rank_in_top_k):
-    return max(beta, pool_stake) if rank_in_top_k else pool_pledge
+def calculate_pool_stake_NM_from_rank(pool_pledge, pool_stake, pool_saturation_point, rank_in_top_pools):
+    return max(pool_saturation_point, pool_stake) if rank_in_top_pools else pool_pledge
 
 @lru_cache(maxsize=1024)
 def determine_pledge_per_pool(agent_stake, beta, num_pools):
@@ -371,6 +307,10 @@ def determine_pledge_per_pool(agent_stake, beta, num_pools):
     if num_pools <= 0:
         raise ValueError("Agent tried to calculate pledge for zero or less pools.")
     return min(agent_stake / num_pools, beta)
+
+@lru_cache(maxsize=1024)
+def calculate_pool_saturation_point(pool_pledge, L, beta):
+    return min(pool_pledge * L, beta)
 
 
 def export_csv_file(rows, filepath):
@@ -496,8 +436,6 @@ def plot_aggregate_data_2(df, variable_param, model_reporter, output_dir, colour
     scatter = plt.scatter(x, y, c=colour_values, norm=colors.Normalize(vmin=colour_values.min(), vmax=colour_values.max()), cmap='viridis') #if log_axis else colors.LogNorm(vmin=colour_values.min(), vmax=colour_values.max()))
     # note: lognorm doesn't work when 0 is one of the values
     plt.xlabel(variable_param)
-    if variable_param == 'alpha':
-        plt.xlabel('α')
     plt.ylabel(model_reporter)
     if log_axis:
         plt.xscale('log')
@@ -545,77 +483,72 @@ def plot_aggregate_data_heatmap(df, variables, model_reporters, output_dir):
         plt.savefig(path / filename, bbox_inches='tight')
         plt.close(fig)
 
-
-    def convert_currency(dollar_value, ada_price):
-        return dollar_value / ada_price
-
-def utility_from_profitable_pool(r, c, l, b, m):
-    return l / b * (r - c) * (1 - m) + m * (r - c)
-
-def util_by_margin_and_pools(agent, margin, num_pools):
-    total_stake = agent.model.total_stake
-    stake = agent.stake / total_stake
-    alpha = agent.model.alpha
-    k = agent.model.k
-    beta = agent.model.beta / total_stake
-    R = TOTAL_EPOCH_REWARDS_R
-    phi = agent.model.cost_factor
-    initial_cost = agent.cost
-
-    top_k_des = [pool.desirability if pool is not None else 0 for pool in agent.model.pool_rankings][:k]
-    top_k_des.reverse()
-
-    pledge_per_pool = np.where(stake / num_pools < beta, stake / num_pools, beta)
-    cost_per_pool = (1 + phi * num_pools - phi) * initial_cost / num_pools
-
-    reward_per_pool = R / (1 + alpha) * (beta + pledge_per_pool * alpha)
-    utility_per_pool = np.where(reward_per_pool - cost_per_pool > 0,
-                                utility_from_profitable_pool(reward_per_pool, cost_per_pool, pledge_per_pool, beta,
-                                                             margin), reward_per_pool - cost_per_pool)
-    desirability = (1 - margin) * (reward_per_pool - cost_per_pool)
-
-    margin_len = int(len(margin) / k)
-    d_cutoff = np.array(top_k_des*margin_len)
-    utility = np.where(desirability >= d_cutoff + num_pools * 0.00001, num_pools * utility_per_pool, 0)
-    return utility
+# def utility_from_profitable_pool(r, c, l, b, m):
+#     return l / b * (r - c) * (1 - m) + m * (r - c)
+#
+# def util_by_margin_and_pools(agent, margin, num_pools):
+#     total_stake = agent.model.total_stake
+#     stake = agent.stake / total_stake
+#     L = agent.model.L
+#     k = agent.model.k
+#     beta = agent.model.beta / total_stake
+#     R = TOTAL_EPOCH_REWARDS_R
+#     phi = agent.model.cost_factor
+#     initial_cost = agent.cost
+#
+#     top_k_des = [pool.desirability if pool is not None else 0 for pool in agent.model.pool_rankings][:k]
+#     top_k_des.reverse()
+#
+#     pledge_per_pool = np.where(stake / num_pools < beta, stake / num_pools, beta)
+#     cost_per_pool = (1 + phi * num_pools - phi) * initial_cost / num_pools
+#
+#     reward_per_pool = R / (1 + alpha) * (beta + pledge_per_pool * alpha)
+#     utility_per_pool = np.where(reward_per_pool - cost_per_pool > 0,
+#                                 utility_from_profitable_pool(reward_per_pool, cost_per_pool, pledge_per_pool, beta,
+#                                                              margin), reward_per_pool - cost_per_pool)
+#     desirability = (1 - margin) * (reward_per_pool - cost_per_pool)
+#
+#     margin_len = int(len(margin) / k)
+#     d_cutoff = np.array(top_k_des*margin_len)
+#     utility = np.where(desirability >= d_cutoff + num_pools * 0.00001, num_pools * utility_per_pool, 0)
+#     return utility
 
 
-def plot_margin_pools_heatmap(agent):
-    from matplotlib import cm
+# def plot_margin_pools_heatmap(agent):
+#     from matplotlib import cm
+#
+#     k = agent.model.k
+#
+#     x = np.linspace(1, k, k)
+#     # x = np.linspace(1, 10, 10)
+#     y = np.linspace(0, 0.25, 1000)
+#     X, Y = np.meshgrid(x, y)
+#     zs = np.array(util_by_margin_and_pools(agent, np.ravel(Y), np.ravel(X)))
+#     Z = zs.reshape(X.shape)
+#
+#     mappable = plt.cm.ScalarMappable(cmap=cm.coolwarm)
+#     mappable.set_array(Z)
+#
+#     fig = plt.figure(figsize=(6, 5))
+#     ax2 = fig.add_subplot(111)
+#     ax2.set_ylabel('margin')
+#     ax2.set_xlabel('number of owned top-k pools')
+#
+#     Z = np.ma.array(Z, mask=(Z == 0))
+#     masked_cmap = mappable.cmap.copy()
+#     masked_cmap.set_bad(color='black')
+#
+#     ax2.imshow(Z, cmap=masked_cmap, norm=mappable.norm, interpolation='none', aspect='auto',
+#                origin='lower', extent=(np.min(X), np.max(X), np.min(Y), np.max(Y)))
+#     plt.grid()
+#
+#     plt.colorbar(mappable, label='utility')
+#     filename = 'heatmap-round-' + str(agent.model.schedule.steps) + '-agent-' + str(agent.unique_id) + '.png'
+#     plt.savefig(agent.model.directory / filename, bbox_inches='tight')
+#     plt.close(fig)
 
-    k = agent.model.k
-
-    x = np.linspace(1, k, k)
-    # x = np.linspace(1, 10, 10)
-    y = np.linspace(0, 0.25, 1000)
-    X, Y = np.meshgrid(x, y)
-    zs = np.array(util_by_margin_and_pools(agent, np.ravel(Y), np.ravel(X)))
-    Z = zs.reshape(X.shape)
-
-    mappable = plt.cm.ScalarMappable(cmap=cm.coolwarm)
-    mappable.set_array(Z)
-
-    fig = plt.figure(figsize=(6, 5))
-    ax2 = fig.add_subplot(111)
-    ax2.set_ylabel('margin')
-    ax2.set_xlabel('number of owned top-k pools')
-
-    Z = np.ma.array(Z, mask=(Z == 0))
-    masked_cmap = mappable.cmap.copy()
-    masked_cmap.set_bad(color='black')
-
-    ax2.imshow(Z, cmap=masked_cmap, norm=mappable.norm, interpolation='none', aspect='auto',
-               origin='lower', extent=(np.min(X), np.max(X), np.min(Y), np.max(Y)))
-    plt.grid()
-
-    plt.colorbar(mappable, label='utility')
-    filename = 'heatmap-round-' + str(agent.model.schedule.steps) + '-agent-' + str(agent.unique_id) + '.png'
-    plt.savefig(agent.model.directory / filename, bbox_inches='tight')
-    plt.close(fig)
-    #plt.tight_layout()
-
-def calculate_pool_splitting_profit(alpha, phi, cost, relative_stake):
-    return (1 + alpha) * (1 - phi) * cost - TOTAL_EPOCH_REWARDS_R * relative_stake * alpha
+# def calculate_pool_splitting_profit(alpha, phi, cost, relative_stake):
+#     return (1 + alpha) * (1 - phi) * cost - TOTAL_EPOCH_REWARDS_R * relative_stake * alpha
 
 def sort_pools(pool):
     if pool is None:

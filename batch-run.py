@@ -27,8 +27,8 @@ def main():
                         help='The number of agents (natural number). Default is 100.')
     parser.add_argument('--k', nargs="+", type=int, default=[100, 501, 50],
                         help='The k value of the system (natural number). Default is 10.')
-    parser.add_argument('--alpha', nargs="+", type=float, default=0.3,
-                        help='The alpha value of the system (decimal number between 0 and 1). Default is 0.3')
+    parser.add_argument('--L', nargs="+", type=int, default=100,
+                        help='The L value of the system. Default is 100')
     parser.add_argument('--abstention_rate', nargs="+", type=float, default=0,
                         help='The fraction of the total stake that remains inactive. Default is 0.')
     parser.add_argument('--pareto_param', nargs="+", type=float, default=2.0,
@@ -37,16 +37,13 @@ def main():
                         help='The minimum possible cost for operating a stake pool. Default is 1e-4.')
     parser.add_argument('--cost_max', type=float, default=1e-3,
                         help='The maximum possible cost for operating a stake pool. Default is 2e-3.')
-    parser.add_argument('--cost_factor', nargs="+", type=float, default=0.6,
+    parser.add_argument('--cost_factor', nargs="+", type=float, default=0.4,
                         help='The factor that determines how much an additional pool costs. '
                              'Default is 60%.')
     parser.add_argument('--stake_distr_source', type=str, default='Pareto',
                         help='The distribution type to use for the initial allocation of stake to the agents.')
     parser.add_argument('--extra_cost_type', type=str, default='fixed_fraction',
                         help='The method used to calculate the cost of any additional pool.')
-    parser.add_argument('--reward_function_option', type=int, default=0,
-                        help='The reward function to use in the simulation. 0 for the old function, 1 for the new one, '
-                             '2 for alternative-1 and 3 for alternative-2.')
     parser.add_argument('--pool_splitting', type=bool, default=True, action=argparse.BooleanOptionalAction,
                         help='Are individual agents allowed to create multiple pools? Default is yes.')
     parser.add_argument('--abstention_known', type=bool, default=False, action=argparse.BooleanOptionalAction,
@@ -55,7 +52,7 @@ def main():
                         help='The utility increase ratio under which moves are disregarded. Default is 0%%.')
     parser.add_argument('--absolute_utility_threshold', nargs="+", type=float, default=0,
                         help='The utility threshold under which moves are disregarded. Default is 1e-9.')
-    parser.add_argument('--pool_opening_process', type=str, default='local-search',
+    parser.add_argument('--pool_opening_process', type=str, default='plus-one',
                         help='The heuristic to use for determining a pool strategy. Options: local-search (default), plus-one.')
 
     args_dict = vars(parser.parse_args())
@@ -76,7 +73,7 @@ def main():
     for arg_name, arg_values in args_dict.items():
         if isinstance(arg_values, list):
             if len(arg_values) > 2:
-                if arg_name == 'alpha' or arg_name == 'cost_min':
+                if arg_name == 'L' or arg_name == 'cost_min':
                     variable_params[arg_name] = [float(x) for x in np.logspace(arg_values[0], arg_values[1], num=int(arg_values[2]))]
                 else:
                     scale_factor = 1e6
@@ -99,7 +96,7 @@ def main():
                                #"Gini-id", "Gini-id stake", "Gini-id stake (k)", "Gini-id (k)"]
                                #"Gini-id stake (fraction)", "Gini-id (fraction)"]  # , "Min-aggregate pledge"]
     additional_model_reporters = defaultdict(lambda: [])
-    additional_model_reporters['alpha'] = [
+    additional_model_reporters['L'] = [
         "Mean pledge", #"Total pledge",
         "Max pools per operator", "Median pools per operator",
         "Mean stake rank", "Mean cost rank", "Median stake rank", "Median cost rank"#,
@@ -148,7 +145,7 @@ def main():
     all_reporter_colours["Nakamoto coefficient"] = 'pink'
 
     for variable_param in variable_params:
-        useLogAxis = True if variable_param == 'alpha' else False
+        useLogAxis = True if variable_param == 'L' else False
         for model_reporter in model_reporters:
             hlp.plot_aggregate_data(batch_run_data, variable_param, model_reporter, all_reporter_colours[model_reporter],
                                 batch_run_id, batch_run_MP.directory, log_axis=useLogAxis)

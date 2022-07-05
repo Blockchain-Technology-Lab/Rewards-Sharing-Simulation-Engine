@@ -12,8 +12,8 @@ def main():
                         help='The number of agents (natural number). Default is 1000.')
     parser.add_argument('--k', nargs="+", type=int, default=100,
                         help='The k value of the system (natural number). Default is 100.')
-    parser.add_argument('--alpha', nargs="+", type=float, default=0.3,
-                        help='The alpha value of the system (decimal number between 0 and 1). Default is 0.3')
+    parser.add_argument('--L', nargs="+", type=int, default=100,
+                        help='The L value of the system. Default is 100')
     parser.add_argument('--cost_min', type=float, default=1e-5,
                         help='The minimum possible cost for operating a stake pool. Default is 1e-4.')
     parser.add_argument('--cost_max', type=float, default=1e-4,
@@ -52,9 +52,6 @@ def main():
     parser.add_argument('--execution_id', type=str, default='',
                         help='An optional identifier for the specific simulation run, '
                              'which will be included in the output.')
-    parser.add_argument('--reward_function_option', type=int, default=0,
-                        help='The reward function to use in the simulation. 0 for the old function, 1 for the new one, '
-                             '2 for alternative-1 and 3 for alternative-2.')
     parser.add_argument('--input_from_file', type=bool, default=False, action=argparse.BooleanOptionalAction,
                         help='If True then the input is read from a file (args.json) and any other command line '
                              'arguments are discarded. Default is False.')
@@ -64,7 +61,7 @@ def main():
                         help='If True then the graphs are generated upon completion. Default is True.')
     parser.add_argument('--abstention_known', type=bool, default=False, action=argparse.BooleanOptionalAction,
                         help='Is the abstention rate of the system known beforehand? Default is no.')
-    parser.add_argument('--pool_opening_process', type=str, default='local-search',
+    parser.add_argument('--pool_opening_process', type=str, default='plus-one',
                         help='The heuristic to use for determining a pool strategy. Options: local-search (default), plus-one.')
 
     args = parser.parse_args()
@@ -75,7 +72,7 @@ def main():
     sim = simulation.Simulation(
         n=args.n,
         k=args.k,
-        alpha=args.alpha,
+        L=args.L,
         stake_distr_source=args.stake_distr_source,
         myopic_fraction=args.myopic_fraction,
         abstention_rate=args.abstention_rate,
@@ -94,7 +91,6 @@ def main():
         #total stake
         steps_for_convergence=args.steps_for_convergence,
         extra_cost_type=args.extra_cost_type,
-        reward_function_option = args.reward_function_option,
         execution_id=args.execution_id,
         #seq_id
         #parent_dir

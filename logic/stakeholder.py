@@ -84,86 +84,81 @@ class Stakeholder(Agent):
         # them earlier so that the "easiest" move is preferred ( current -> delegator -> operator)
         max_utility_option = max(possible_moves, key=lambda key: possible_moves[key][0])
         #todo maybe discard temp pool ids here
-        '''if max_utility_option == "operator":
-            hlp.plot_margin_pools_heatmap(self)'''
         self.new_strategy = None if max_utility_option == "current" else possible_moves[max_utility_option][1]
 
 
-    def calculate_margins_and_utility(self, num_pools):
-        cost_per_pool = hlp.calculate_cost_per_pool(num_pools, self.cost, self.model.cost_factor)
-        pledge_per_pool = hlp.determine_pledge_per_pool(self.stake, self.model.beta, num_pools)
-        potential_profit_per_pool = hlp.calculate_potential_profit(pledge_per_pool, cost_per_pool, self.model.alpha,
-                                                                   self.model.beta, self.model.reward_function_option,
-                                                                   self.model.total_stake)
-        boost = 1e-6  # to ensure that the new desirability will be higher than the target one #todo tune boost
-        margins = [] # note that pools by the same agent may end up with different margins  because of the different pools they aim to outperform
-        utility = 0
-        for t in range(1, num_pools+1):
-            target_pool = self.model.pool_rankings[self.model.k - t] #todo what if that's own pool???
-            target_desirability, target_pp =  (target_pool.desirability, target_pool.potential_profit) if target_pool is not None else (0, 0)
-            target_desirability += boost
-            if potential_profit_per_pool < target_desirability:
-                # can't reach target desirability even with zero margin, so we can assume that the pool won't be in the top k
-                margins.append(0)
-                utility += hlp.calculate_operator_utility_from_pool(non_myopic_pool_stake=pledge_per_pool, pledge=pledge_per_pool,
-                                                                       margin=0, cost=cost_per_pool, alpha=self.model.alpha,
-                                                                       beta=self.model.beta,
-                                                                       reward_function_option=self.model.reward_function_option,
-                                                                       total_stake=self.model.total_stake)
-            else:
-                # pp > target desirability so we proceed by finding an appropriate margin
-                max_target_desirability = max(target_desirability, target_pp)
-                margins.append(hlp.calculate_suitable_margin(potential_profit=potential_profit_per_pool,
-                                                      target_desirability=max_target_desirability))
-                utility += hlp.calculate_operator_utility_from_pool(non_myopic_pool_stake=self.model.beta, pledge=pledge_per_pool,
-                                                                               margin=margins[-1],
-                                                                               cost=cost_per_pool, alpha=self.model.alpha,
-                                                                               beta=self.model.beta,
-                                                                               reward_function_option=self.model.reward_function_option,
-                                                                               total_stake=self.model.total_stake)
-        return margins, utility
-
-
-    def choose_pool_strategy_local_search(self):
-        """
-        Find a suitable pool operation strategy by using the following process:
-            - Start with an arbitrary number of pools t (we set this to k/2)
-            - Calculate a suitable margin so that all t pools end up in the top k (if not possible then set margin to 0)
-            - Calculate the agent's utility for this number of pools and margin
-            - Do the same for the two neighbours of this strategy, i.e. operating t-1 pools and t+1 pools
-            - Choose the direction with the highest utility and make a jump in t
-            - If none of the neighbours have higher utility, solution found (strategy with t pools)
-        This works because the utility of an agent as a function of the number of pools to operate has only one local max
-        @return:
-        """
-        t_min = 1
-        t_max = self.model.k
-        solution_found = False
-
-        while not solution_found:
-            t = math.floor((t_min + t_max) / 2)
-            margins_t, utility_t = self.calculate_margins_and_utility(num_pools=t)
-            if t > t_min:
-                margins_t_minus, utility_t_minus = self.calculate_margins_and_utility(num_pools=t - 1)
-                if utility_t_minus > utility_t:
-                    t_max = t - 1
-                    continue
-            if t < t_max:
-                margins_t_plus, utility_t_plus = self.calculate_margins_and_utility(num_pools=t + 1)
-                if utility_t_plus > utility_t:
-                    t_min = t + 1
-                    continue # checking only one of them suffices under the assumption that the function has one local max and is otherwise monotonincally increasing/decreasing
-            # none of the neighbours has higher utility (or there are no feasible neighbours), so we are at the local max
-            solution_found = True
-
-        num_pools, margins = t, margins_t
-        utility = 0
-        strategy = None
-        if num_pools > 0:
-            owned_pools_copies = self.determine_pools_to_keep(num_pools)
-            strategy = self.find_operator_move(num_pools, owned_pools_copies, margins)
-            utility = self.calculate_expected_utility(strategy) # recalculating utility to account for possible delegations
-        return utility, strategy
+    # def calculate_margins_and_utility(self, num_pools):
+    #     cost_per_pool = hlp.calculate_cost_per_pool(num_pools, self.cost, self.model.cost_factor)
+    #     pledge_per_pool = hlp.determine_pledge_per_pool(self.stake, self.model.beta, num_pools)
+    #     potential_profit_per_pool = hlp.calculate_potential_profit(pledge_per_pool, cost_per_pool, self.model.L,
+    #                                                                self.model.beta, self.model.total_stake)
+    #     boost = 1e-6  # to ensure that the new desirability will be higher than the target one #todo tune boost
+    #     margins = [] # note that pools by the same agent may end up with different margins  because of the different pools they aim to outperform
+    #     utility = 0
+    #     for t in range(1, num_pools+1):
+    #         target_pool = self.model.pool_rankings[self.model.k - t] #todo what if that's own pool???
+    #         target_desirability, target_pp =  (target_pool.desirability, target_pool.potential_profit) if target_pool is not None else (0, 0)
+    #         target_desirability += boost
+    #         if potential_profit_per_pool < target_desirability:
+    #             # can't reach target desirability even with zero margin, so we can assume that the pool won't be in the top k
+    #             margins.append(0)
+    #             utility += hlp.calculate_operator_utility_from_pool(non_myopic_pool_stake=pledge_per_pool, pledge=pledge_per_pool,
+    #                                                                    margin=0, cost=cost_per_pool, L=self.model.L,
+    #                                                                    beta=self.model.beta,
+    #                                                                    total_stake=self.model.total_stake)
+    #         else:
+    #             # pp > target desirability so we proceed by finding an appropriate margin
+    #             max_target_desirability = max(target_desirability, target_pp)
+    #             margins.append(hlp.calculate_suitable_margin(potential_profit=potential_profit_per_pool,
+    #                                                   target_desirability=max_target_desirability))
+    #             utility += hlp.calculate_operator_utility_from_pool(non_myopic_pool_stake=self.model.beta, pledge=pledge_per_pool,
+    #                                                                            margin=margins[-1],
+    #                                                                            cost=cost_per_pool, L=self.model.L,
+    #                                                                            beta=self.model.beta,
+    #                                                                            total_stake=self.model.total_stake)
+    #     return margins, utility
+    #
+    #
+    # def choose_pool_strategy_local_search(self):
+    #     """
+    #     Find a suitable pool operation strategy by using the following process:
+    #         - Start with an arbitrary number of pools t (we set this to k/2)
+    #         - Calculate a suitable margin so that all t pools end up in the top k (if not possible then set margin to 0)
+    #         - Calculate the agent's utility for this number of pools and margin
+    #         - Do the same for the two neighbours of this strategy, i.e. operating t-1 pools and t+1 pools
+    #         - Choose the direction with the highest utility and make a jump in t
+    #         - If none of the neighbours have higher utility, solution found (strategy with t pools)
+    #     This works because the utility of an agent as a function of the number of pools to operate has only one local max
+    #     @return:
+    #     """
+    #     t_min = 1
+    #     t_max = self.model.k
+    #     solution_found = False
+    #
+    #     while not solution_found:
+    #         t = math.floor((t_min + t_max) / 2)
+    #         margins_t, utility_t = self.calculate_margins_and_utility(num_pools=t)
+    #         if t > t_min:
+    #             margins_t_minus, utility_t_minus = self.calculate_margins_and_utility(num_pools=t - 1)
+    #             if utility_t_minus > utility_t:
+    #                 t_max = t - 1
+    #                 continue
+    #         if t < t_max:
+    #             margins_t_plus, utility_t_plus = self.calculate_margins_and_utility(num_pools=t + 1)
+    #             if utility_t_plus > utility_t:
+    #                 t_min = t + 1
+    #                 continue # checking only one of them suffices under the assumption that the function has one local max and is otherwise monotonincally increasing/decreasing
+    #         # none of the neighbours has higher utility (or there are no feasible neighbours), so we are at the local max
+    #         solution_found = True
+    #
+    #     num_pools, margins = t, margins_t
+    #     utility = 0
+    #     strategy = None
+    #     if num_pools > 0:
+    #         owned_pools_copies = self.determine_pools_to_keep(num_pools)
+    #         strategy = self.find_operator_move(num_pools, owned_pools_copies, margins)
+    #         utility = self.calculate_expected_utility(strategy) # recalculating utility to account for possible delegations
+    #     return utility, strategy
 
 
     def choose_pool_strategy_plus_one(self):
@@ -225,15 +220,14 @@ class Stakeholder(Agent):
         pool_stake = hlp.calculate_pool_stake_NM(
             pool,
             all_pool_rankings,
-            self.model.beta,
-            self.model.k
+            self.model.total_stake
         )
 
         return hlp.calculate_operator_utility_from_pool(non_myopic_pool_stake=pool_stake, pledge=pool.pledge, margin=pool.margin,
-                                                        cost=pool.cost, alpha=self.model.alpha, beta=self.model.beta, reward_function_option=self.model.reward_function_option, total_stake= self.model.total_stake)
+                                                        cost=pool.cost, L=self.model.L, beta=self.model.beta, total_stake= self.model.total_stake)
 
     def calculate_delegator_utility_from_pool(self, pool, stake_allocation):
-        alpha = self.model.alpha
+        L = self.model.L
         beta = self.model.beta
 
         previous_allocation_to_pool = self.strategy.stake_allocations[pool.id] \
@@ -243,15 +237,15 @@ class Stakeholder(Agent):
             hlp.calculate_pool_stake_NM(
                 pool,
                 self.model.pool_rankings,
-                self.model.beta,
-                self.model.k
+                self.model.total_stake
             ),
             current_stake
         )
         pool_stake = current_stake if self.isMyopic else non_myopic_stake
         relative_pool_stake = pool_stake / self.model.total_stake
         relative_pledge = pool.pledge / self.model.total_stake
-        r = hlp.calculate_pool_reward(relative_pool_stake, relative_pledge, alpha, beta, self.model.reward_function_option, self.model.total_stake)
+        relative_beta = beta / self.model.total_stake
+        r = hlp.calculate_pool_reward(relative_pool_stake, relative_pledge, L, relative_beta)
 
         q = stake_allocation / pool_stake
         return hlp.calculate_delegator_reward_from_pool(pool_margin=pool.margin, pool_cost=pool.cost, pool_reward=r, delegator_stake_fraction=q)
@@ -274,18 +268,22 @@ class Stakeholder(Agent):
 
         :return: bool true if the agent has potential to open pool based on the above rules, false otherwise
         """
-        saturation_point = self.model.beta
-        alpha = self.model.alpha
-        current_pools = self.model.get_pools_list()
+        L = self.model.L
+        beta = self.model.beta
+        pool_saturation_point = hlp.calculate_pool_saturation_point(pool_pledge=self.stake, L=L, beta=beta)
 
-        potential_profit = hlp.calculate_potential_profit(self.stake, self.cost, alpha, saturation_point, self.model.reward_function_option, self.model.total_stake)
-        if len(current_pools) * saturation_point < self.model.perceived_active_stake:  # note that we use active stake instead of total stake
+        potential_profit = hlp.calculate_potential_profit(self.stake, self.cost, pool_saturation_point, L, beta, self.model.total_stake)
+
+        total_pools_potential_stake = sum([p.saturation_point for p in self.model.pool_rankings if p is not None])
+        if total_pools_potential_stake < self.model.perceived_active_stake:  # note that we use active stake instead of total stake
+            # there are not enough pools in the system to cover the total stake, so a positive potential profit is sufficient to have potential for pool
             return potential_profit > 0
-
-        existing_desirabilities = [pool.desirability for pool in current_pools]
+        # There are (more than) enough pools to cover the system's stake so the agent checks if she can compete with them
         # Note that the potential profit is equal to the desirability of a pool with 0 margin,
-        # so, effectively, the agent is comparing his best-case desirability with the desirabilities of the current pools
-        return potential_profit > 0 and any(desirability < potential_profit for desirability in existing_desirabilities)
+        # so, effectively, the agent is comparing his best-case desirability with the worst desirability of the current pools
+        reference_pool = self.model.pool_rankings[-self.model.k-2] if len(self.model.pool_rankings) > (self.model.k+1) else None #todo -k-2 because of stupid Nones otherwise just -1
+        reference_desirability = reference_pool.desirability if reference_pool is not None else 0
+        return potential_profit > reference_desirability
 
     def calculate_margin(self, pool): #todo add test
         """
@@ -345,9 +343,10 @@ class Stakeholder(Agent):
             # For pools that already exist, modify them to match the new strategy
             pool.stake -= pool.pledge - pledge
             pool.pledge = pledge
-            pool.is_private = pool.pledge >= self.model.beta
+            pool.set_saturation_point(self.model.L, self.model.beta)
+            pool.is_private = pool.pledge >= pool.saturation_point
             pool.cost = cost_per_pool
-            pool.set_potential_profit(self.model.alpha, self.model.beta, self.model.reward_function_option, self.model.total_stake)
+            pool.set_potential_profit(self.model.L, self.model.beta, self.model.total_stake)
             pool.margin = margins[i] if len(margins) > i  else self.calculate_margin(pool)
 
         existing_pools_num = len(owned_pools)
@@ -356,9 +355,9 @@ class Stakeholder(Agent):
             pool_id = self.model.get_next_pool_id()
             # todo maybe use a temp pool id here and assign final id at execution
             pool = Pool(pool_id=pool_id, cost=cost_per_pool,
-                        pledge=pledge, owner=self.unique_id, alpha=self.model.alpha,
+                        pledge=pledge, owner=self.unique_id, L=self.model.L,
                         beta=self.model.beta, is_private=pledge >= self.model.beta,
-                        reward_function_option=self.model.reward_function_option, total_stake=self.model.total_stake)
+                        total_stake=self.model.total_stake)
             # private pools have margin 0 but don't allow delegations
             pool.margin = margins[i] if len(margins) > i else self.calculate_margin(pool)
             owned_pools[pool_id] = pool
@@ -389,7 +388,6 @@ class Stakeholder(Agent):
             return Strategy()
 
         all_pools_dict = self.model.pools
-        saturation_point = self.model.beta #todo for alternative reward schemes each pool may have its own saturation point
         # todo do I need to calculate myopic desirability in case of myopic agent?
         eligible_pools_ranked = [
             pool
@@ -410,7 +408,7 @@ class Stakeholder(Agent):
             # first attempt to delegate to unsaturated pools
             best_pool_id = eligible_pools_ranked.pop(0).id
             best_pool = all_pools_dict[best_pool_id] #todo check if this is the same or different as eligible_pools_ranked[0] in all cases, i.e. do pools get updated in the sortedlist?
-            stake_to_saturation = saturation_point - best_pool.stake
+            stake_to_saturation = best_pool.saturation_point - best_pool.stake
             if stake_to_saturation < MIN_STAKE_UNIT:
                 if best_saturated_pool is None:
                     best_saturated_pool = best_pool

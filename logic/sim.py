@@ -29,12 +29,12 @@ class Simulation(Model):
 
     }
 
-    #todo split into two classes? simulation (with max_iterations, steps_for_convergence etc) and system (with k, alpha, reward function option, etc)
-    def __init__(self, n=1000, k=100, alpha=0.3, stake_distr_source='Pareto', myopic_fraction=0, abstention_rate=0,
+    #todo split into two classes? simulation (with max_iterations, steps_for_convergence etc) and system (with k, L, reward function option, etc)
+    def __init__(self, n=1000, k=100, L=0.3, stake_distr_source='Pareto', myopic_fraction=0, abstention_rate=0,
                  abstention_known=False, relative_utility_threshold=0, absolute_utility_threshold=0,
                  min_steps_to_keep_pool=0, pool_splitting=True, seed=None, pareto_param=2.0, max_iterations=1000,
                  cost_min=1e-4, cost_max=1e-3, cost_factor=0.4, agent_activation_order="Random", total_stake=-1,
-                 steps_for_convergence=10, extra_cost_type='fixed_fraction', reward_function_option=0, execution_id='',
+                 steps_for_convergence=10, extra_cost_type='fixed_fraction', execution_id='',
                  seq_id=-1, parent_dir='', metrics=None, generate_graphs=True, input_from_file=False,
                  pool_opening_process='test'):
         # todo make sure that the input is valid? n > 0, 0 < k <= n
@@ -78,9 +78,9 @@ class Simulation(Model):
         self.current_era = 0
         total_eras = 1
 
-        extra_fields = ['n', 'k', 'alpha', 'myopic_fraction', 'relative_utility_threshold', 'absolute_utility_threshold',
+        extra_fields = ['n', 'k', 'L', 'myopic_fraction', 'relative_utility_threshold', 'absolute_utility_threshold',
                  'min_steps_to_keep_pool', 'pool_splitting', 'max_iterations', 'cost_factor', 'agent_activation_order',
-                  'extra_cost_type', 'reward_function_option', 'generate_graphs', 'pool_opening_process']
+                  'extra_cost_type', 'generate_graphs', 'pool_opening_process']
         adjustable_params = {} #todo define which args should not be saved as adjustable params (e.g. abstention rate)
         for field in extra_fields:
             value = args[field]
@@ -115,7 +115,6 @@ class Simulation(Model):
         self.beta = self.total_stake / self.k
 
         self.export_input_desc_file(seed)
-
 
         self.consecutive_idle_steps = 0  # steps towards convergence
         self.current_step_idle = True
@@ -197,8 +196,8 @@ class Simulation(Model):
         if current_step >= self.max_iterations:
             self.wrap_up_execution()
             return
-        if current_step % self.revision_frequency == 0 and current_step > 0:
-            self.revise_beliefs()
+        # if current_step % self.revision_frequency == 0 and current_step > 0:
+        #     self.revise_beliefs()
 
         # Activate all agents (in the order specified by self.schedule) to perform all their actions for one time step
         self.schedule.step()
@@ -257,17 +256,16 @@ class Simulation(Model):
         hlp.export_json_file(descriptors, filepath)
 
     def export_agents_file(self):
-        row_list = [["Agent id", "Stake", "Cost", "Potential Profit","Status", "Pools owned", "Pool splitting profit", "Profitable pool splitter"]]
+        row_list = [["Agent id", "Stake", "Cost", "Potential Profit","Status", "Pools owned"]]
         agents = self.get_agents_dict()
         decimals = 15
         row_list.extend([
             [agent_id, round(agents[agent_id].stake, decimals), round(agents[agent_id].cost, decimals),
-             round(hlp.calculate_potential_profit(agents[agent_id].stake, agents[agent_id].cost, self.alpha, self.beta, self.reward_function_option, self.total_stake), decimals),
+             round(hlp.calculate_potential_profit(agents[agent_id].stake, agents[agent_id].cost, hlp.calculate_pool_saturation_point(pool_pledge=agents[agent_id].stake, L=self.L, beta=self.beta),
+                                                  self.L, self.beta, self.total_stake), decimals),
              "Abstainer" if agents[agent_id].strategy is None else "Operator" if len(agents[agent_id].strategy.owned_pools) > 0 else "Delegator",
-             0 if agents[agent_id].strategy is None else len(agents[agent_id].strategy.owned_pools),
-             hlp.calculate_pool_splitting_profit(self.alpha, self.cost_factor, agents[agent_id].cost, agents[agent_id].stake / self.total_stake),
-             "YES" if hlp.calculate_pool_splitting_profit(self.alpha, self.cost_factor, agents[agent_id].cost, agents[agent_id].stake / self.total_stake) > 0 else "NO"
-             ] for agent_id in range(len(agents))
+             0 if agents[agent_id].strategy is None else len(agents[agent_id].strategy.owned_pools)
+            ] for agent_id in range(len(agents))
         ])
 
         prefix = 'final_configuration_stakeholders-' if self.has_converged() else 'intermediate_configuration_stakeholders-'
@@ -310,11 +308,11 @@ class Simulation(Model):
         # todo also include input descriptors here, like NC prior?
         # todo add equilibrium step  / number of rounds
         filepath = "output/" + filename
-        header = ["id", "n", "k", "alpha", "phi", "activation order", "reward function", # "stk distr", "min cost", "max cost",
+        header = ["id", "n", "k", "L", "phi", "activation order", # "stk distr", "min cost", "max cost",
                   "descriptor", "-",
                   "#pools", "#operators", "nakamoto coeff", "comments"]
-        row = [self.seq_id, self.n, self.k, self.alpha, self.cost_factor, self.agent_activation_order,
-               self.reward_function_option, self.execution_id[self.execution_id.index('-')+1:], "",
+        row = [self.seq_id, self.n, self.k, self.L, self.cost_factor, self.agent_activation_order,
+               self.execution_id[self.execution_id.index('-')+1:], "",
                reporters.get_number_of_pools(self), reporters.get_operator_count(self), reporters.get_nakamoto_coefficient(self), ""]
         hlp.write_to_csv(filepath, header, row)
 

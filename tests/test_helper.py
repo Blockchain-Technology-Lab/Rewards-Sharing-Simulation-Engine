@@ -39,7 +39,7 @@ def test_normalize_distr():
 
 def test_calculate_pool_reward_variable_stake():
     # GIVEN
-    alpha = 0.3
+    L = 0.3
     saturation_point = 0.1
     stakes = [0.01, 0.1, 0.2]
     pledges = [0.01, 0.01, 0.01]
@@ -49,10 +49,8 @@ def test_calculate_pool_reward_variable_stake():
     results = [hlp.calculate_pool_reward(
         relative_stake=stakes[i] / total_stake,
         relative_pledge=pledges[i] / total_stake,
-        alpha=alpha,
-        beta=saturation_point,
-        reward_function_option=0,
-        total_stake=total_stake
+        L=L,
+        relative_beta=saturation_point
     ) for i in range(len(stakes))]
 
     # THEN
@@ -60,7 +58,7 @@ def test_calculate_pool_reward_variable_stake():
 
 
 def test_calculate_pool_reward_variable_pledge():
-    alpha = 0.3
+    L = 0.3
     saturation_point = 0.1
     stakes = [0.1, 0.1, 0.1]
     pledges = [0.01, 0.05, 0.1]
@@ -69,18 +67,16 @@ def test_calculate_pool_reward_variable_pledge():
     results = [hlp.calculate_pool_reward(
         relative_stake=stakes[i] / total_stake,
         relative_pledge=pledges[i] / total_stake,
-        alpha=alpha,
-        beta=saturation_point,
-        reward_function_option=0,
-        total_stake=total_stake
+        L=L,
+        relative_beta=saturation_point
     ) for i in range(len(stakes))]
 
     assert results[0] < results[1] < results[2]
 
 
-def test_calculate_pool_reward_variable_stake_alpha_zero():
+def test_calculate_pool_reward_variable_stake_L_zero():
     # GIVEN
-    alpha = 0
+    L = 0
     saturation_point = 0.1
     stakes = [0.01, 0.1, 0.2]
     pledges = [0.01, 0.01, 0.01]
@@ -90,18 +86,16 @@ def test_calculate_pool_reward_variable_stake_alpha_zero():
     results = [hlp.calculate_pool_reward(
         relative_stake=stakes[i] / total_stake,
         relative_pledge=pledges[i] / total_stake,
-        alpha=alpha,
-        beta=saturation_point,
-        reward_function_option=0,
-        total_stake=total_stake
+        L=L,
+        relative_beta=saturation_point
     ) for i in range(len(stakes))]
 
     # THEN
     assert results[0] < results[1] == results[2]
 
 
-def test_calculate_pool_reward_variable_pledge_alpha_zero():
-    alpha = 0
+def test_calculate_pool_reward_variable_pledge_L_zero():
+    L = 0
     saturation_point = 0.1
     stakes = [0.1, 0.1, 0.1]
     pledges = [0.01, 0.05, 0.1]
@@ -110,10 +104,8 @@ def test_calculate_pool_reward_variable_pledge_alpha_zero():
     results = [hlp.calculate_pool_reward(
         relative_stake=stakes[i] / total_stake,
         relative_pledge=pledges[i] / total_stake,
-        alpha=alpha,
-        beta=saturation_point,
-        reward_function_option=0,
-        total_stake=total_stake
+        L=L,
+        relative_beta=saturation_point
     ) for i in range(len(stakes))]
 
     assert results[0] == results[1] == results[2]
@@ -157,103 +149,60 @@ def test_calculate_cost_per_pool():
     assert cost_per_pool * num_pools == expected_total_cost
 
 
-def test_calculate_pool_reward_curve_pledge_benefit():
-    # results of options 0 and 4 must be the same when curve_root = 1
-    alpha = 0.3
-    saturation_point = 0.1
-    stakes = [0.01, 0.1, 0.2]
-    pledges = [0.001, 0.0069, 0.012]
-    total_stake = 1
-
-    results_0 = [hlp.calculate_pool_reward(
-        relative_stake=stakes[i] / total_stake,
-        relative_pledge=pledges[i] / total_stake,
-        alpha=alpha,
-        beta=saturation_point,
-        reward_function_option=0,
-        total_stake=total_stake
-    ) for i in range(len(stakes))]
-
-    results_4 = [hlp.calculate_pool_reward(
-        relative_stake=stakes[i] / total_stake,
-        relative_pledge=pledges[i] / total_stake,
-        alpha=alpha,
-        beta=saturation_point,
-        reward_function_option=4,
-        curve_root=1,
-        total_stake=total_stake
-    ) for i in range(len(stakes))]
-
-    assert results_0 == results_4
-
-    results_4_ = [hlp.calculate_pool_reward(
-        relative_stake=stakes[i] / total_stake,
-        relative_pledge=pledges[i] / total_stake,
-        alpha=alpha,
-        beta=saturation_point,
-        reward_function_option=4,
-        curve_root=3,
-        total_stake=total_stake
-    ) for i in range(len(stakes))]
-
-    assert results_0 != results_4_
-
-
-def test_calculate_pool_stake_nm():
-    alpha = 0.3
-    beta = 0.1
+def test_calculate_pool_stake_nm(): #todo update tests
+    L = 100
     k = 10
-    reward_func = 0
     total_stake = 1
+    beta = total_stake / k
 
-    pools = {i: Pool(pool_id=i, cost=0.0001, pledge=0.001, owner=i, alpha=alpha, beta=beta,
-                     reward_function_option=reward_func, total_stake=total_stake, margin=0) for i in range(1, 11)}
+    pools = {i: Pool(pool_id=i, cost=0.0001, pledge=0.01, owner=i, L=L, beta=beta,
+                     total_stake=total_stake, margin=0) for i in range(1, 11)}
 
-    # pool does not belong in the top k, so stake_nm = pledge
-    pool_11 = Pool(pool_id=11, cost=0.0001, pledge=0.001, owner=11, alpha=alpha, beta=beta,
-                   reward_function_option=reward_func, total_stake=total_stake, margin=0.2)
+    # there are better pools that cover the total stake with their saturation points, so stake_nm = pledge
+    pool_11 = Pool(pool_id=11, cost=0.0001, pledge=0.01, owner=11, L=L, beta=beta,
+                   total_stake=total_stake, margin=0.2)
     pools[11] = pool_11
     ranks = list(pools.values())
     ranks.sort(key=hlp.sort_pools)
-    pool_stake_nm = hlp.calculate_pool_stake_NM(pool=pool_11, pool_rankings=ranks, beta=beta, k=k)
+    pool_stake_nm = hlp.calculate_pool_stake_NM(pool=pool_11, pool_rankings=ranks, total_stake=total_stake)
     assert pool_stake_nm == 0.001
 
     # pool belongs in the top k and pool_stake < beta, so stake_nm = beta
-    pool_11 = Pool(pool_id=11, cost=0.0001, pledge=0.002, owner=11, alpha=alpha, beta=beta,
-                   reward_function_option=reward_func, total_stake=total_stake, margin=0)
+    pool_11 = Pool(pool_id=11, cost=0.0001, pledge=0.002, owner=11, L=L, beta=beta,
+                   total_stake=total_stake, margin=0)
     pools[11] = pool_11
     ranks = list(pools.values())
     ranks.sort(key=hlp.sort_pools)
-    pool_stake_nm = hlp.calculate_pool_stake_NM(pool=pool_11, pool_rankings=ranks, beta=beta, k=k)
+    pool_stake_nm = hlp.calculate_pool_stake_NM(pool=pool_11, pool_rankings=ranks, total_stake=total_stake)
     assert pool_stake_nm == 0.1
 
     # pool belongs in the top k and pool_stake > beta, so stake_nm = pool_stake
-    pool_11 = Pool(pool_id=11, cost=0.0001, pledge=0.2, owner=11, alpha=alpha, beta=beta,
-                   reward_function_option=reward_func, total_stake=total_stake, margin=0)
+    pool_11 = Pool(pool_id=11, cost=0.0001, pledge=0.2, owner=11, L=L, beta=beta,
+                   total_stake=total_stake, margin=0)
     pools[11] = pool_11
     ranks = list(pools.values())
     ranks.sort(key=hlp.sort_pools)
-    pool_stake_nm = hlp.calculate_pool_stake_NM(pool=pool_11, pool_rankings=ranks, beta=beta, k=k)
+    pool_stake_nm = hlp.calculate_pool_stake_NM(pool=pool_11, pool_rankings=ranks, total_stake=total_stake)
     assert pool_stake_nm == 0.2
 
     # pool doesn't belong in the top k because of (id) tie breaking, so stake_nm = pool_pledge
-    pool_11 = Pool(pool_id=11, cost=0.0001, pledge=0.001, owner=11, alpha=alpha, beta=beta,
-                   reward_function_option=reward_func, total_stake=total_stake, margin=0)
+    pool_11 = Pool(pool_id=11, cost=0.0001, pledge=0.001, owner=11, L=L, beta=beta,
+                   total_stake=total_stake, margin=0)
     pools[11] = pool_11
     ranks = list(pools.values())
     ranks.sort(key=hlp.sort_pools)
-    pool_stake_nm = hlp.calculate_pool_stake_NM(pool=pool_11, pool_rankings=ranks, beta=beta, k=k)
+    pool_stake_nm = hlp.calculate_pool_stake_NM(pool=pool_11, pool_rankings=ranks, total_stake=total_stake)
     assert pool_stake_nm == 0.001
 
     # there are less than k pools, so pool necessarily in the top k
     k = 100 # increase k
     beta = 0.01
-    pool_11 = Pool(pool_id=11, cost=0.001, pledge=0.00001, owner=11, alpha=alpha, beta=beta,
-                   reward_function_option=reward_func, total_stake=total_stake, margin=0)
+    pool_11 = Pool(pool_id=11, cost=0.001, pledge=0.00001, owner=11, L=L, beta=beta,
+                   total_stake=total_stake, margin=0)
     pools[11] = pool_11
     ranks = list(pools.values())
     ranks.sort(key=hlp.sort_pools)
-    pool_stake_nm = hlp.calculate_pool_stake_NM(pool=pool_11, pool_rankings=ranks, beta=beta, k=k)
+    pool_stake_nm = hlp.calculate_pool_stake_NM(pool=pool_11, pool_rankings=ranks, total_stake=total_stake)
     assert pool_stake_nm == 0.01
 
 

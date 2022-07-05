@@ -5,15 +5,16 @@ from logic.helper import MIN_STAKE_UNIT
 
 class Pool:
 
-    def __init__(self, pool_id, cost, pledge, owner, alpha, beta, reward_function_option, total_stake, margin=-1, is_private=False):
+    def __init__(self, pool_id, cost, pledge, owner, L, beta, total_stake, margin=-1, is_private=False):
         self.id = pool_id
         self.cost = cost
         self.pledge = pledge
+        self.set_saturation_point(L=L, beta=beta)
         self.stake = pledge
         self.owner = owner
         self.is_private = is_private
         self.delegators = dict()
-        self.set_potential_profit(alpha, beta, reward_function_option, total_stake)
+        self.set_potential_profit(L, beta, total_stake)
         self.margin = margin
 
     @property
@@ -26,11 +27,15 @@ class Pool:
         # whenever the margin changes, the pool's desirability gets automatically re-calculated
         self.set_desirability()
 
-    def set_potential_profit(self, alpha, beta, reward_function_option, total_stake):
-        self.potential_profit = hlp.calculate_potential_profit(self.pledge, self.cost, alpha, beta, reward_function_option, total_stake)
+    def set_potential_profit(self, L, beta, total_stake):
+        self.potential_profit = hlp.calculate_potential_profit(self.pledge, self.cost, self.saturation_point, L, beta, total_stake)
 
     def set_desirability(self):
         self.desirability = hlp.calculate_pool_desirability(margin=self.margin, potential_profit=self.potential_profit)
+
+    def set_saturation_point(self, L, beta):
+        self.saturation_point = hlp.calculate_pool_saturation_point(pool_pledge=self.pledge, L=L, beta=beta)
+
 
     def update_delegation(self, new_delegation, delegator_id):
         if delegator_id in self.delegators:
