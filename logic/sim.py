@@ -196,8 +196,8 @@ class Simulation(Model):
         if current_step >= self.max_iterations:
             self.wrap_up_execution()
             return
-        # if current_step % self.revision_frequency == 0 and current_step > 0:
-        #     self.revise_beliefs()
+        if current_step % self.revision_frequency == 0 and current_step > 0:
+            self.revise_beliefs()
 
         # Activate all agents (in the order specified by self.schedule) to perform all their actions for one time step
         self.schedule.step()

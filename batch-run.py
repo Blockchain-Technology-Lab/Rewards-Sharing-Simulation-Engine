@@ -74,8 +74,7 @@ def main():
         if isinstance(arg_values, list):
             if len(arg_values) > 2:
                 if arg_name == 'L':
-                    #variable_params[arg_name] = [float(x) for x in np.logspace(arg_values[0], arg_values[1], num=int(arg_values[2]))]
-                    variable_params[arg_name] = [50, 100, 1000]
+                    variable_params[arg_name] = [float(x) for x in np.logspace(arg_values[0], arg_values[1], num=int(arg_values[2]))]
                 else:
                     scale_factor = 1e6
                     int_range = [int(v * scale_factor) for v in arg_values]
@@ -84,6 +83,7 @@ def main():
                 fixed_params[arg_name] = arg_values[0]
         else:
             fixed_params[arg_name] = arg_values
+    variable_params['L'] = [50, 100, 1000] # hard-coding relevant L values (temp)
 
     print("Fixed params: ", fixed_params)
     print('-------------')
