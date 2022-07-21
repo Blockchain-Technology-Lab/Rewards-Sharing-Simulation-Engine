@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-
 import time
 import pathlib
 import math
@@ -124,7 +123,8 @@ class Simulation(Model):
         self.revision_frequency = 10  # defines how often active stake and expected #pools are revised #todo read from json file?
         self.initialise_pool_id_seq()  # initialise pool id sequence for the new model run
 
-        self.pool_rankings = SortedList([None] * (self.k+1), key=hlp.sort_pools) # all pools ranked from best to worst #todo do I need Nones?
+        self.pool_rankings = SortedList([None] * (self.k+1), key=hlp.sort_pools) # all pools ranked from best to worst non-myopically#todo do I need Nones?
+        self.pool_rankings_myopic = SortedList([None] * (self.k + 1), key=hlp.sort_pools_myopic)  # all pools ranked from best to worst myopically
 
         # metrics to track at every step of the simulation
         model_reporters = {
@@ -303,7 +303,7 @@ class Simulation(Model):
             'Pool count': reporters.get_number_of_pools(self),
             'Operator count': reporters.get_operator_count(self),
             'Nakamoto coefficient': reporters.get_nakamoto_coefficient(self),
-            'Total pledge': reporters.get_total_pledge(self)
+            'Total pledge fraction': (round(reporters.get_total_pledge(self) / self.total_stake, 4))
         }
         filepath = self.directory / filename
         hlp.export_json_file(descriptors, filepath)

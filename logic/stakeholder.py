@@ -217,19 +217,14 @@ class Stakeholder(Agent):
         return utility
 
     def calculate_operator_utility_from_pool(self, pool, all_pool_rankings):
-        '''pool_stake = pool.stake if self.isMyopic else hlp.calculate_pool_stake_NM(pool.id,
-                                                                                  all_pools,
-                                                                                  beta,
-                                                                                  self.model.k
-                                                                                  )'''  # assuming there is no myopic play for pool owners
-        pool_stake = hlp.calculate_pool_stake_NM(
+        pool_stake_nm = hlp.calculate_pool_stake_NM(
             pool,
             all_pool_rankings,
             self.model.beta,
             self.model.k
         )
 
-        return hlp.calculate_operator_utility_from_pool(non_myopic_pool_stake=pool_stake, pledge=pool.pledge, margin=pool.margin,
+        return hlp.calculate_operator_utility_from_pool(non_myopic_pool_stake=pool_stake_nm, pledge=pool.pledge, margin=pool.margin,
                                                         cost=pool.cost, alpha=self.model.alpha, beta=self.model.beta, reward_function_option=self.model.reward_function_option, total_stake= self.model.total_stake)
 
     def calculate_delegator_utility_from_pool(self, pool, stake_allocation):
@@ -239,7 +234,7 @@ class Stakeholder(Agent):
         previous_allocation_to_pool = self.strategy.stake_allocations[pool.id] \
             if pool.id in self.strategy.stake_allocations else 0
         current_stake = pool.stake - previous_allocation_to_pool + stake_allocation
-        non_myopic_stake = max(
+        pool_stake = current_stake if self.isMyopic else max(
             hlp.calculate_pool_stake_NM(
                 pool,
                 self.model.pool_rankings,
@@ -248,7 +243,6 @@ class Stakeholder(Agent):
             ),
             current_stake
         )
-        pool_stake = current_stake if self.isMyopic else non_myopic_stake
         relative_pool_stake = pool_stake / self.model.total_stake
         relative_pledge = pool.pledge / self.model.total_stake
         r = hlp.calculate_pool_reward(relative_pool_stake, relative_pledge, alpha, beta, self.model.reward_function_option, self.model.total_stake)
@@ -256,7 +250,6 @@ class Stakeholder(Agent):
         q = stake_allocation / pool_stake
         return hlp.calculate_delegator_reward_from_pool(pool_margin=pool.margin, pool_cost=pool.cost, pool_reward=r, delegator_stake_fraction=q)
 
-    # how does a myopic agent decide whether to open a pool or not? -> for now we assume that all agents play non-myopically when it comes to pool moves
     def has_potential_for_pool(self):
         """
         Determine whether the agent is at a good position to open a pool, using the following rules:
@@ -306,7 +299,6 @@ class Stakeholder(Agent):
         if num_pools_to_keep < len(self.strategy.owned_pools):
             # Only keep the pool(s) that rank best (based on desirability, potential profit, stake and "age")
             owned_pools_to_keep = dict()
-            # todo do I need to calculate myopic desirability in case of myopic agent?
             pool_properties = [(pool.desirability, pool.potential_profit, pool.stake, -pool_id) for pool_id, pool in self.strategy.owned_pools.items()]
             top_pools_ids = {-p[3] for p in heapq.nlargest(num_pools_to_keep, pool_properties)}
             for pool_id in top_pools_ids:
@@ -355,7 +347,7 @@ class Stakeholder(Agent):
             pool.pledge = pledge
             pool.is_private = pool.pledge >= self.model.beta
             pool.cost = cost_per_pool
-            pool.set_potential_profit(self.model.alpha, self.model.beta, self.model.reward_function_option, self.model.total_stake)
+            pool.set_profit(self.model.alpha, self.model.beta, self.model.reward_function_option, self.model.total_stake)
             pool.margin = margins[i] if len(margins) > i  else self.calculate_margin(pool)
 
         existing_pools_num = len(owned_pools)
@@ -384,29 +376,24 @@ class Stakeholder(Agent):
             allocations = delegation_strategy.stake_allocations
         return allocations
 
-    def find_delegation_move(self, stake_to_delegate=None):
+    def determine_stake_allocations(self, stake_to_delegate):
         """
         Choose a delegation move based on the desirability of the existing pools. If two or more pools are tied,
         choose the one with the highest potential profit, as it promises higher potential rewards (further ties are
         broken using ids, so that older pools are preferred).
         :return:
         """
-        if stake_to_delegate is None:
-            stake_to_delegate = self.stake
-        if stake_to_delegate < MIN_STAKE_UNIT:
-            return Strategy()
-
         all_pools_dict = self.model.pools
-        saturation_point = self.model.beta #todo for alternative reward schemes each pool may have its own saturation point
-        # todo do I need to calculate myopic desirability in case of myopic agent?
+        saturation_point = self.model.beta
+        pool_rankings = self.model.pool_rankings if not self.isMyopic else self.model.pool_rankings_myopic
         eligible_pools_ranked = [
             pool
-            for pool in self.model.pool_rankings
+            for pool in pool_rankings
             if pool is not None and pool.owner != self.unique_id and not pool.is_private
         ]
         # Only proceed if there are public pools in the system that don't belong to the current agent
         if len(eligible_pools_ranked) == 0:
-            return Strategy()
+            return None
 
         # Remove the agent's stake from the pools in case it's being delegated
         for pool_id, allocation in self.strategy.stake_allocations.items():
@@ -416,8 +403,7 @@ class Stakeholder(Agent):
         best_saturated_pool = None
         while len(eligible_pools_ranked) > 0:
             # first attempt to delegate to unsaturated pools
-            best_pool_id = eligible_pools_ranked.pop(0).id
-            best_pool = all_pools_dict[best_pool_id] #todo check if this is the same or different as eligible_pools_ranked[0] in all cases, i.e. do pools get updated in the sortedlist?
+            best_pool = eligible_pools_ranked.pop(0)
             stake_to_saturation = saturation_point - best_pool.stake
             if stake_to_saturation < MIN_STAKE_UNIT:
                 if best_saturated_pool is None:
@@ -425,7 +411,7 @@ class Stakeholder(Agent):
                 continue
             allocation = min(stake_to_delegate, stake_to_saturation)
             stake_to_delegate -= allocation
-            allocations[best_pool_id] = allocation
+            allocations[best_pool.id] = allocation
             if stake_to_delegate < MIN_STAKE_UNIT:
                 break
         if stake_to_delegate >= MIN_STAKE_UNIT and best_saturated_pool is not None:
@@ -436,6 +422,15 @@ class Stakeholder(Agent):
         for pool_id, allocation in self.strategy.stake_allocations.items():
             all_pools_dict[pool_id].update_delegation(new_delegation=allocation, delegator_id=self.unique_id)
 
+        return allocations
+
+    def find_delegation_move(self, stake_to_delegate=None):
+        if stake_to_delegate is None:
+            stake_to_delegate = self.stake
+        if stake_to_delegate < MIN_STAKE_UNIT:
+            return Strategy()
+
+        allocations = self.determine_stake_allocations(stake_to_delegate)
         return Strategy(stake_allocations=allocations)
 
     def execute_strategy(self):
@@ -482,6 +477,8 @@ class Stakeholder(Agent):
         old_pool = self.strategy.owned_pools[pool_id]
         self.model.pool_rankings.remove(old_pool)
         self.model.pool_rankings.add(updated_pool)
+        self.model.pool_rankings_myopic.remove(old_pool)
+        self.model.pool_rankings_myopic.add(updated_pool)
         return updated_pool
 
     def open_pool(self, pool_id):
@@ -489,6 +486,7 @@ class Stakeholder(Agent):
         self.remaining_min_steps_to_keep_pool = self.model.min_steps_to_keep_pool
         # include in pool rankings
         self.model.pool_rankings.add(self.strategy.owned_pools[pool_id])
+        self.model.pool_rankings_myopic.add(self.strategy.owned_pools[pool_id])
 
     def close_pool(self, pool_id):
         pools = self.model.pools
@@ -503,6 +501,7 @@ class Stakeholder(Agent):
         pools.pop(pool_id)
         # remove from top k desirabilities
         self.model.pool_rankings.remove(pool)
+        self.model.pool_rankings_myopic.remove(pool)
 
     def remove_delegations(self, pool):
         agents = self.model.get_agents_dict()

@@ -344,8 +344,7 @@ def calculate_pool_desirability(margin, potential_profit):
     return max((1 - margin) * potential_profit, 0)
 
 @lru_cache(maxsize=1024)
-def calculate_myopic_pool_desirability(stake, pledge, cost, margin, alpha, beta, total_stake):
-    current_profit = calculate_current_profit(stake, pledge, cost, alpha, beta, total_stake)
+def calculate_myopic_pool_desirability(margin, current_profit):
     return max((1 - margin) * current_profit, 0)
 
 @lru_cache(maxsize=1024)
@@ -625,3 +624,10 @@ def sort_pools(pool):
     # sort pools based on their desirability
     # break ties with potential profit and further ties with pool id
     return -pool.desirability, -pool.potential_profit, pool.id
+
+def sort_pools_myopic(pool):
+    if pool is None:
+        return 0, 0, 0
+    # sort pools based on their myopic desirability
+    # break ties with pool id
+    return -pool.myopic_desirability, pool.id
