@@ -146,7 +146,7 @@ class Simulation(Model):
         elif stake_distr_source == 'flat':
             # Distribute the total stake of the system evenly to all agents
             stake_distribution = hlp.generate_stake_distr_flat(num_agents=self.n, total_stake=self.n)#max(imposed_total_stake, 1))
-        elif stake_distr_source == 'disparate':
+        elif stake_distr_source == 'disparity':
             stake_distribution = hlp.generate_sake_distr_disparity(n=self.n)
         else:
             raise ValueError("Unsupported stake distribution source '{}'.".format(stake_distr_source))
@@ -154,6 +154,7 @@ class Simulation(Model):
 
         # Allocate cost to the agents, sampling from a uniform distribution
         #todo make cost distr configurable? allow reading from file maybe?
+        #cost_distribution = hlp.generate_cost_distr_disparity(n=self.n, low=cost_min, high=cost_max)
         cost_distribution = hlp.generate_cost_distr_unfrm(num_agents=self.n, low=cost_min, high=cost_max, seed=seed)
         #cost_distribution = hlp.generate_cost_distr_bands(num_agents=self.n, low=cost_min, high=cost_max, num_bands=1)
         #cost_distribution = hlp.generate_cost_distr_nrm(num_agents=self.n, low=cost_min, high=cost_max, mean=5e-6, stddev=5e-1)
@@ -301,7 +302,8 @@ class Simulation(Model):
         descriptors = {
             'Pool count': reporters.get_number_of_pools(self),
             'Operator count': reporters.get_operator_count(self),
-            'Nakamoto coefficient': reporters.get_nakamoto_coefficient(self)
+            'Nakamoto coefficient': reporters.get_nakamoto_coefficient(self),
+            'Total pledge': reporters.get_total_pledge(self)
         }
         filepath = self.directory / filename
         hlp.export_json_file(descriptors, filepath)

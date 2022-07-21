@@ -56,10 +56,18 @@ def generate_sake_distr_disparity(n, x=0.3, c=3):
     low_end_stake = (1 - x) / (n - c)
     stk_dstr.extend([high_end_stake for _ in range(c)])
     stk_dstr.extend([low_end_stake for _ in range(n-c)])
+
     print(sum(stk_dstr))
     print(max(stk_dstr))
     print(min(stk_dstr))
     return stk_dstr
+
+def generate_cost_distr_disparity(n, low, high, c=10):
+    costs = []
+    costs.extend([high for _ in range(c)])
+    costs.extend([low for _ in range(n-c)])
+    return costs
+
 
 def generate_stake_distr_pareto(num_agents, pareto_param=2, seed=156, truncation_factor=-1, total_stake=-1):
     """
@@ -612,7 +620,6 @@ def plot_margin_pools_heatmap(agent):
     filename = 'heatmap-round-' + str(agent.model.schedule.steps) + '-agent-' + str(agent.unique_id) + '.png'
     plt.savefig(agent.model.directory / filename, bbox_inches='tight')
     plt.close(fig)
-    #plt.tight_layout()
 
 def calculate_pool_splitting_profit(alpha, phi, cost, relative_stake):
     return (1 + alpha) * (1 - phi) * cost - TOTAL_EPOCH_REWARDS_R * relative_stake * alpha
