@@ -1,10 +1,4 @@
 # -*- coding: utf-8 -*-
-"""
-Created on Fri Jun 11 17:13:20 2021
-
-@author: chris
-"""
-
 class Strategy:
     __slots__ = ['owned_pools', 'stake_allocations']
 
@@ -15,4 +9,3 @@ class Strategy:
             stake_allocations = dict()
         self.stake_allocations = stake_allocations
         self.owned_pools = owned_pools
-
