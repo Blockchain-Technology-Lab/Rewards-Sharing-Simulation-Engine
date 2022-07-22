@@ -29,6 +29,8 @@ def main():
                         help='The k value of the system (natural number). Default is 10.')
     parser.add_argument('--alpha', nargs="+", type=float, default=0.3,
                         help='The alpha value of the system (decimal number between 0 and 1). Default is 0.3')
+    parser.add_argument('--myopic_fraction', nargs="+", type=float, default=0,
+                        help='The fraction of myopic agents in the simulation. Default is 0%%.')
     parser.add_argument('--abstention_rate', nargs="+", type=float, default=0,
                         help='The fraction of the total stake that remains inactive. Default is 0.')
     parser.add_argument('--pareto_param', nargs="+", type=float, default=2.0,

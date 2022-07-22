@@ -348,11 +348,11 @@ def calculate_myopic_pool_desirability(margin, current_profit):
     return max((1 - margin) * current_profit, 0)
 
 @lru_cache(maxsize=1024)
-def calculate_operator_utility_from_pool(non_myopic_pool_stake, pledge, margin, cost, alpha, beta, reward_function_option, total_stake):
-    relative_pool_stake = non_myopic_pool_stake / total_stake
+def calculate_operator_utility_from_pool(pool_stake, pledge, margin, cost, alpha, beta, reward_function_option, total_stake):
+    relative_pool_stake = pool_stake / total_stake
     relative_pledge = pledge / total_stake
     r = calculate_pool_reward(relative_pool_stake, relative_pledge, alpha, beta, reward_function_option, total_stake)
-    stake_fraction = pledge / non_myopic_pool_stake
+    stake_fraction = pledge / pool_stake
     return calculate_operator_reward_from_pool(pool_margin=margin, pool_cost=cost, pool_reward=r, operator_stake_fraction=stake_fraction)
 
 
