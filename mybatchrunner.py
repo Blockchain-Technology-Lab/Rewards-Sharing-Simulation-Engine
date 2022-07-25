@@ -79,6 +79,9 @@ class MyBatchRunner(BatchRunnerMP):
         if self.parameters_list:
             header = list(self.parameters_list[0].keys())
         row = [param for param in params][:len(header)]
+        header.append('Equilibrium reached')
+        equilibrium_reached = 'Yes' if model.has_converged() else 'No'
+        row.append(equilibrium_reached)
 
         if self.model_reporters:
             current_model_vars = self.collect_model_vars(model)
