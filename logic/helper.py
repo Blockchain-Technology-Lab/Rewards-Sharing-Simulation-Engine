@@ -283,7 +283,6 @@ def calculate_pool_stake_NM(pool, pool_rankings, beta, k):
     rank_in_top_k = pool_rankings.index(pool) < k #todo would it be faster to make list of ids and check for id?
     return calculate_pool_stake_NM_from_rank(pool_pledge=pool.pledge, pool_stake=pool.stake, beta=beta, rank_in_top_k=rank_in_top_k)
 
-#todo do I still need this?
 def calculate_ranks(ranking_dict, *tie_breaking_dicts, rank_ids=True):
     """
     Rank the values of a dictionary from highest to lowest (highest value gets rank 1, second highest rank 2 and so on)

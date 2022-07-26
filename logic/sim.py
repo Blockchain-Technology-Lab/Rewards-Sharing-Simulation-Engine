@@ -20,14 +20,6 @@ class Simulation(Model):
     Simulation of staking behaviour in Proof-of-Stake Blockchains.
     """
 
-    agent_activation_orders = { #todo move elsewhere
-        "Random": RandomActivation,
-        "Sequential": BaseScheduler,
-        "Simultaneous": SimultaneousActivation, # note that during simultaneous activation agents apply their moves sequentially which may not be the expected behaviour
-        "Semisimultaneous": SemiSimultaneousActivation
-
-    }
-
     #todo split into two classes? simulation (with max_iterations, steps_for_convergence etc) and system (with k, alpha, reward function option, etc)
     def __init__(self, n=1000, k=100, alpha=0.3, stake_distr_source='Pareto', myopic_fraction=0, abstention_rate=0,
                  abstention_known=False, relative_utility_threshold=0, absolute_utility_threshold=0,
@@ -102,7 +94,14 @@ class Simulation(Model):
             self.k = int(self.k / (1 - args['abstention_rate']))
 
         self.running = True  # for batch running and visualisation purposes
-        self.schedule = self.agent_activation_orders[self.agent_activation_order](self)
+        agent_activation_orders = {
+            "Random": RandomActivation,
+            "Sequential": BaseScheduler,
+            "Simultaneous": SimultaneousActivation,
+            # note that during simultaneous activation agents apply their moves sequentially which may not be the expected behaviour
+            "Semisimultaneous": SemiSimultaneousActivation
+        }
+        self.schedule = agent_activation_orders[self.agent_activation_order](self)
 
         total_stake = self.initialize_agents(args['cost_min'], args['cost_max'], args['pareto_param'], args['stake_distr_source'].lower(),
                                              imposed_total_stake=args['total_stake'], seed=seed)
@@ -120,7 +119,7 @@ class Simulation(Model):
         self.current_step_idle = True
         self.min_consecutive_idle_steps_for_convergence = max(min_steps_to_keep_pool + 1, args['steps_for_convergence'])
         self.pools = dict()
-        self.revision_frequency = 10  # defines how often active stake and expected #pools are revised #todo read from json file?
+        self.revision_frequency = 10  # defines how often agents revise their belief about the active stake and expected #pools
         self.initialise_pool_id_seq()  # initialise pool id sequence for the new model run
 
         self.pool_rankings = SortedList([None] * (self.k+1), key=hlp.sort_pools) # all pools ranked from best to worst non-myopically#todo do I need Nones?

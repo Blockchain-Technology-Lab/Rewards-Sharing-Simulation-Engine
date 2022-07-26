@@ -183,7 +183,6 @@ class Stakeholder(Agent):
         self.model.rewind_pool_id_seq(step=len(hypothetical_owned_pools - old_owned_pools))
 
     def calculate_current_utility(self):
-        #todo decide if I should compare utilities to current / myopic utility or to expected utility of current strategy
         utility = 0
         # Calculate current / myopic utility of operating own pools
         for pool in self.strategy.owned_pools.values():
@@ -210,7 +209,7 @@ class Stakeholder(Agent):
 
     def calculate_operator_utility_from_strategy(self, strategy):
         potential_pools = strategy.owned_pools.values()
-        temp_rankings = SortedList([pool for pool in self.model.pool_rankings if pool is not None and pool.owner != self.unique_id], key=hlp.sort_pools) #todo maybe mre efficient way to copy / slice sorted list
+        temp_rankings = SortedList([pool for pool in self.model.pool_rankings if pool is not None and pool.owner != self.unique_id], key=hlp.sort_pools) #todo maybe more efficient way to copy / slice sorted list
         temp_rankings.update(potential_pools)
 
         utility = 0
