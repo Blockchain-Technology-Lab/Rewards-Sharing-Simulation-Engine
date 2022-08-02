@@ -33,11 +33,13 @@ def main():
     parser.add_argument('--seed', default=None,
                         help='Seed for reproducibility. Default is None, which means that no seed is given.')
     parser.add_argument("--min_steps_to_keep_pool", type=int, default=0,
-                        help='The number of steps for which a agent remains idle after opening a pool. Default is 0.')
+                        help='The number of steps for which an agent remains idle after opening a pool. Default is 0.')
     parser.add_argument('--profile_distr', nargs="+", type=float, default=[1, 0, 0],
                         help='The probability distribution for assigning different profiles to the agents. Default is [1, 0, 0], i.e. 100%% non-myopic agents.')
-    parser.add_argument('--abstention_rate', type=float, default=0,
-                        help='The fraction of the total stake that remains inactive. Default is 0.')
+    parser.add_argument('--inactive_stake_fraction', type=float, default=0,
+                        help='The fraction of the total stake that remains inactive (does not belong to any of the agents). Default is 0.')
+    parser.add_argument('--inactive_stake_fraction_known', type=bool, default=False, action=argparse.BooleanOptionalAction,
+                        help='Is the inactive stake fraction of the system known beforehand? Default is no.')
     parser.add_argument('--pool_splitting', type=bool, default=True, action=argparse.BooleanOptionalAction,
                         help='Are individual agents allowed to create multiple pools? Default is yes.')
     parser.add_argument('--max_iterations', type=int, default=2000,
@@ -62,8 +64,6 @@ def main():
                         help='The list of ids that correspond to metrics that are tracked during the simulation. Default is [1,2,3]')
     parser.add_argument('--generate_graphs', type=bool, default=True, action=argparse.BooleanOptionalAction,
                         help='If True then the graphs are generated upon completion. Default is True.')
-    parser.add_argument('--abstention_known', type=bool, default=False, action=argparse.BooleanOptionalAction,
-                        help='Is the abstention rate of the system known beforehand? Default is no.')
     parser.add_argument('--pool_opening_process', type=str, default='local-search',
                         help='The heuristic to use for determining a pool strategy. Options: local-search (default), plus-one.')
 
@@ -77,9 +77,9 @@ def main():
         k=args.k,
         alpha=args.alpha,
         stake_distr_source=args.stake_distr_source,
-        myopic_fraction=args.myopic_fraction,
-        abstention_rate=args.abstention_rate,
-        abstention_known = args.abstention_known,
+        profile_distr=args.profile_distr,
+        inactive_stake_fraction=args.inactive_stake_fraction,
+        inactive_stake_fraction_known= args.inactive_stake_fraction_known,
         relative_utility_threshold=args.relative_utility_threshold,
         absolute_utility_threshold=args.absolute_utility_threshold,
         min_steps_to_keep_pool=args.min_steps_to_keep_pool,

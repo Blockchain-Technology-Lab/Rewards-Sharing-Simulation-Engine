@@ -31,8 +31,10 @@ def main():
                         help='The alpha value of the system (decimal number between 0 and 1). Default is 0.3')
     parser.add_argument('--profile_distr', nargs="+", type=float, default=[1, 0, 0],
                         help='The probability distribution for assigning different profiles to the agents. Default is [1, 0, 0], i.e. 100%% non-myopic agents.')
-    parser.add_argument('--abstention_rate', nargs="+", type=float, default=0,
-                        help='The fraction of the total stake that remains inactive. Default is 0.')
+    parser.add_argument('--inactive_stake_fraction', type=float, default=0,
+                        help='The fraction of the total stake that remains inactive (does not belong to any of the agents). Default is 0.')
+    parser.add_argument('--inactive_stake_fraction_known', type=bool, default=False, action=argparse.BooleanOptionalAction,
+                        help='Is the inactive stake fraction of the system known beforehand? Default is no.')
     parser.add_argument('--pareto_param', nargs="+", type=float, default=2.0,
                         help='The shape value of the Pareto distribution for the initial stake allocation.')
     parser.add_argument('--cost_min', nargs="+", type=float, default=1e-4,
@@ -51,8 +53,6 @@ def main():
                              '2 for alternative-1 and 3 for alternative-2.')
     parser.add_argument('--pool_splitting', type=bool, default=True, action=argparse.BooleanOptionalAction,
                         help='Are individual agents allowed to create multiple pools? Default is yes.')
-    parser.add_argument('--abstention_known', type=bool, default=False, action=argparse.BooleanOptionalAction,
-                        help='Is the abstention rate of the system known beforehand? Default is no.')
     parser.add_argument('--relative_utility_threshold', nargs="+", type=float, default=0,
                         help='The utility increase ratio under which moves are disregarded. Default is 0%%.')
     parser.add_argument('--absolute_utility_threshold', nargs="+", type=float, default=0,
@@ -109,7 +109,7 @@ def main():
         #"Min-aggregate pledge"
         ]
     additional_model_reporters['k'] = ["Pool count", "Pool homogeneity factor"] #"Statistical distance"
-    additional_model_reporters['abstention_rate'] = ["Pool count", "Pool homogeneity factor"] #"Statistical distance"
+    additional_model_reporters['inactive_stake_fraction'] = ["Pool count", "Pool homogeneity factor"] #"Statistical distance"
 
     current_additional_model_reporters = []
     for variable_param in variable_params:

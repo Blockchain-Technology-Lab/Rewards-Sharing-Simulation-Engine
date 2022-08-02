@@ -341,6 +341,14 @@ def calculate_operator_utility_from_pool(pool_stake, pledge, margin, cost, alpha
     stake_fraction = pledge / pool_stake
     return calculate_operator_reward_from_pool(pool_margin=margin, pool_cost=cost, pool_reward=r, operator_stake_fraction=stake_fraction)
 
+@lru_cache(maxsize=1024)
+def calculate_delegator_utility_from_pool(stake_allocation, pool_stake, pledge, margin, cost, alpha, beta, reward_function_option, total_stake):
+    relative_pool_stake = pool_stake / total_stake
+    relative_pledge = pledge / total_stake
+    r = calculate_pool_reward(relative_pool_stake, relative_pledge, alpha, beta, reward_function_option, total_stake)
+    stake_fraction = stake_allocation / pool_stake
+    return calculate_delegator_reward_from_pool(pool_margin=margin, pool_cost=cost, pool_reward=r, delegator_stake_fraction=stake_fraction)
+
 
 @lru_cache(maxsize=1024)
 def calculate_pool_stake_NM_from_rank(pool_pledge, pool_stake, beta, rank_in_top_k):

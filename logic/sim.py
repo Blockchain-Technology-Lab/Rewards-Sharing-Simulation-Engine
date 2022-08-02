@@ -22,8 +22,8 @@ class Simulation(Model):
     """
 
     #todo split into two classes? simulation (with max_iterations, steps_for_convergence etc) and system (with k, alpha, reward function option, etc)
-    def __init__(self, n=1000, k=100, alpha=0.3, stake_distr_source='Pareto', profile_distr=None, abstention_rate=0,
-                 abstention_known=False, relative_utility_threshold=0, absolute_utility_threshold=0,
+    def __init__(self, n=1000, k=100, alpha=0.3, stake_distr_source='Pareto', profile_distr=None, inactive_stake_fraction=0,
+                 inactive_stake_fraction_known=False, relative_utility_threshold=0, absolute_utility_threshold=0,
                  min_steps_to_keep_pool=0, pool_splitting=True, seed=None, pareto_param=2.0, max_iterations=1000,
                  cost_min=1e-4, cost_max=1e-3, cost_factor=0.4, agent_activation_order="Random", total_stake=-1,
                  steps_for_convergence=10, extra_cost_type='fixed_fraction', reward_function_option=0, execution_id='',
@@ -75,7 +75,7 @@ class Simulation(Model):
         extra_fields = ['n', 'k', 'alpha', 'relative_utility_threshold', 'absolute_utility_threshold',
                  'min_steps_to_keep_pool', 'pool_splitting', 'max_iterations', 'cost_factor', 'agent_activation_order',
                   'extra_cost_type', 'reward_function_option', 'generate_graphs', 'pool_opening_process']
-        adjustable_params = {} #todo define which args should not be saved as adjustable params (e.g. abstention rate)
+        adjustable_params = {} #todo define which args should not be saved as adjustable params (e.g. inactive_stake_fraction)
         for field in extra_fields:
             value = args[field]
             if isinstance(value, list):
@@ -91,13 +91,13 @@ class Simulation(Model):
         self.adjustable_params = adjustable_params
         self.k = int(self.k) #todo no need if I ensure that the args stay int
         self.n = int(self.n)
-        if args['abstention_known']:
-            # The system is aware of the abstention rate of the system, so it inflates k (and subsequently lowers beta)
+        if args['inactive_stake_fraction_known']: #todo what if there are also Abstainer agents? do I keep both? if yes, do I update the inactive_stake_fraction?
+            # The system is aware of the system's inactive stake fraction, so it inflates k (and subsequently lowers beta)
             # to make it possible to end up with the original desired number of pools
-            self.k = int(self.k / (1 - args['abstention_rate']))
+            self.k = int(self.k / (1 - args['inactive_stake_fraction']))
 
         self.running = True  # for batch running and visualisation purposes
-        agent_activation_orders = { 
+        agent_activation_orders = {
             "Random": RandomActivation,
             "Sequential": BaseScheduler,
             "Simultaneous": SimultaneousActivation,
@@ -106,10 +106,16 @@ class Simulation(Model):
         }
         self.schedule = agent_activation_orders[self.agent_activation_order](self)
 
+        # Initialize rankings of the system's pools
+        self.pool_rankings = SortedList([None] * (self.k + 1),
+                                        key=hlp.pool_comparison_key)  # all pools ranked from best to worst non-myopically#todo do I need Nones?
+        self.pool_rankings_myopic = SortedList([None] * (self.k + 1),
+                                               key=self.pool_comparison_key_myopic)  # all pools ranked from best to worst myopically
+
         total_stake = self.initialize_agents(args['profile_distr'], args['cost_min'], args['cost_max'],
                                              args['pareto_param'], args['stake_distr_source'].lower(),
                                              imposed_total_stake=args['total_stake'], seed=seed)
-        self.total_stake = total_stake / (1 - args['abstention_rate'])
+        self.total_stake = total_stake / (1 - args['inactive_stake_fraction'])
 
         if self.total_stake <= 0:
             raise ValueError('Total stake must be > 0')
@@ -125,9 +131,6 @@ class Simulation(Model):
         self.pools = dict()
         self.revision_frequency = 10  # defines how often agents revise their belief about the active stake and expected #pools
         self.initialise_pool_id_seq()  # initialise pool id sequence for the new model run
-
-        self.pool_rankings = SortedList([None] * (self.k+1), key=hlp.pool_comparison_key) # all pools ranked from best to worst non-myopically#todo do I need Nones?
-        self.pool_rankings_myopic = SortedList([None] * (self.k + 1), key=self.pool_comparison_key_myopic)  # all pools ranked from best to worst myopically
 
         # metrics to track at every step of the simulation
         model_reporters = {
@@ -163,7 +166,7 @@ class Simulation(Model):
         #cost_distribution = hlp.generate_cost_distr_nrm(num_agents=self.n, low=cost_min, high=cost_max, mean=5e-6, stddev=5e-1)
         #cost_distribution = hlp.generate_cost_distr_bands_manual(num_agents=self.n, low=cost_min, high=cost_max, num_bands=1)
 
-        agent_profiles = random.choices(list(profiles.profile_mapping.keys()), k=self.n, weights=profile_distr)
+        agent_profiles = self.random.choices(list(profiles.profile_mapping.keys()), k=self.n, weights=profile_distr)
         for i in range(self.n):
             agent_profile = agent_profiles[i]
             profile_class = profiles.profile_mapping[agent_profile]
@@ -387,7 +390,7 @@ class Simulation(Model):
                     self.k = int(self.k)
                     # update beta in case the value of k changes
                     self.beta = self.total_stake / self.k
-                    #todo if I care enough about it update k again in case of known abstention
+                    #todo if I care enough about it update k again in case of known inactive_stake_fraction
         if change_occured:
             self.pivot_steps.append(self.schedule.steps)
 

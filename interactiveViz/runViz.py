@@ -46,8 +46,8 @@ model_params = {
     "seed": UserSettableParameter(
         "number", "Random seed", 42, description="Seed for reproducibility"
     ),
-    "abstention_rate": UserSettableParameter(
-        "slider", "Abstention rate", 0.1, 0.0, 1.0, 0.01,
+    "inactive_stake_fraction": UserSettableParameter(
+        "slider", "Inactive stake fraction", 0.1, 0.0, 1.0, 0.01,
         description="The percentage of agents that will abstain from the game in this run."
     ),
     "pool_splitting": UserSettableParameter(

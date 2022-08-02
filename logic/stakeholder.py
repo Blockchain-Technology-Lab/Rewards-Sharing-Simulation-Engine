@@ -3,29 +3,24 @@ from mesa import Agent
 from copy import deepcopy
 import heapq
 import math
-from sortedcontainers import SortedList
 
 import logic.helper as hlp
 from logic.pool import Pool
 from logic.strategy import Strategy
 from logic.helper import MIN_STAKE_UNIT
 
-
+#todo move methods to children classes when necessary
 class Stakeholder(Agent):
 
-    def __init__(self, unique_id, model, stake, cost, is_myopic=False, is_abstainer=False, strategy=None):
+    def __init__(self, unique_id, model, stake, cost, strategy=None):
         super().__init__(unique_id, model)
         self.cost = cost  # the cost of running one pool for this agent
         self.stake = stake
-        self.isMyopic = is_myopic
-        self.abstains = is_abstainer #todo determine if still necessary with current definition of abstention rate
         self.remaining_min_steps_to_keep_pool = 0
         self.new_strategy = None
-
-        if not is_abstainer:
-            if strategy is None:
-                # Initialise strategy to an "empty" strategy for agents that don't abstain
-                strategy = Strategy()
+        if strategy is None:
+            # Initialise strategy to an "empty" strategy
+            strategy = Strategy()
         self.strategy = strategy
 
     def step(self):
@@ -39,17 +34,13 @@ class Stakeholder(Agent):
             # For agents that have recently opened a pool
             self.remaining_min_steps_to_keep_pool -= 1
 
-    def update_strategy(self):
-        if not self.abstains:
-            self.make_move()
-
     def advance(self):
         if self.new_strategy is not None:
             # The agent has changed their strategy, so now they have to execute it
             self.execute_strategy()
             self.model.current_step_idle = False
 
-    def make_move(self):
+    def update_strategy(self):
         current_utility = self.calculate_current_utility()
         current_move_expected_utility = self.calculate_expected_utility(self.strategy)
         augmented_current_move_utility = max(
@@ -67,13 +58,7 @@ class Stakeholder(Agent):
             delegator_strategy = self.find_delegation_move()
             delegator_utility = self.calculate_expected_utility(delegator_strategy)
             possible_moves["delegator"] = delegator_utility, delegator_strategy
-        if self.model.pool_opening_process == 'plus-one':
-            if len(self.strategy.owned_pools) > 0 or self.has_potential_for_pool():
-                # agent is considering opening a pool, so he has to find the most suitable pool params
-                # and calculate the potential utility of operating a pool with these params
-                possible_moves["operator"] = self.choose_pool_strategy_plus_one()
-        elif self.model.pool_opening_process == 'local-search':
-            pool_strategy = self.choose_pool_strategy_local_search()
+            pool_strategy = self.choose_pool_strategy()
             if pool_strategy[1] is not None:
                 possible_moves["operator"] = pool_strategy
         else:
@@ -88,19 +73,40 @@ class Stakeholder(Agent):
             hlp.plot_margin_pools_heatmap(self)'''
         self.new_strategy = None if max_utility_option == "current" else possible_moves[max_utility_option][1]
 
-    def choose_pool_strategy_plus_one(self):
-        operator_strategies = self.find_operator_moves()
-        max_operator_utility = 0
-        max_operator_strategy = None
-        for num_pools in sorted(operator_strategies.keys()):
-            operator_strategy = operator_strategies[num_pools]
-            operator_utility = self.calculate_expected_utility(operator_strategy)
-            if operator_utility > max_operator_utility:
-                max_operator_utility = operator_utility
-                max_operator_strategy = operator_strategy
-        return max_operator_utility, max_operator_strategy
 
-    def choose_pool_strategy_local_search(self):
+    def discard_draft_pools(self, operator_strategy):
+        # todo problem: if there are many different pool strategies developed, should we discard drafts from all of them?
+        # Discard the pool ids that were used for the hypothetical operator move
+        old_owned_pools = set(self.strategy.owned_pools.keys())
+        hypothetical_owned_pools = set(operator_strategy.owned_pools.keys())
+        self.model.rewind_pool_id_seq(step=len(hypothetical_owned_pools - old_owned_pools))
+
+    def calculate_current_utility(self):
+        utility = 0
+        # Calculate current (not expected) utility of operating own pools
+        for pool in self.strategy.owned_pools.values():
+            utility += hlp.calculate_operator_utility_from_pool(pool_stake=pool.stake, pledge=pool.pledge, margin=pool.margin,
+                                                                    cost=pool.cost, alpha=self.model.alpha, beta=self.model.beta, reward_function_option=self.model.reward_function_option, total_stake= self.model.total_stake)
+        for pool_id, a in self.strategy.stake_allocations.items():
+            utility += self.calculate_delegator_utility_from_pool(self.model.pools[pool_id], a)
+        return utility
+
+    def calculate_expected_utility(self, strategy):
+        utility = 0
+
+        # Calculate expected utility of operating own pools
+        if len(strategy.owned_pools) > 0:
+            utility += self.calculate_operator_utility_from_strategy(strategy)
+
+        # Calculate expected utility of delegating to other pools
+        pools = self.model.pools
+        for pool_id, a in strategy.stake_allocations.items():
+            if pool_id in pools:
+                pool = pools[pool_id]
+                utility += self.calculate_delegator_utility_from_pool(pool, a)
+        return utility
+
+    def choose_pool_strategy(self):
         """
         Find a suitable pool operation strategy by using the following process:
             - Start with an arbitrary number of pools t (we set this to (k+1)/2)
@@ -141,6 +147,7 @@ class Stakeholder(Agent):
             utility = self.calculate_expected_utility(strategy) # recalculating utility to account for possible delegations
         return utility, strategy
 
+
     def calculate_margins_and_utility(self, num_pools):
         cost_per_pool = hlp.calculate_cost_per_pool(num_pools, self.cost, self.model.cost_factor)
         pledge_per_pool = hlp.determine_pledge_per_pool(self.stake, self.model.beta, num_pools)
@@ -150,9 +157,8 @@ class Stakeholder(Agent):
         boost = 1e-6  # to ensure that the new desirability will be higher than the target one #todo tune boost
         margins = [] # note that pools by the same agent may end up with different margins  because of the different pools they aim to outperform
         utility = 0
-        rankings = self.model.pool_rankings if not self.isMyopic else self.model.pool_rankings_myopic
         for t in range(1, num_pools+1):
-            target_pool = rankings[self.model.k - t] #todo what if that's own pool???
+            target_pool = self.rankings[self.model.k - t] #todo what if that's own pool???
             target_desirability, target_pp =  (target_pool.desirability, target_pool.potential_profit) if target_pool is not None else (0, 0)
             target_desirability += boost
             if potential_profit_per_pool < target_desirability:
@@ -176,113 +182,6 @@ class Stakeholder(Agent):
                                                                     total_stake=self.model.total_stake)
         return margins, utility
 
-    def discard_draft_pools(self, operator_strategy):
-        # todo problem: if there are many different pool strategies developed, should we discard drafts from all of them?
-        # Discard the pool ids that were used for the hypothetical operator move
-        old_owned_pools = set(self.strategy.owned_pools.keys())
-        hypothetical_owned_pools = set(operator_strategy.owned_pools.keys())
-        self.model.rewind_pool_id_seq(step=len(hypothetical_owned_pools - old_owned_pools))
-
-    def calculate_current_utility(self):
-        utility = 0
-        # Calculate current / myopic utility of operating own pools
-        for pool in self.strategy.owned_pools.values():
-            utility += hlp.calculate_operator_utility_from_pool(pool_stake=pool.stake, pledge=pool.pledge, margin=pool.margin,
-                                                                    cost=pool.cost, alpha=self.model.alpha, beta=self.model.beta, reward_function_option=self.model.reward_function_option, total_stake= self.model.total_stake)
-        for pool_id, a in self.strategy.stake_allocations.items():
-            utility += self.calculate_delegator_utility_from_pool(self.model.pools[pool_id], a)
-        return utility
-
-    def calculate_expected_utility(self, strategy):
-        utility = 0
-
-        # Calculate expected utility of operating own pools
-        if len(strategy.owned_pools) > 0:
-            utility += self.calculate_operator_utility_from_strategy(strategy)
-
-        # Calculate expected utility of delegating to other pools
-        pools = self.model.pools
-        for pool_id, a in strategy.stake_allocations.items():
-            if pool_id in pools:
-                pool = pools[pool_id]
-                utility += self.calculate_delegator_utility_from_pool(pool, a)
-        return utility
-
-    def calculate_operator_utility_from_strategy(self, strategy):
-        potential_pools = strategy.owned_pools.values()
-        temp_rankings = SortedList([pool for pool in self.model.pool_rankings if pool is not None and pool.owner != self.unique_id], key=hlp.pool_comparison_key) #todo maybe more efficient way to copy / slice sorted list
-        temp_rankings.update(potential_pools)
-
-        utility = 0
-        for pool in potential_pools:
-            pool_utility = self.calculate_operator_utility_from_pool(pool, temp_rankings)
-            utility += pool_utility
-        return utility
-
-    def calculate_operator_utility_from_pool(self, pool, all_pool_rankings):
-        pool_stake_nm = hlp.calculate_pool_stake_NM(
-            pool,
-            all_pool_rankings,
-            self.model.beta,
-            self.model.k
-        )
-
-        return hlp.calculate_operator_utility_from_pool(pool_stake=pool_stake_nm, pledge=pool.pledge, margin=pool.margin,
-                                                        cost=pool.cost, alpha=self.model.alpha, beta=self.model.beta, reward_function_option=self.model.reward_function_option, total_stake= self.model.total_stake)
-
-    def calculate_delegator_utility_from_pool(self, pool, stake_allocation):
-        alpha = self.model.alpha
-        beta = self.model.beta
-
-        previous_allocation_to_pool = self.strategy.stake_allocations[pool.id] \
-            if pool.id in self.strategy.stake_allocations else 0
-        current_stake = pool.stake - previous_allocation_to_pool + stake_allocation
-        pool_stake = current_stake if self.isMyopic else max(
-            hlp.calculate_pool_stake_NM(
-                pool,
-                self.model.pool_rankings,
-                self.model.beta,
-                self.model.k
-            ),
-            current_stake
-        )
-        relative_pool_stake = pool_stake / self.model.total_stake
-        relative_pledge = pool.pledge / self.model.total_stake
-        r = hlp.calculate_pool_reward(relative_pool_stake, relative_pledge, alpha, beta, self.model.reward_function_option, self.model.total_stake)
-
-        q = stake_allocation / pool_stake
-        return hlp.calculate_delegator_reward_from_pool(pool_margin=pool.margin, pool_cost=pool.cost, pool_reward=r, delegator_stake_fraction=q)
-
-    def has_potential_for_pool(self):
-        """
-        Determine whether the agent is at a good position to open a pool, using the following rules:
-        If the current pools are not enough to cover the total active stake of the system without getting oversaturated
-        then having a positive potential profit is a necessary and sufficient condition for a agent to open a pool
-        (as it means that there is stake that is forced to remain undelegated
-        or delegated to an oversaturated pool that yields suboptimal rewards)
-        Note that the total active stake is estimated by the stakeholders at predetermined intervals and may not be
-        100% accurate
-
-        If there are enough pools to cover all active agents' stake without causing oversaturation,
-        then the agent only opens a pool if the maximum possible desirability of their pool
-        (aka the potential profit) is higher than the desirability of at least one currently active pool
-        (with the perspective of "stealing" the delegators from that pool)
-
-        :return: bool true if the agent has potential to open pool based on the above rules, false otherwise
-        """
-        saturation_point = self.model.beta
-        alpha = self.model.alpha
-        current_pools = self.model.get_pools_list()
-
-        potential_profit = hlp.calculate_potential_profit(self.stake, self.cost, alpha, saturation_point, self.model.reward_function_option, self.model.total_stake)
-        if len(current_pools) * saturation_point < self.model.perceived_active_stake:  # note that we use active stake instead of total stake
-            return potential_profit > 0
-
-        existing_desirabilities = [pool.desirability for pool in current_pools]
-        # Note that the potential profit is equal to the desirability of a pool with 0 margin,
-        # so, effectively, the agent is comparing his best-case desirability with the desirabilities of the current pools
-        return potential_profit > 0 and any(desirability < potential_profit for desirability in existing_desirabilities)
-
     def calculate_margin(self, pool): #todo add test
         """
         The agent ranks all existing pools based on their potential
@@ -293,7 +192,7 @@ class Stakeholder(Agent):
         if pool.is_private:
             return 0
 
-        reference_pool = self.model.pool_rankings[self.model.k-1]
+        reference_pool = self.rankings[self.model.k-1]
         reference_potential_profit = reference_pool.potential_profit if reference_pool is not None else 0
         margin = max(1 - (reference_potential_profit / pool.potential_profit), 0)
         return margin
@@ -389,10 +288,9 @@ class Stakeholder(Agent):
         """
         all_pools_dict = self.model.pools
         saturation_point = self.model.beta
-        pool_rankings = self.model.pool_rankings if not self.isMyopic else self.model.pool_rankings_myopic
         eligible_pools_ranked = [
             pool
-            for pool in pool_rankings
+            for pool in self.rankings
             if pool is not None and pool.owner != self.unique_id and not pool.is_private
         ]
         # Only proceed if there are public pools in the system that don't belong to the current agent
@@ -520,7 +418,6 @@ class Stakeholder(Agent):
             agent.strategy.stake_allocations.pop(pool.id)
             pool.update_delegation(new_delegation=0, delegator_id=agent_id)
 
-
         # Also remove pool from agents' upcoming moves in case of (semi)simultaneous activation
         if "simultaneous" in self.model.agent_activation_order.lower():
             for agent in agents.values():  # todo alternatively save potential delegators somewhere so that we don't go through the whole list of agents here
@@ -528,6 +425,6 @@ class Stakeholder(Agent):
                     agent.new_strategy.stake_allocations.pop(pool.id, None)
 
     def get_status(self):
-        print("Agent id: {}, is myopic: {}, stake: {}, cost:{}"
-              .format(self.unique_id, self.isMyopic, self.stake, self.cost))
+        print("Agent id: {}, stake: {}, cost:{}"
+              .format(self.unique_id, self.stake, self.cost))
         print("\n")

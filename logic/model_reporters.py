@@ -100,7 +100,6 @@ def get_controlled_stake_distr_stat_dist(model):
     active_agents = {
         agent_id: agent
         for agent_id, agent in model.get_agents_dict().items()
-        if not agent.abstains
     }
     pools = model.get_pools_list()
     if len(pools) == 0:
@@ -131,7 +130,7 @@ def get_nakamoto_coefficient(model):
     :return: the number of agents that control more than 50% of the total active stake through their pools
     """
     agents = model.get_agents_dict()
-    active_agents = {agent_id: agents[agent_id] for agent_id in agents if not agents[agent_id].abstains}
+    active_agents = {agent_id: agents[agent_id] for agent_id in agents}
     try:
         pools = model.get_pools_list()
     except AttributeError:
