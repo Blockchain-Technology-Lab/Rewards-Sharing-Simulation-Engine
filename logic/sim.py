@@ -14,6 +14,7 @@ from logic.stakeholder import Stakeholder
 from logic.activations import SemiSimultaneousActivation
 import logic.helper as hlp
 import logic.model_reporters as reporters
+import logic.stakeholder_profiles as profiles
 
 class Simulation(Model):
     """
@@ -21,7 +22,7 @@ class Simulation(Model):
     """
 
     #todo split into two classes? simulation (with max_iterations, steps_for_convergence etc) and system (with k, alpha, reward function option, etc)
-    def __init__(self, n=1000, k=100, alpha=0.3, stake_distr_source='Pareto', myopic_fraction=0, abstention_rate=0,
+    def __init__(self, n=1000, k=100, alpha=0.3, stake_distr_source='Pareto', profile_distr=None, abstention_rate=0,
                  abstention_known=False, relative_utility_threshold=0, absolute_utility_threshold=0,
                  min_steps_to_keep_pool=0, pool_splitting=True, seed=None, pareto_param=2.0, max_iterations=1000,
                  cost_min=1e-4, cost_max=1e-3, cost_factor=0.4, agent_activation_order="Random", total_stake=-1,
@@ -40,6 +41,8 @@ class Simulation(Model):
             args.pop('args')
         if args['metrics'] is None:
             args['metrics'] = [1, 2, 4, 6, 17, 18, 26, 27, 28, 29, 30, 3]
+        if args['profile_distr'] is None:
+            args['profile_distr'] = [1, 0, 0]
 
         seed = args['seed']
         if seed is None or seed == 'None':
@@ -69,7 +72,7 @@ class Simulation(Model):
         self.current_era = 0
         total_eras = 1
 
-        extra_fields = ['n', 'k', 'alpha', 'myopic_fraction', 'relative_utility_threshold', 'absolute_utility_threshold',
+        extra_fields = ['n', 'k', 'alpha', 'relative_utility_threshold', 'absolute_utility_threshold',
                  'min_steps_to_keep_pool', 'pool_splitting', 'max_iterations', 'cost_factor', 'agent_activation_order',
                   'extra_cost_type', 'reward_function_option', 'generate_graphs', 'pool_opening_process']
         adjustable_params = {} #todo define which args should not be saved as adjustable params (e.g. abstention rate)
@@ -94,7 +97,7 @@ class Simulation(Model):
             self.k = int(self.k / (1 - args['abstention_rate']))
 
         self.running = True  # for batch running and visualisation purposes
-        agent_activation_orders = {
+        agent_activation_orders = { 
             "Random": RandomActivation,
             "Sequential": BaseScheduler,
             "Simultaneous": SimultaneousActivation,
@@ -103,7 +106,8 @@ class Simulation(Model):
         }
         self.schedule = agent_activation_orders[self.agent_activation_order](self)
 
-        total_stake = self.initialize_agents(args['cost_min'], args['cost_max'], args['pareto_param'], args['stake_distr_source'].lower(),
+        total_stake = self.initialize_agents(args['profile_distr'], args['cost_min'], args['cost_max'],
+                                             args['pareto_param'], args['stake_distr_source'].lower(),
                                              imposed_total_stake=args['total_stake'], seed=seed)
         self.total_stake = total_stake / (1 - args['abstention_rate'])
 
@@ -135,7 +139,7 @@ class Simulation(Model):
         self.equilibrium_steps = []
         self.pivot_steps = []
 
-    def initialize_agents(self, cost_min, cost_max, pareto_param, stake_distr_source, imposed_total_stake, seed):
+    def initialize_agents(self, profile_distr, cost_min, cost_max, pareto_param, stake_distr_source, imposed_total_stake, seed):
         if stake_distr_source == 'file':
             stake_distribution = hlp.read_stake_distr_from_file(num_agents=self.n)
         elif stake_distr_source == 'pareto':
@@ -159,18 +163,15 @@ class Simulation(Model):
         #cost_distribution = hlp.generate_cost_distr_nrm(num_agents=self.n, low=cost_min, high=cost_max, mean=5e-6, stddev=5e-1)
         #cost_distribution = hlp.generate_cost_distr_bands_manual(num_agents=self.n, low=cost_min, high=cost_max, num_bands=1)
 
-        num_myopic_agents = int(self.myopic_fraction * self.n)
-        unique_ids = [i for i in range(self.n)]
-        #self.random.shuffle(unique_ids)
-        # Create agents
-        for i, unique_id in enumerate(unique_ids):
-            agent = Stakeholder(
-                unique_id=unique_id,
+        agent_profiles = random.choices(list(profiles.profile_mapping.keys()), k=self.n, weights=profile_distr)
+        for i in range(self.n):
+            agent_profile = agent_profiles[i]
+            profile_class = profiles.profile_mapping[agent_profile]
+            agent = profile_class(
+                unique_id=i,
                 model=self,
-                is_abstainer=False,
-                is_myopic=(i < num_myopic_agents),
-                cost=cost_distribution[i],
-                stake=stake_distribution[i]
+                stake=stake_distribution[i],
+                cost=cost_distribution[i]
             )
             self.schedule.add(agent)
         return total_stake

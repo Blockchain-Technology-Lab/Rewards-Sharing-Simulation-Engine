@@ -14,7 +14,7 @@ import logic.helper as hlp
 
 def main():
     # single value for fixed params and [lower_bound, upper_bound, step] for variable params
-    # note: there needs to be at least one variable parameter
+    # note: there needs to be at least one variable parameter when using batch run
     parser = argparse.ArgumentParser(description='Pooling Games Batch Run')
     parser.add_argument('--execution_id', type=str, default='unnamed-batch-run',
                         help='The identifier of this execution, to be used for naming the output files.')
@@ -29,8 +29,8 @@ def main():
                         help='The k value of the system (natural number). Default is 10.')
     parser.add_argument('--alpha', nargs="+", type=float, default=0.3,
                         help='The alpha value of the system (decimal number between 0 and 1). Default is 0.3')
-    parser.add_argument('--myopic_fraction', nargs="+", type=float, default=0,
-                        help='The fraction of myopic agents in the simulation. Default is 0%%.')
+    parser.add_argument('--profile_distr', nargs="+", type=float, default=[1, 0, 0],
+                        help='The probability distribution for assigning different profiles to the agents. Default is [1, 0, 0], i.e. 100%% non-myopic agents.')
     parser.add_argument('--abstention_rate', nargs="+", type=float, default=0,
                         help='The fraction of the total stake that remains inactive. Default is 0.')
     parser.add_argument('--pareto_param', nargs="+", type=float, default=2.0,
@@ -83,6 +83,7 @@ def main():
                 else:
                     scale_factor = 1e6
                     int_range = [int(v * scale_factor) for v in arg_values]
+                    #todo this is the reason why some ints turn to floats (e.g. k, n)
                     variable_params[arg_name] = [v / scale_factor for v in range(int_range[0], int_range[1], int_range[2])]
             else:
                 fixed_params[arg_name] = arg_values[0]

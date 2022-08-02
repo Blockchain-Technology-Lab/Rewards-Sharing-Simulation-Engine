@@ -34,8 +34,8 @@ def main():
                         help='Seed for reproducibility. Default is None, which means that no seed is given.')
     parser.add_argument("--min_steps_to_keep_pool", type=int, default=0,
                         help='The number of steps for which a agent remains idle after opening a pool. Default is 0.')
-    parser.add_argument('--myopic_fraction', nargs="+", type=float, default=0,
-                        help='The fraction of myopic agents in the simulation. Default is 0%%.')
+    parser.add_argument('--profile_distr', nargs="+", type=float, default=[1, 0, 0],
+                        help='The probability distribution for assigning different profiles to the agents. Default is [1, 0, 0], i.e. 100%% non-myopic agents.')
     parser.add_argument('--abstention_rate', type=float, default=0,
                         help='The fraction of the total stake that remains inactive. Default is 0.')
     parser.add_argument('--pool_splitting', type=bool, default=True, action=argparse.BooleanOptionalAction,
