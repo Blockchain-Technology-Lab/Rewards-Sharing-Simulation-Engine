@@ -186,35 +186,44 @@ def calculate_current_profit(stake, pledge, cost, alpha, beta, reward_function_o
 def calculate_pool_reward(relative_stake, relative_pledge, alpha, beta, reward_function_option, total_stake, curve_root=3, crossover_factor=8):
     beta = beta / total_stake
     if reward_function_option == 0:
-        return calculate_pool_reward_old(relative_stake, relative_pledge, alpha, beta)
+        return calculate_pool_reward_original(relative_stake, relative_pledge, alpha, beta)
     elif reward_function_option == 1:
-        return calculate_pool_reward_new(relative_stake, relative_pledge, alpha, beta)
+        return calculate_pool_reward_simplified(relative_stake, relative_pledge, alpha, beta)
     elif reward_function_option == 2:
         return calculate_pool_reward_flat_pledge_benefit(relative_stake, relative_pledge, alpha, beta)
     elif reward_function_option == 3:
         return calculate_pool_reward_new_sqrt(relative_stake, relative_pledge, alpha, beta)
     elif reward_function_option == 4:
         return calculate_pool_reward_curve_pledge_benefit(relative_stake, relative_pledge, alpha, beta, curve_root, crossover_factor, total_stake)
-    elif reward_function_option == 5:
-        return calculate_pool_reward_curve_pledge_benefit_min_first(relative_stake, relative_pledge, alpha, beta, curve_root, crossover_factor)
-    elif reward_function_option == 6:
-        return calculate_pool_reward_curve_pledge_benefit_no_min(relative_stake, relative_pledge, alpha, beta, curve_root, crossover_factor)
-    elif reward_function_option == 7:
-        return calculate_pool_reward_CIP_50(relative_stake, relative_pledge, beta, L=alpha)
     else:
         raise ValueError("Invalid option for reward function.")
 
-#todo change names
-def calculate_pool_reward_old(relative_stake, relative_pledge, alpha, relative_beta):
+def calculate_pool_reward_original(relative_stake, relative_pledge, alpha, relative_beta):
+    """
+    Caclulate a pool's reward based on the original reward scheme of Cardano
+    @param relative_stake: the stake of the pool as a fraction of the total stake of the system
+    @param relative_pledge: the pledge of the pool as a fraction of the total stake of the system
+    @param alpha: the pledge influence parameter of the reward sharing scheme
+    @param relative_beta: the saturation threshold of the pool as a fraction of the total stake of the system
+    @return: the reward that the pool will receive as a fraction of the total available rewards
+    """
     pledge_ = min(relative_pledge, relative_beta)
     stake_ = min(relative_stake, relative_beta)
     r = (TOTAL_EPOCH_REWARDS_R / (1 + alpha)) * (stake_ + (pledge_ * alpha * ((stake_ - pledge_ * (1 - stake_ / relative_beta)) / relative_beta)))
     return r
 
-def calculate_pool_reward_new(relative_stake, relative_pledge, alpha, beta):
-    pledge_ = min(relative_pledge, beta)
-    stake_ = min(relative_stake, beta)
-    r = (TOTAL_EPOCH_REWARDS_R / (1 + alpha)) * stake_ * (1 + (alpha * pledge_ / beta))
+def calculate_pool_reward_simplified(relative_stake, relative_pledge, alpha, relative_beta):
+    """
+    Caclulate a pool's reward based on a simplification of the original reward scheme of Cardano
+    @param relative_stake: the stake of the pool as a fraction of the total stake of the system
+    @param relative_pledge: the pledge of the pool as a fraction of the total stake of the system
+    @param alpha: the pledge influence parameter of the reward sharing scheme
+    @param relative_beta: the saturation threshold of the pool as a fraction of the total stake of the system
+    @return: the reward that the pool will receive as a fraction of the total available rewards
+    """
+    pledge_ = min(relative_pledge, relative_beta)
+    stake_ = min(relative_stake, relative_beta)
+    r = (TOTAL_EPOCH_REWARDS_R / (1 + alpha)) * stake_ * (1 + (alpha * pledge_ / relative_beta))
     return r
 
 def calculate_pool_reward_flat_pledge_benefit(relative_stake, relative_pledge, alpha, beta):
@@ -234,29 +243,7 @@ def calculate_pool_reward_curve_pledge_benefit(relative_stake, relative_pledge, 
     crossover = relative_beta * total_stake / crossover_factor
     pledge = relative_pledge * total_stake
     pledge_factor = (pledge ** (1 / curve_root)) * (crossover ** ((curve_root - 1) / curve_root)) / total_stake
-    return calculate_pool_reward_old(relative_stake, pledge_factor, alpha, relative_beta)
-
-def calculate_pool_reward_curve_pledge_benefit_min_first(relative_stake, relative_pledge, alpha, beta, curve_root, crossover_factor):
-    crossover = beta / crossover_factor
-    pledge = min(relative_pledge, beta)
-    pledge_ = (pledge ** (1 / curve_root)) * (crossover ** ((curve_root - 1) / curve_root))
-    stake_ = min(relative_stake, beta)
-    r = (TOTAL_EPOCH_REWARDS_R / (1 + alpha)) * (
-                stake_ + (pledge_ * alpha * ((stake_ - pledge_ * (1 - stake_ / beta)) / beta)))
-    return r
-
-def calculate_pool_reward_curve_pledge_benefit_no_min(relative_stake, relative_pledge, alpha, beta, curve_root, crossover_factor):
-    crossover = beta / crossover_factor
-    pledge_ = (relative_pledge ** (1 / curve_root)) * (crossover ** ((curve_root - 1) / curve_root))
-    stake_ = min(relative_stake, beta)
-    r = (TOTAL_EPOCH_REWARDS_R / (1 + alpha)) * (
-                stake_ + (pledge_ * alpha * ((stake_ - pledge_ * (1 - stake_ / beta)) / beta)))
-    return r
-
-def calculate_pool_reward_CIP_50(relative_stake, relative_pledge, beta, L=100):
-    pledge_factor = L * relative_pledge
-    r = TOTAL_EPOCH_REWARDS_R * min(relative_stake, pledge_factor, beta)
-    return r
+    return calculate_pool_reward_original(relative_stake, pledge_factor, alpha, relative_beta)
 
 @lru_cache(maxsize=1024)
 def calculate_delegator_reward_from_pool(pool_margin, pool_cost, pool_reward, delegator_stake_fraction):
@@ -527,17 +514,12 @@ def plot_aggregate_data_heatmap(df, variables, model_reporters, output_dir):
         df_.set_index(variables, inplace=True)
         unstacked_df = df_[reporter].unstack(level=0)
 
-        cbar_kws = {"orientation": "vertical",
-                    # "shrink":1,
-                    'extend': 'max',
-                    # 'extendfrac':0.1,
-                    # "ticks":np.arange(min_NC+1, initial_NC+1, step),
-                    # "drawedges":True,
-                    "label": reporter
-                    }
-
+        cbar_kws = {
+            "orientation": "vertical",
+            'extend': 'max',
+            "label": reporter
+            }
         ax = sns.heatmap(unstacked_df, annot=True, annot_kws={"size": 12}, fmt='g', cbar_kws=cbar_kws, cmap='flare')
-
         ax.invert_yaxis()
         labels = [item.get_text() for item in ax.get_yticklabels()]
         ax.set_yticklabels([str(round(float(label), 4)) for label in labels])
@@ -546,9 +528,9 @@ def plot_aggregate_data_heatmap(df, variables, model_reporters, output_dir):
         plt.savefig(path / filename, bbox_inches='tight')
         plt.close(fig)
 
-
-    def convert_currency(dollar_value, ada_price):
-        return dollar_value / ada_price
+#todo add exchange rate functionality
+def convert_currency(dollar_value, ada_price):
+    return dollar_value / ada_price
 
 def utility_from_profitable_pool(r, c, l, b, m):
     return l / b * (r - c) * (1 - m) + m * (r - c)
@@ -617,16 +599,12 @@ def plot_margin_pools_heatmap(agent):
 def calculate_pool_splitting_profit(alpha, phi, cost, relative_stake):
     return (1 + alpha) * (1 - phi) * cost - TOTAL_EPOCH_REWARDS_R * relative_stake * alpha
 
-def sort_pools(pool):
+def pool_comparison_key(pool):
+    """
+    Sort pools based on their desirability, so that the pool with the highest desirability is first
+    break ties with potential profit and further ties with pool id
+    """
     if pool is None:
         return 0, 0, 0
-    # sort pools based on their desirability
-    # break ties with potential profit and further ties with pool id
     return -pool.desirability, -pool.potential_profit, pool.id
 
-def sort_pools_myopic(pool):
-    if pool is None:
-        return 0, 0, 0
-    # sort pools based on their myopic desirability
-    # break ties with pool id
-    return -pool.myopic_desirability, pool.id

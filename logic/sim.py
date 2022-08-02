@@ -86,7 +86,7 @@ class Simulation(Model):
 
         self.total_eras = total_eras
         self.adjustable_params = adjustable_params
-        self.k = int(self.k) #todo could be done in one step for all int variables above?
+        self.k = int(self.k) #todo no need if I ensure that the args stay int
         self.n = int(self.n)
         if args['abstention_known']:
             # The system is aware of the abstention rate of the system, so it inflates k (and subsequently lowers beta)
@@ -122,8 +122,8 @@ class Simulation(Model):
         self.revision_frequency = 10  # defines how often agents revise their belief about the active stake and expected #pools
         self.initialise_pool_id_seq()  # initialise pool id sequence for the new model run
 
-        self.pool_rankings = SortedList([None] * (self.k+1), key=hlp.sort_pools) # all pools ranked from best to worst non-myopically#todo do I need Nones?
-        self.pool_rankings_myopic = SortedList([None] * (self.k + 1), key=hlp.sort_pools_myopic)  # all pools ranked from best to worst myopically
+        self.pool_rankings = SortedList([None] * (self.k+1), key=hlp.pool_comparison_key) # all pools ranked from best to worst non-myopically#todo do I need Nones?
+        self.pool_rankings_myopic = SortedList([None] * (self.k + 1), key=self.pool_comparison_key_myopic)  # all pools ranked from best to worst myopically
 
         # metrics to track at every step of the simulation
         model_reporters = {
@@ -402,3 +402,12 @@ class Simulation(Model):
         if self.generate_graphs:
             self.export_graphs()
 
+    def pool_comparison_key_myopic(self, pool):
+        if pool is None:
+            return 0, 0, 0
+        # sort pools based on their myopic desirability
+        # break ties with pool id
+        current_profit = hlp.calculate_current_profit(pool.stake, pool.pledge, pool.cost, self.alpha, self.beta,
+                                                  self.reward_function_option, self.total_stake)
+        myopic_desirability = hlp.calculate_myopic_pool_desirability(pool.margin, current_profit)
+        return -myopic_desirability, pool.id

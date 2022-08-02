@@ -214,7 +214,7 @@ def test_calculate_pool_stake_nm():
                    reward_function_option=reward_func, total_stake=total_stake, margin=0.2)
     pools[11] = pool_11
     ranks = list(pools.values())
-    ranks.sort(key=hlp.sort_pools)
+    ranks.sort(key=hlp.pool_comparison_key)
     pool_stake_nm = hlp.calculate_pool_stake_NM(pool=pool_11, pool_rankings=ranks, beta=beta, k=k)
     assert pool_stake_nm == 0.001
 
@@ -223,7 +223,7 @@ def test_calculate_pool_stake_nm():
                    reward_function_option=reward_func, total_stake=total_stake, margin=0)
     pools[11] = pool_11
     ranks = list(pools.values())
-    ranks.sort(key=hlp.sort_pools)
+    ranks.sort(key=hlp.pool_comparison_key)
     pool_stake_nm = hlp.calculate_pool_stake_NM(pool=pool_11, pool_rankings=ranks, beta=beta, k=k)
     assert pool_stake_nm == 0.1
 
@@ -232,7 +232,7 @@ def test_calculate_pool_stake_nm():
                    reward_function_option=reward_func, total_stake=total_stake, margin=0)
     pools[11] = pool_11
     ranks = list(pools.values())
-    ranks.sort(key=hlp.sort_pools)
+    ranks.sort(key=hlp.pool_comparison_key)
     pool_stake_nm = hlp.calculate_pool_stake_NM(pool=pool_11, pool_rankings=ranks, beta=beta, k=k)
     assert pool_stake_nm == 0.2
 
@@ -241,7 +241,7 @@ def test_calculate_pool_stake_nm():
                    reward_function_option=reward_func, total_stake=total_stake, margin=0)
     pools[11] = pool_11
     ranks = list(pools.values())
-    ranks.sort(key=hlp.sort_pools)
+    ranks.sort(key=hlp.pool_comparison_key)
     pool_stake_nm = hlp.calculate_pool_stake_NM(pool=pool_11, pool_rankings=ranks, beta=beta, k=k)
     assert pool_stake_nm == 0.001
 
@@ -252,7 +252,7 @@ def test_calculate_pool_stake_nm():
                    reward_function_option=reward_func, total_stake=total_stake, margin=0)
     pools[11] = pool_11
     ranks = list(pools.values())
-    ranks.sort(key=hlp.sort_pools)
+    ranks.sort(key=hlp.pool_comparison_key)
     pool_stake_nm = hlp.calculate_pool_stake_NM(pool=pool_11, pool_rankings=ranks, beta=beta, k=k)
     assert pool_stake_nm == 0.01
 

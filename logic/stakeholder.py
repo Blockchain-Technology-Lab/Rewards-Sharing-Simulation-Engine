@@ -103,14 +103,14 @@ class Stakeholder(Agent):
     def choose_pool_strategy_local_search(self):
         """
         Find a suitable pool operation strategy by using the following process:
-            - Start with an arbitrary number of pools t (we set this to k/2)
-            - Calculate a suitable margin so that all t pools end up in the top k (if not possible then set margin to 0)
-            - Calculate the agent's utility for this number of pools and margin
+            - Start with an arbitrary number of pools t (we set this to (k+1)/2)
+            - Calculate suitable margins so that all t pools end up in the top k (if not possible for some pools then set their margin to 0)
+            - Calculate the agent's utility for this number of pools and margins
             - Do the same for the two neighbours of this strategy, i.e. operating t-1 pools and t+1 pools
-            - Choose the direction with the highest utility and make a jump in t
-            - If none of the neighbours have higher utility, solution found (strategy with t pools)
+            - Choose the direction with the highest utility and make a "jump" in t
+            - If none of the neighbours have higher utility, solution found (strategy with t pools and calculated margins)
         This works because the utility of an agent as a function of the number of pools to operate has only one local max
-        @return:
+        @return: a tuple with the utility of the chosen strategy and the strategy itself
         """
         t_min = 1
         t_max = self.model.k
@@ -150,8 +150,9 @@ class Stakeholder(Agent):
         boost = 1e-6  # to ensure that the new desirability will be higher than the target one #todo tune boost
         margins = [] # note that pools by the same agent may end up with different margins  because of the different pools they aim to outperform
         utility = 0
+        rankings = self.model.pool_rankings if not self.isMyopic else self.model.pool_rankings_myopic
         for t in range(1, num_pools+1):
-            target_pool = self.model.pool_rankings[self.model.k - t] #todo what if that's own pool???
+            target_pool = rankings[self.model.k - t] #todo what if that's own pool???
             target_desirability, target_pp =  (target_pool.desirability, target_pool.potential_profit) if target_pool is not None else (0, 0)
             target_desirability += boost
             if potential_profit_per_pool < target_desirability:
@@ -209,7 +210,7 @@ class Stakeholder(Agent):
 
     def calculate_operator_utility_from_strategy(self, strategy):
         potential_pools = strategy.owned_pools.values()
-        temp_rankings = SortedList([pool for pool in self.model.pool_rankings if pool is not None and pool.owner != self.unique_id], key=hlp.sort_pools) #todo maybe more efficient way to copy / slice sorted list
+        temp_rankings = SortedList([pool for pool in self.model.pool_rankings if pool is not None and pool.owner != self.unique_id], key=hlp.pool_comparison_key) #todo maybe more efficient way to copy / slice sorted list
         temp_rankings.update(potential_pools)
 
         utility = 0
@@ -400,7 +401,10 @@ class Stakeholder(Agent):
 
         # Remove the agent's stake from the pools in case it's being delegated
         for pool_id, allocation in self.strategy.stake_allocations.items():
-            all_pools_dict[pool_id].update_delegation(new_delegation=0, delegator_id=self.unique_id)
+            pool = all_pools_dict[pool_id]
+            self.model.pool_rankings_myopic.remove(pool) #todo tmp find better way
+            pool.update_delegation(new_delegation=0, delegator_id=self.unique_id)
+            self.model.pool_rankings_myopic.add(pool)
 
         allocations = dict()
         best_saturated_pool = None
@@ -423,8 +427,10 @@ class Stakeholder(Agent):
 
         # Return the agent's stake to the pools it was delegated to
         for pool_id, allocation in self.strategy.stake_allocations.items():
-            all_pools_dict[pool_id].update_delegation(new_delegation=allocation, delegator_id=self.unique_id)
-
+            pool = all_pools_dict[pool_id]
+            self.model.pool_rankings_myopic.remove(pool)  # todo tmp find better way
+            pool.update_delegation(new_delegation=allocation, delegator_id=self.unique_id)
+            self.model.pool_rankings_myopic.add(pool)
         return allocations
 
     def find_delegation_move(self, stake_to_delegate=None):
@@ -442,18 +448,22 @@ class Stakeholder(Agent):
         @return:
         """
         current_pools = self.model.pools
-
         old_allocations = self.strategy.stake_allocations
         new_allocations = self.new_strategy.stake_allocations
         for pool_id in old_allocations.keys() - new_allocations.keys():
-            if current_pools[pool_id] is not None:  # todo can't really be none here, right? maybe in simultaneous act? check if else clause is needed (e.g. to update strategy)
+            pool = current_pools[pool_id]
+            if pool is not None:  # todo can't really be none here, right? maybe in simultaneous act? check if else clause is needed (e.g. to update strategy)
                 # remove delegation
-                current_pools[pool_id].update_delegation(new_delegation=0, delegator_id=self.unique_id)
+                self.model.pool_rankings_myopic.remove(pool)
+                pool.update_delegation(new_delegation=0, delegator_id=self.unique_id)
+                self.model.pool_rankings_myopic.add(pool)
         for pool_id in new_allocations.keys() :
-            if current_pools[pool_id] is not None:  # todo can't really be none here, right? maybe in simultaneous act? check if else clause is needed (e.g. to update strategy)
+            pool = current_pools[pool_id]
+            if pool is not None:  # todo can't really be none here, right? maybe in simultaneous act? check if else clause is needed (e.g. to update strategy)
                 # add / modify delegation
-                current_pools[pool_id].update_delegation(new_delegation=new_allocations[pool_id], delegator_id=self.unique_id)
-
+                self.model.pool_rankings_myopic.remove(pool)
+                pool.update_delegation(new_delegation=new_allocations[pool_id], delegator_id=self.unique_id)
+                self.model.pool_rankings_myopic.add(pool)
 
         old_owned_pools = set(self.strategy.owned_pools.keys())
         new_owned_pools = set(self.new_strategy.owned_pools.keys())
@@ -465,7 +475,6 @@ class Stakeholder(Agent):
             # updates in old pools
             current_pools[pool_id] = self.update_pool(pool_id)
 
-
         self.strategy = self.new_strategy
         self.new_strategy = None
         for pool_id in new_owned_pools - old_owned_pools:
@@ -476,6 +485,7 @@ class Stakeholder(Agent):
         if updated_pool.is_private and updated_pool.stake > updated_pool.pledge:
             # undelegate stake in case the pool turned from public to private
             self.remove_delegations(updated_pool)
+        self.model.pools[pool_id] = updated_pool
         # update pool rankings
         old_pool = self.strategy.owned_pools[pool_id]
         self.model.pool_rankings.remove(old_pool)
@@ -485,26 +495,22 @@ class Stakeholder(Agent):
         return updated_pool
 
     def open_pool(self, pool_id):
-        self.model.pools[pool_id] = self.strategy.owned_pools[pool_id]
+        pool = self.strategy.owned_pools[pool_id]
+        self.model.pools[pool_id] = pool
         self.remaining_min_steps_to_keep_pool = self.model.min_steps_to_keep_pool
         # include in pool rankings
-        self.model.pool_rankings.add(self.strategy.owned_pools[pool_id])
-        self.model.pool_rankings_myopic.add(self.strategy.owned_pools[pool_id])
+        self.model.pool_rankings.add(pool)
+        self.model.pool_rankings_myopic.add(pool)
 
     def close_pool(self, pool_id):
         pools = self.model.pools
-        try:
-            pool = pools[pool_id]
-            if pool.owner != self.unique_id:
-                raise ValueError("agent tried to close pool that belongs to another agent.")
-        except KeyError:
-            raise ValueError("Given pool id is not valid.")
-        # Undelegate delegators' stake
-        self.remove_delegations(pool)
-        pools.pop(pool_id)
+        pool = pools[pool_id]
         # remove from top k desirabilities
         self.model.pool_rankings.remove(pool)
         self.model.pool_rankings_myopic.remove(pool)
+        # Undelegate delegators' stake
+        self.remove_delegations(pool)
+        pools.pop(pool_id)
 
     def remove_delegations(self, pool):
         agents = self.model.get_agents_dict()

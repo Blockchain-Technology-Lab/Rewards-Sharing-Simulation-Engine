@@ -28,11 +28,9 @@ class Pool:
 
     def set_profit(self, alpha, beta, reward_function_option, total_stake):
         self.potential_profit = hlp.calculate_potential_profit(self.pledge, self.cost, alpha, beta, reward_function_option, total_stake)
-        self.current_profit = hlp.calculate_current_profit(self.stake, self.pledge, self.cost, alpha, beta, reward_function_option, total_stake)
 
     def set_desirability(self):
         self.desirability = hlp.calculate_pool_desirability(margin=self.margin, potential_profit=self.potential_profit)
-        self.myopic_desirability = hlp.calculate_myopic_pool_desirability(margin=self.margin, current_profit=self.current_profit)
 
     def update_delegation(self, new_delegation, delegator_id):
         if delegator_id in self.delegators:
