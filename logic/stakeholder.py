@@ -157,8 +157,15 @@ class Stakeholder(Agent):
         boost = 1e-6  # to ensure that the new desirability will be higher than the target one #todo tune boost
         margins = [] # note that pools by the same agent may end up with different margins  because of the different pools they aim to outperform
         utility = 0
+
+        fixed_pools_ranked = [
+            pool
+            for pool in self.rankings
+            if pool is None or pool.owner != self.unique_id
+        ]
+
         for t in range(1, num_pools+1):
-            target_pool = self.rankings[self.model.k - t] #todo what if that's own pool???
+            target_pool = fixed_pools_ranked[self.model.k - t]
             target_desirability, target_pp =  (target_pool.desirability, target_pool.potential_profit) if target_pool is not None else (0, 0)
             target_desirability += boost
             if potential_profit_per_pool < target_desirability:
