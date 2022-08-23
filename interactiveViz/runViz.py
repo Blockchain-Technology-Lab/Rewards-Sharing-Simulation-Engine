@@ -50,10 +50,7 @@ model_params = {
         "slider", "Inactive stake fraction", 0.1, 0.0, 1.0, 0.01,
         description="The percentage of agents that will abstain from the game in this run."
     ),
-    "pool_splitting": UserSettableParameter(
-        "checkbox", "Allow pool splitting", True
-    ),
-    "cost_factor": UserSettableParameter(
+    "extra_pool_cost_fraction": UserSettableParameter(
         "slider", "Cost factor", 0.4, 0.0, 1, 0.01
     )
 }

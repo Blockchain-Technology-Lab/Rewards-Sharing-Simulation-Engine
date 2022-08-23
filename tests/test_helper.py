@@ -147,11 +147,11 @@ def test_calculate_ranks_with_tie_breaking():
 def test_calculate_cost_per_pool():
     num_pools = 4
     initial_cost = 1
-    cost_factor = 0.6
+    extra_pool_cost_fraction = 0.6
     expected_cost_per_pool = 0.544
     expected_total_cost = 2.176
 
-    cost_per_pool = hlp.calculate_cost_per_pool(num_pools, initial_cost, cost_factor)
+    cost_per_pool = hlp.calculate_cost_per_pool(num_pools, initial_cost, extra_pool_cost_fraction)
 
     assert cost_per_pool == expected_cost_per_pool
     assert cost_per_pool * num_pools == expected_total_cost

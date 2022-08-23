@@ -18,9 +18,9 @@ def main():
                         help='The minimum possible cost for operating a stake pool. Default is 1e-4.')
     parser.add_argument('--cost_max', type=float, default=1e-4,
                         help='The maximum possible cost for operating a stake pool. Default is 1e-3.')
-    parser.add_argument('--cost_factor', nargs="+", type=float, default=0.4,
-                        help='The factor that determines how much an additional pool costs. '
-                             'Default is 40%%.')
+    parser.add_argument('--extra_pool_cost_fraction', nargs="+", type=float, default=0.4,
+                        help='The factor that determines how much an additional pool costs as a fraction of '
+                             'the original cost value of the stakeholder. Default is 40%.')
     parser.add_argument('--pareto_param', type=float, default=2.0,
                         help='The parameter that determines the shape of the distribution that the stake will be '
                              'sampled from. Default is 2.')
@@ -40,17 +40,13 @@ def main():
                         help='The fraction of the total stake that remains inactive (does not belong to any of the agents). Default is 0.')
     parser.add_argument('--inactive_stake_fraction_known', type=bool, default=False, action=argparse.BooleanOptionalAction,
                         help='Is the inactive stake fraction of the system known beforehand? Default is no.')
-    parser.add_argument('--pool_splitting', type=bool, default=True, action=argparse.BooleanOptionalAction,
-                        help='Are individual agents allowed to create multiple pools? Default is yes.')
     parser.add_argument('--max_iterations', type=int, default=2000,
                         help='The maximum number of iterations of the system. Default is 2000.')
-    parser.add_argument('--steps_for_convergence', type=int, default=10,
-                        help='The minimum consecutive idle steps that are required to declare convergence. '
+    parser.add_argument('--iterations_after_convergence', type=int, default=10,
+                        help='The minimum consecutive idle iterations that are required before terminations. '
                              'Default is 10. But if min_steps_to_keep_pool > ms then ms = min_steps_to_keep_pool + 1.')
     parser.add_argument('--stake_distr_source', type=str, default='pareto',
                         help='The distribution type to use for the initial allocation of stake to the agents.')
-    parser.add_argument('--extra_cost_type', type=str, default='fixed_fraction',
-                        help='The method used to calculate the cost of any additional pool.')
     parser.add_argument('--execution_id', type=str, default='',
                         help='An optional identifier for the specific simulation run, '
                              'which will be included in the output.')
@@ -83,17 +79,15 @@ def main():
         relative_utility_threshold=args.relative_utility_threshold,
         absolute_utility_threshold=args.absolute_utility_threshold,
         min_steps_to_keep_pool=args.min_steps_to_keep_pool,
-        pool_splitting=args.pool_splitting,
         seed=args.seed,
         pareto_param=args.pareto_param,
         max_iterations=args.max_iterations,
         cost_min=args.cost_min,
         cost_max=args.cost_max,
-        cost_factor=args.cost_factor,
+        extra_pool_cost_fraction=args.extra_pool_cost_fraction,
         agent_activation_order=args.agent_activation_order.capitalize(),
         #total stake
-        steps_for_convergence=args.steps_for_convergence,
-        extra_cost_type=args.extra_cost_type,
+        iterations_after_convergence=args.iterations_after_convergence,
         reward_function_option = args.reward_function_option,
         execution_id=args.execution_id,
         #seq_id

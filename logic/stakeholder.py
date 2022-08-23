@@ -186,18 +186,14 @@ class Stakeholder(Agent):
         moves = dict()
         max_new_pools_per_round = 1
         current_num_pools = len(self.strategy.owned_pools)
-        if self.model.pool_splitting:
-            if current_num_pools == 0:
-                # If the agent hasn't made any pools yet, consider operating up to as many pools as they can saturate with pledge + 1
-                num_pools_options = {i for i in range(1, math.ceil(self.stake / self.model.beta) + 1)}
-            else:
-                num_pools_options = {max(i, 1) for i in
-                                     range(current_num_pools, current_num_pools + max_new_pools_per_round + 1)}
-                if self.remaining_min_steps_to_keep_pool <= 0:
-                    num_pools_options.update(range(1, current_num_pools))
+        if current_num_pools == 0:
+            # If the agent hasn't made any pools yet, consider operating up to as many pools as they can saturate with pledge + 1
+            num_pools_options = {i for i in range(1, math.ceil(self.stake / self.model.beta) + 1)}
         else:
-            # If pool splitting is not allowed by the model, there are no options
-            num_pools_options = {1}
+            num_pools_options = {max(i, 1) for i in
+                                 range(current_num_pools, current_num_pools + max_new_pools_per_round + 1)}
+            if self.remaining_min_steps_to_keep_pool <= 0:
+                num_pools_options.update(range(1, current_num_pools))
 
         for num_pools in num_pools_options:
             owned_pools_copies = self.determine_pools_to_keep(num_pools)
@@ -206,7 +202,7 @@ class Stakeholder(Agent):
 
     def find_operator_move(self, num_pools, owned_pools, margins=[]):
         pledge = hlp.determine_pledge_per_pool(agent_stake=self.stake, beta=self.model.beta, num_pools=num_pools)
-        cost_per_pool = hlp.calculate_cost_per_pool(num_pools=num_pools, initial_cost=self.cost, cost_factor=self.model.cost_factor)
+        cost_per_pool = hlp.calculate_cost_per_pool(num_pools=num_pools, initial_cost=self.cost, extra_pool_cost_fraction=self.model.extra_pool_cost_fraction)
 
         for i, (pool_id, pool) in enumerate(owned_pools.items()):
             # For pools that already exist, modify them to match the new strategy

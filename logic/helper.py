@@ -309,16 +309,16 @@ def generate_execution_id(args_dict):
                      for key, value in list(args_dict.items())[:num_args_to_use]])[:max_characters]
 
 @lru_cache(maxsize=1024)
-def calculate_cost_per_pool(num_pools, initial_cost, cost_factor):
+def calculate_cost_per_pool(num_pools, initial_cost, extra_pool_cost_fraction):
     """
     Calculate the average cost of an agent's pools, assuming that any additional pool costs less than the first one
     Specifically, if the first pool costs c1 and we use a factor of 0.6 then any subsequent pool would cost c2 = 0.6 * c1
     @param num_pools:
     @param initial_cost:
-    @param cost_factor:
+    @param extra_pool_cost_fraction:
     @return:
     """
-    return (initial_cost + (num_pools - 1) * cost_factor * initial_cost) / num_pools
+    return (initial_cost + (num_pools - 1) * extra_pool_cost_fraction * initial_cost) / num_pools
 
 @lru_cache(maxsize=1024)
 def calculate_suitable_margin(potential_profit, target_desirability):
@@ -503,7 +503,7 @@ def plot_aggregate_data_2(df, variable_param, model_reporter, output_dir, colour
     #plt.legend(handles=scatter.legend_elements()[0], labels=labels, title=legend_param)
     if legend_param == 'pareto_param':
         legend_param = 'Pareto shape parameter'
-    elif legend_param == 'cost_factor':
+    elif legend_param == 'extra_pool_cost_fraction':
         legend_param = 'φ'
     plt.colorbar(label=legend_param)
 
@@ -550,7 +550,7 @@ def util_by_margin_and_pools(agent, margin, num_pools):
     k = agent.model.k
     beta = agent.model.beta / total_stake
     R = TOTAL_EPOCH_REWARDS_R
-    phi = agent.model.cost_factor
+    phi = agent.model.extra_pool_cost_fraction
     initial_cost = agent.cost
 
     top_k_des = [pool.desirability if pool is not None else 0 for pool in agent.model.pool_rankings][:k]

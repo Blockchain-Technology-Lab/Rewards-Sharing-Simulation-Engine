@@ -41,24 +41,23 @@ def main():
                         help='The minimum possible cost for operating a stake pool. Default is 1e-4.')
     parser.add_argument('--cost_max', type=float, default=1e-3,
                         help='The maximum possible cost for operating a stake pool. Default is 2e-3.')
-    parser.add_argument('--cost_factor', nargs="+", type=float, default=0.6,
-                        help='The factor that determines how much an additional pool costs. '
-                             'Default is 60%.')
+    parser.add_argument('--extra_pool_cost_fraction', nargs="+", type=float, default=0.4,
+                        help='The factor that determines how much an additional pool costs as a fraction of '
+                             'the original cost value of the stakeholder. Default is 40%.')
     parser.add_argument('--stake_distr_source', type=str, default='Pareto',
                         help='The distribution type to use for the initial allocation of stake to the agents.')
-    parser.add_argument('--extra_cost_type', type=str, default='fixed_fraction',
-                        help='The method used to calculate the cost of any additional pool.')
     parser.add_argument('--reward_function_option', type=int, default=0,
                         help='The reward function to use in the simulation. 0 for the old function, 1 for the new one, '
                              '2 for alternative-1 and 3 for alternative-2.')
-    parser.add_argument('--pool_splitting', type=bool, default=True, action=argparse.BooleanOptionalAction,
-                        help='Are individual agents allowed to create multiple pools? Default is yes.')
     parser.add_argument('--relative_utility_threshold', nargs="+", type=float, default=0,
                         help='The utility increase ratio under which moves are disregarded. Default is 0%%.')
     parser.add_argument('--absolute_utility_threshold', nargs="+", type=float, default=0,
                         help='The utility threshold under which moves are disregarded. Default is 1e-9.')
     parser.add_argument('--pool_opening_process', type=str, default='local-search',
                         help='The heuristic to use for determining a pool strategy. Options: local-search (default), plus-one.')
+    parser.add_argument('--iterations_after_convergence', type=int, default=10,
+                        help='The minimum consecutive idle iterations that are required before terminations. '
+                             'Default is 10. But if min_steps_to_keep_pool > ms then ms = min_steps_to_keep_pool + 1.')
 
     args_dict = vars(parser.parse_args())
 
