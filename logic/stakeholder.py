@@ -200,9 +200,26 @@ class Stakeholder(Agent):
             moves[num_pools] = self.find_operator_move(num_pools, owned_pools_copies)
         return moves
 
+    def calculate_cost_per_pool(self, num_pools):
+        """
+        Calculate the average cost of a pool when the agent operates a certain number of pools.
+        The cost of the first pool is seen as equal to the agent's initial cost, while every additional pool
+        is considered to cost a fraction that.
+        Alternative ways of calculating this cost can be defined in individual stakeholder profiles
+        by overriding this method.
+        @param num_pools: the number of pools the agent operates
+        @return: the average cost of a pool owned by the agent, given the above assumption about cost values
+        """
+        return hlp.calculate_cost_per_pool(num_pools=num_pools, initial_cost=self.cost, extra_pool_cost_fraction=self.model.extra_pool_cost_fraction)
+
+    def determine_pledge_per_pool(self, num_pools):
+        #todo maybe better to return list of pledge values
+        # to accommodate potential method overrides that allocate a different pledge value to each pool
+        return hlp.calculate_pledge_per_pool(agent_stake=self.stake, beta=self.model.beta, num_pools=num_pools)
+
     def find_operator_move(self, num_pools, owned_pools, margins=[]):
-        pledge = hlp.determine_pledge_per_pool(agent_stake=self.stake, beta=self.model.beta, num_pools=num_pools)
-        cost_per_pool = hlp.calculate_cost_per_pool(num_pools=num_pools, initial_cost=self.cost, extra_pool_cost_fraction=self.model.extra_pool_cost_fraction)
+        pledge = self.determine_pledge_per_pool(num_pools=num_pools)
+        cost_per_pool = self.calculate_cost_per_pool(num_pools=num_pools)
 
         for i, (pool_id, pool) in enumerate(owned_pools.items()):
             # For pools that already exist, modify them to match the new strategy

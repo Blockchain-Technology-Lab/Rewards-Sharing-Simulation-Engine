@@ -47,8 +47,8 @@ class NonMyopicStakeholder(Stakeholder):
         return hlp.calculate_delegator_utility_from_pool(stake_allocation, pool_stake, pool.pledge, pool.margin, pool.cost,
                                                          self.model.alpha, self.model.beta, self.model.reward_function_option, self.model.total_stake)
     def calculate_margins_and_utility(self, num_pools):
-        cost_per_pool = hlp.calculate_cost_per_pool(num_pools, self.cost, self.model.extra_pool_cost_fraction)
-        pledge_per_pool = hlp.determine_pledge_per_pool(self.stake, self.model.beta, num_pools)
+        cost_per_pool = self.calculate_cost_per_pool(num_pools)
+        pledge_per_pool = self.determine_pledge_per_pool(num_pools)
         potential_profit_per_pool = hlp.calculate_potential_profit(pledge_per_pool, cost_per_pool, self.model.alpha,
                                                                    self.model.beta, self.model.reward_function_option,
                                                                    self.model.total_stake)
@@ -115,8 +115,8 @@ class MyopicStakeholder(Stakeholder):
                                                          self.model.reward_function_option, self.model.total_stake)
 
     def calculate_margins_and_utility(self, num_pools):
-        cost_per_pool = hlp.calculate_cost_per_pool(num_pools, self.cost, self.model.extra_pool_cost_fraction)
-        pledge_per_pool = hlp.determine_pledge_per_pool(self.stake, self.model.beta, num_pools)
+        cost_per_pool = self.calculate_cost_per_pool(num_pools)
+        pledge_per_pool = self.determine_pledge_per_pool(num_pools)
 
         agent_total_delegated_stake = max(sum([pool.stake for pool in self.strategy.owned_pools.values()]), self.stake)
         expected_stake_per_pool = agent_total_delegated_stake / num_pools

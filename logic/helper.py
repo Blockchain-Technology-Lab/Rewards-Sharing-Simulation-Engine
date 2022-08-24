@@ -355,17 +355,16 @@ def calculate_pool_stake_NM_from_rank(pool_pledge, pool_stake, beta, rank_in_top
     return max(beta, pool_stake) if rank_in_top_k else pool_pledge
 
 @lru_cache(maxsize=1024)
-def determine_pledge_per_pool(agent_stake, beta, num_pools):
+def calculate_pledge_per_pool(agent_stake, beta, num_pools):
     """
     The agents choose to allocate their entire stake as the pledge of their pools,
     so they divide it equally among them
     However, if they saturate all their pools with pledge and still have remaining stake,
     then they don't allocate all of it to their pools, as a pool with such a pledge above saturation
-     would yield suboptimal rewards
-    :return: list of pledge values
+    would yield suboptimal rewards
     """
     if num_pools <= 0:
-        raise ValueError("Agent tried to calculate pledge for zero or less pools.")
+        raise ValueError("Agent tried to calculate pledge for zero or less pools.") #todo keep or not?
     return min(agent_stake / num_pools, beta)
 
 
