@@ -47,7 +47,7 @@
               <ul class="current">
                 <li class="toctree-l1 current"><a class="reference internal current" href="./">Setup</a>
     <ul class="current">
-    <li class="toctree-l2"><a class="reference internal" href="#requirements">Requirements</a>
+    <li class="toctree-l2"><a class="reference internal" href="#dependencies">Dependencies</a>
     </li>
     <li class="toctree-l2"><a class="reference internal" href="#installation">Installation</a>
     </li>
@@ -92,9 +92,14 @@
             <div class="section" itemprop="articleBody">
               
                 <h1 id="setup">Setup</h1>
-<h2 id="requirements">Requirements</h2>
-<p>python3.9 
-...</p>
+<h2 id="dependencies">Dependencies</h2>
+<p>The simulation engine is written in Python 3.9, so the first thing to ensure if you want to run it on your machine is 
+that you have Python 3.9 installed. </p>
+<p>Having the right version of Python, you can now install the requirements for the project, which can be found in the 
+<a href="requirements.txt">requirements file</a>. To install all of them in one go, you can run the following from the root 
+directory of the project (assuming that the <code>python</code> command corresponds to a Python 3.9 installation):</p>
+<pre><code>python -m pip install -r requirements.txt
+</code></pre>
 <h2 id="installation">Installation</h2>
 <p>Installing the simulation engine is very simple, as it only involves cloning the relevant github project:</p>
 <pre><code>git clone https://github.com/Blockchain-Technology-Lab/Cardano-Pooling-Simulator.git
@@ -102,11 +107,11 @@
 <h2 id="execution">Execution</h2>
 <p>To run the simulation, navigate to the directory of the project and run the main script:</p>
 <pre><code>cd Cardano-Pooling-Simulator
-python3.9 main.py
+python main.py
 </code></pre>
 <p>It is also possible to run the simulation with different parameters (e.g. number of agents). For a full list of options
-refer to the <a href="../configuration/">Configuration</a> page. In <a href="../examples/">Examples</a>, we also provide some examples to 
-showcase the different capacities of the simulation engine.</p>
+refer to the <a href="../configuration/">Configuration</a> page, and for examples of using the simulation engine in different ways 
+see the <a href="../examples/">Examples</a> page.</p>
               
             </div>
           </div><footer>
