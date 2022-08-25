@@ -20,12 +20,12 @@ def main():
                         help='The identifier of this execution, to be used for naming the output files.')
     parser.add_argument('--seed', default='None',
                         help='Seed for reproducibility. Default is None, which means that a seed will be generated '
-                             'randomly and then used for al executions of the batch run.')
+                             'randomly and then used for all executions of the batch run.')
     parser.add_argument('--max_iterations', type=int, default=2000,
                         help='The maximum number of iterations of the system. Default is 1000.')
     parser.add_argument('--n', nargs="+", type=int, default=1000,
                         help='The number of agents (natural number). Default is 100.')
-    parser.add_argument('--k', nargs="+", type=int, default=[100, 501, 50],
+    parser.add_argument('--k', nargs="+", type=int, default=[100, 501, 100],
                         help='The k value of the system (natural number). Default is 10.')
     parser.add_argument('--alpha', nargs="+", type=float, default=0.3,
                         help='The alpha value of the system (decimal number between 0 and 1). Default is 0.3')
@@ -43,7 +43,7 @@ def main():
                         help='The maximum possible cost for operating a stake pool. Default is 2e-3.')
     parser.add_argument('--extra_pool_cost_fraction', nargs="+", type=float, default=0.4,
                         help='The factor that determines how much an additional pool costs as a fraction of '
-                             'the original cost value of the stakeholder. Default is 40%.')
+                             'the original cost value of the stakeholder. Default is 40%%.')
     parser.add_argument('--stake_distr_source', type=str, default='Pareto',
                         help='The distribution type to use for the initial allocation of stake to the agents.')
     parser.add_argument('--reward_function_option', type=int, default=0,
@@ -74,6 +74,8 @@ def main():
     }
     variable_params = {}
 
+    fixed_params['profile_distr'] = args_dict['profile_distr']
+    args_dict.pop('profile_distr')
     for arg_name, arg_values in args_dict.items():
         if isinstance(arg_values, list):
             if len(arg_values) > 2:

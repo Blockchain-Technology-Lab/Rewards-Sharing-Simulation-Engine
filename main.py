@@ -20,7 +20,7 @@ def main():
                         help='The maximum possible cost for operating a stake pool. Default is 1e-3.')
     parser.add_argument('--extra_pool_cost_fraction', nargs="+", type=float, default=0.4,
                         help='The factor that determines how much an additional pool costs as a fraction of '
-                             'the original cost value of the stakeholder. Default is 40%.')
+                             'the original cost value of the stakeholder. Default is 40%%.')
     parser.add_argument('--pareto_param', type=float, default=2.0,
                         help='The parameter that determines the shape of the distribution that the stake will be '
                              'sampled from. Default is 2.')
@@ -107,10 +107,10 @@ def main():
     figures_dir = execution_dir / "figures"
     pathlib.Path(figures_dir).mkdir(parents=True, exist_ok=True)
 
-    equilibrium_steps = sim.equilibrium_steps
-    pivot_steps = sim.pivot_steps
-    print('equilibrium steps: ', equilibrium_steps)
-    print('pivot steps: ', pivot_steps)
+    if sim.has_converged():
+        print('Reached equilibrium at step: ', sim.equilibrium_steps)
+    else:
+        print('Maximum iterations reached without convergence to an equilibrium.')
 
 
 def main_with_profiling():
