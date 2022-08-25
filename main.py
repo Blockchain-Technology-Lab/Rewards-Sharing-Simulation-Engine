@@ -12,8 +12,8 @@ def main():
                         help='The number of agents (natural number). Default is 1000.')
     parser.add_argument('--k', nargs="+", type=int, default=100,
                         help='The k value of the system (natural number). Default is 100.')
-    parser.add_argument('--alpha', nargs="+", type=float, default=0.3,
-                        help='The alpha value of the system (decimal number between 0 and 1). Default is 0.3')
+    parser.add_argument('--a0', nargs="+", type=float, default=0.3,
+                        help='The a0 value of the system (decimal number between 0 and 1). Default is 0.3')
     parser.add_argument('--cost_min', type=float, default=1e-5,
                         help='The minimum possible cost for operating a stake pool. Default is 1e-4.')
     parser.add_argument('--cost_max', type=float, default=1e-4,
@@ -71,7 +71,7 @@ def main():
     sim = simulation.Simulation(
         n=args.n,
         k=args.k,
-        alpha=args.alpha,
+        a0=args.a0,
         stake_distr_source=args.stake_distr_source,
         profile_distr=args.profile_distr,
         inactive_stake_fraction=args.inactive_stake_fraction,

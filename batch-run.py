@@ -27,8 +27,8 @@ def main():
                         help='The number of agents (natural number). Default is 100.')
     parser.add_argument('--k', nargs="+", type=int, default=[100, 501, 100],
                         help='The k value of the system (natural number). Default is 10.')
-    parser.add_argument('--alpha', nargs="+", type=float, default=0.3,
-                        help='The alpha value of the system (decimal number between 0 and 1). Default is 0.3')
+    parser.add_argument('--a0', nargs="+", type=float, default=0.3,
+                        help='The a0 value of the system (decimal number between 0 and 1). Default is 0.3')
     parser.add_argument('--profile_distr', nargs="+", type=float, default=[1, 0, 0],
                         help='The probability distribution for assigning different profiles to the agents. Default is [1, 0, 0], i.e. 100%% non-myopic agents.')
     parser.add_argument('--inactive_stake_fraction', type=float, default=0,
@@ -79,7 +79,7 @@ def main():
     for arg_name, arg_values in args_dict.items():
         if isinstance(arg_values, list):
             if len(arg_values) > 2:
-                if arg_name == 'alpha' or arg_name == 'cost_min':
+                if arg_name == 'a0' or arg_name == 'cost_min':
                     variable_params[arg_name] = [float(x) for x in np.logspace(arg_values[0], arg_values[1], num=int(arg_values[2]))]
                 else:
                     scale_factor = 1e6
@@ -103,7 +103,7 @@ def main():
                                #"Gini-id", "Gini-id stake", "Gini-id stake (k)", "Gini-id (k)"]
                                #"Gini-id stake (fraction)", "Gini-id (fraction)"]  # , "Min-aggregate pledge"]
     additional_model_reporters = defaultdict(lambda: [])
-    additional_model_reporters['alpha'] = [
+    additional_model_reporters['a0'] = [
         "Mean pledge", #"Total pledge",
         "Max pools per operator", "Median pools per operator",
         "Mean stake rank", "Mean cost rank", "Median stake rank", "Median cost rank"#,
@@ -139,7 +139,7 @@ def main():
 
     # ordered dicts with data from each step of each run (the combinations of variable params act as the keys)
     # for example data_collector_model[(0.1, 0.02, 1)] shows the values of the parameters collected at model level
-    # when α=0.1 and cost_max=0.02 (which happened to be the run with index 1)
+    # when a0=0.1 and cost_max=0.02 (which happened to be the run with index 1)
     #data_collector_agents = batch_run_MP.get_collector_agents()
     #data_collector_model = batch_run_MP.get_collector_model()
 
@@ -152,7 +152,7 @@ def main():
     all_reporter_colours["Nakamoto coefficient"] = 'pink'
 
     for variable_param in variable_params:
-        useLogAxis = True if variable_param == 'alpha' else False
+        useLogAxis = True if variable_param == 'a0' else False
         for model_reporter in model_reporters:
             hlp.plot_aggregate_data(batch_run_data, variable_param, model_reporter, all_reporter_colours[model_reporter],
                                 batch_run_id, batch_run_MP.directory, log_axis=useLogAxis)

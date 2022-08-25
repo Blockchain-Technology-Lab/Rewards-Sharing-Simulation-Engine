@@ -161,89 +161,89 @@ def normalize_distr(dstr, normal_sum=1):
     return nrm_dstr
 
 @lru_cache(maxsize=1024)
-def calculate_potential_profit(pledge, cost, alpha, beta, reward_function_option, total_stake):
+def calculate_potential_profit(pledge, cost, a0, beta, reward_function_option, total_stake):
     """
     Calculate a pool's potential profit, which can be defined as the profit it would get at saturation level
     :param pledge:
     :param cost:
-    :param alpha:
+    :param a0:
     :param beta:
     :return: float, the maximum possible profit that this pool can yield
     """
     relative_stake = beta / total_stake
     relative_pledge = pledge / total_stake
-    potential_reward = calculate_pool_reward(relative_stake, relative_pledge, alpha, beta, reward_function_option, total_stake)
+    potential_reward = calculate_pool_reward(relative_stake, relative_pledge, a0, beta, reward_function_option, total_stake)
     return potential_reward - cost
 
 @lru_cache(maxsize=1024)
-def calculate_current_profit(stake, pledge, cost, alpha, beta, reward_function_option, total_stake):
+def calculate_current_profit(stake, pledge, cost, a0, beta, reward_function_option, total_stake):
     relative_pledge = pledge / total_stake
     relative_stake = stake / total_stake
-    reward = calculate_pool_reward(relative_stake, relative_pledge, alpha, beta, reward_function_option, total_stake)
+    reward = calculate_pool_reward(relative_stake, relative_pledge, a0, beta, reward_function_option, total_stake)
     return reward - cost
 
 @lru_cache(maxsize=1024)
-def calculate_pool_reward(relative_stake, relative_pledge, alpha, beta, reward_function_option, total_stake, curve_root=3, crossover_factor=8):
+def calculate_pool_reward(relative_stake, relative_pledge, a0, beta, reward_function_option, total_stake, curve_root=3, crossover_factor=8):
     beta = beta / total_stake
     if reward_function_option == 0:
-        return calculate_pool_reward_original(relative_stake, relative_pledge, alpha, beta)
+        return calculate_pool_reward_original(relative_stake, relative_pledge, a0, beta)
     elif reward_function_option == 1:
-        return calculate_pool_reward_simplified(relative_stake, relative_pledge, alpha, beta)
+        return calculate_pool_reward_simplified(relative_stake, relative_pledge, a0, beta)
     elif reward_function_option == 2:
-        return calculate_pool_reward_flat_pledge_benefit(relative_stake, relative_pledge, alpha, beta)
+        return calculate_pool_reward_flat_pledge_benefit(relative_stake, relative_pledge, a0, beta)
     elif reward_function_option == 3:
-        return calculate_pool_reward_new_sqrt(relative_stake, relative_pledge, alpha, beta)
+        return calculate_pool_reward_new_sqrt(relative_stake, relative_pledge, a0, beta)
     elif reward_function_option == 4:
-        return calculate_pool_reward_curve_pledge_benefit(relative_stake, relative_pledge, alpha, beta, curve_root, crossover_factor, total_stake)
+        return calculate_pool_reward_curve_pledge_benefit(relative_stake, relative_pledge, a0, beta, curve_root, crossover_factor, total_stake)
     else:
         raise ValueError("Invalid option for reward function.")
 
-def calculate_pool_reward_original(relative_stake, relative_pledge, alpha, relative_beta):
+def calculate_pool_reward_original(relative_stake, relative_pledge, a0, relative_beta):
     """
     Caclulate a pool's reward based on the original reward scheme of Cardano
     @param relative_stake: the stake of the pool as a fraction of the total stake of the system
     @param relative_pledge: the pledge of the pool as a fraction of the total stake of the system
-    @param alpha: the pledge influence parameter of the reward sharing scheme
+    @param a0: the pledge influence parameter of the reward sharing scheme
     @param relative_beta: the saturation threshold of the pool as a fraction of the total stake of the system
     @return: the reward that the pool will receive as a fraction of the total available rewards
     """
     pledge_ = min(relative_pledge, relative_beta)
     stake_ = min(relative_stake, relative_beta)
-    r = (TOTAL_EPOCH_REWARDS_R / (1 + alpha)) * (stake_ + (pledge_ * alpha * ((stake_ - pledge_ * (1 - stake_ / relative_beta)) / relative_beta)))
+    r = (TOTAL_EPOCH_REWARDS_R / (1 + a0)) * (stake_ + (pledge_ * a0 * ((stake_ - pledge_ * (1 - stake_ / relative_beta)) / relative_beta)))
     return r
 
-def calculate_pool_reward_simplified(relative_stake, relative_pledge, alpha, relative_beta):
+def calculate_pool_reward_simplified(relative_stake, relative_pledge, a0, relative_beta):
     """
     Caclulate a pool's reward based on a simplification of the original reward scheme of Cardano
     @param relative_stake: the stake of the pool as a fraction of the total stake of the system
     @param relative_pledge: the pledge of the pool as a fraction of the total stake of the system
-    @param alpha: the pledge influence parameter of the reward sharing scheme
+    @param a0: the pledge influence parameter of the reward sharing scheme
     @param relative_beta: the saturation threshold of the pool as a fraction of the total stake of the system
     @return: the reward that the pool will receive as a fraction of the total available rewards
     """
     pledge_ = min(relative_pledge, relative_beta)
     stake_ = min(relative_stake, relative_beta)
-    r = (TOTAL_EPOCH_REWARDS_R / (1 + alpha)) * stake_ * (1 + (alpha * pledge_ / relative_beta))
+    r = (TOTAL_EPOCH_REWARDS_R / (1 + a0)) * stake_ * (1 + (a0 * pledge_ / relative_beta))
     return r
 
-def calculate_pool_reward_flat_pledge_benefit(relative_stake, relative_pledge, alpha, beta):
+def calculate_pool_reward_flat_pledge_benefit(relative_stake, relative_pledge, a0, beta):
     pledge_ = min(relative_pledge, beta)
     stake_ = min(relative_stake, beta)
-    r = (TOTAL_EPOCH_REWARDS_R / (1 + alpha)) * (stake_ + alpha * pledge_)
+    r = (TOTAL_EPOCH_REWARDS_R / (1 + a0)) * (stake_ + a0 * pledge_)
     return r
 
-def calculate_pool_reward_new_sqrt(relative_stake, relative_pledge, alpha, beta):
+def calculate_pool_reward_new_sqrt(relative_stake, relative_pledge, a0, beta):
     pledge_ = min(relative_pledge, beta)
     stake_ = min(relative_stake, beta)
-    r = (TOTAL_EPOCH_REWARDS_R / (1 + alpha)) * stake_ * (1 + (alpha * sqrt(pledge_) / beta))
+    r = (TOTAL_EPOCH_REWARDS_R / (1 + a0)) * stake_ * (1 + (a0 * sqrt(pledge_) / beta))
     return r
 
-def calculate_pool_reward_curve_pledge_benefit(relative_stake, relative_pledge, alpha, relative_beta, curve_root,
+def calculate_pool_reward_curve_pledge_benefit(relative_stake, relative_pledge, a0, relative_beta, curve_root,
                                                crossover_factor, total_stake):
     crossover = relative_beta * total_stake / crossover_factor
     pledge = relative_pledge * total_stake
     pledge_factor = (pledge ** (1 / curve_root)) * (crossover ** ((curve_root - 1) / curve_root)) / total_stake
-    return calculate_pool_reward_original(relative_stake, pledge_factor, alpha, relative_beta)
+    return calculate_pool_reward_original(relative_stake, pledge_factor, a0, relative_beta)
 
 @lru_cache(maxsize=1024)
 def calculate_delegator_reward_from_pool(pool_margin, pool_cost, pool_reward, delegator_stake_fraction):
@@ -334,18 +334,18 @@ def calculate_myopic_pool_desirability(margin, current_profit):
     return max((1 - margin) * current_profit, 0)
 
 @lru_cache(maxsize=1024)
-def calculate_operator_utility_from_pool(pool_stake, pledge, margin, cost, alpha, beta, reward_function_option, total_stake):
+def calculate_operator_utility_from_pool(pool_stake, pledge, margin, cost, a0, beta, reward_function_option, total_stake):
     relative_pool_stake = pool_stake / total_stake
     relative_pledge = pledge / total_stake
-    r = calculate_pool_reward(relative_pool_stake, relative_pledge, alpha, beta, reward_function_option, total_stake)
+    r = calculate_pool_reward(relative_pool_stake, relative_pledge, a0, beta, reward_function_option, total_stake)
     stake_fraction = pledge / pool_stake
     return calculate_operator_reward_from_pool(pool_margin=margin, pool_cost=cost, pool_reward=r, operator_stake_fraction=stake_fraction)
 
 @lru_cache(maxsize=1024)
-def calculate_delegator_utility_from_pool(stake_allocation, pool_stake, pledge, margin, cost, alpha, beta, reward_function_option, total_stake):
+def calculate_delegator_utility_from_pool(stake_allocation, pool_stake, pledge, margin, cost, a0, beta, reward_function_option, total_stake):
     relative_pool_stake = pool_stake / total_stake
     relative_pledge = pledge / total_stake
-    r = calculate_pool_reward(relative_pool_stake, relative_pledge, alpha, beta, reward_function_option, total_stake)
+    r = calculate_pool_reward(relative_pool_stake, relative_pledge, a0, beta, reward_function_option, total_stake)
     stake_fraction = stake_allocation / pool_stake
     return calculate_delegator_reward_from_pool(pool_margin=margin, pool_cost=cost, pool_reward=r, delegator_stake_fraction=stake_fraction)
 
@@ -491,8 +491,8 @@ def plot_aggregate_data_2(df, variable_param, model_reporter, output_dir, colour
     scatter = plt.scatter(x, y, c=colour_values, norm=colors.Normalize(vmin=colour_values.min(), vmax=colour_values.max()), cmap='viridis') #if log_axis else colors.LogNorm(vmin=colour_values.min(), vmax=colour_values.max()))
     # note: lognorm doesn't work when 0 is one of the values
     plt.xlabel(variable_param)
-    if variable_param == 'alpha':
-        plt.xlabel('α')
+    if variable_param == 'a0':
+        plt.xlabel('a0')
     plt.ylabel(model_reporter)
     if log_axis:
         plt.xscale('log')
@@ -545,7 +545,7 @@ def utility_from_profitable_pool(r, c, l, b, m):
 def util_by_margin_and_pools(agent, margin, num_pools):
     total_stake = agent.model.total_stake
     stake = agent.stake / total_stake
-    alpha = agent.model.alpha
+    a0 = agent.model.a0
     k = agent.model.k
     beta = agent.model.beta / total_stake
     R = TOTAL_EPOCH_REWARDS_R
@@ -558,7 +558,7 @@ def util_by_margin_and_pools(agent, margin, num_pools):
     pledge_per_pool = np.where(stake / num_pools < beta, stake / num_pools, beta)
     cost_per_pool = (1 + phi * num_pools - phi) * initial_cost / num_pools
 
-    reward_per_pool = R / (1 + alpha) * (beta + pledge_per_pool * alpha)
+    reward_per_pool = R / (1 + a0) * (beta + pledge_per_pool * a0)
     utility_per_pool = np.where(reward_per_pool - cost_per_pool > 0,
                                 utility_from_profitable_pool(reward_per_pool, cost_per_pool, pledge_per_pool, beta,
                                                              margin), reward_per_pool - cost_per_pool)
@@ -603,8 +603,8 @@ def plot_margin_pools_heatmap(agent):
     plt.savefig(agent.model.directory / filename, bbox_inches='tight')
     plt.close(fig)
 
-def calculate_pool_splitting_profit(alpha, phi, cost, relative_stake):
-    return (1 + alpha) * (1 - phi) * cost - TOTAL_EPOCH_REWARDS_R * relative_stake * alpha
+def calculate_pool_splitting_profit(a0, phi, cost, relative_stake):
+    return (1 + a0) * (1 - phi) * cost - TOTAL_EPOCH_REWARDS_R * relative_stake * a0
 
 def pool_comparison_key(pool):
     """

@@ -23,13 +23,13 @@ def test_get_controlled_stake_distr_stat_dist(mocker):
         3: Stakeholder(unique_id=3, model=model, stake=0.01)
     }
 
-    pool1 = Pool(owner=1, cost=0.001, pledge=0.01, margin=0.1, alpha=0.3, beta=0.1, pool_id=555,
+    pool1 = Pool(owner=1, cost=0.001, pledge=0.01, margin=0.1, a0=0.3, beta=0.1, pool_id=555,
                  reward_function_option=0, total_stake=total_stake)
     pool1.stake = 0.08
-    pool2 = Pool(owner=2, cost=0.001, pledge=0.01, margin=0.1, alpha=0.3, beta=0.1, pool_id=556,
+    pool2 = Pool(owner=2, cost=0.001, pledge=0.01, margin=0.1, a0=0.3, beta=0.1, pool_id=556,
                  reward_function_option=0, total_stake=total_stake)
     pool2.stake = 0.1
-    pool3 = Pool(owner=2, cost=0.001, pledge=0.01, margin=0.1, alpha=0.3, beta=0.1, pool_id=557,
+    pool3 = Pool(owner=2, cost=0.001, pledge=0.01, margin=0.1, a0=0.3, beta=0.1, pool_id=557,
                  reward_function_option=0, total_stake=total_stake)
     pool3.stake = 0.05
     pools_list = [pool1, pool2, pool3]
@@ -47,13 +47,13 @@ def test_get_min_aggregate_pledge(mocker):
     total_stake = 1
     model = logic.sim.Simulation(total_stake=total_stake)
 
-    pool1 = Pool(owner=1, cost=0.001, pledge=0.001, margin=0.1, alpha=0.3, beta=0.1, pool_id=555,
+    pool1 = Pool(owner=1, cost=0.001, pledge=0.001, margin=0.1, a0=0.3, beta=0.1, pool_id=555,
                  reward_function_option=0, total_stake=total_stake)
     pool1.stake = 0.09
-    pool2 = Pool(owner=2, cost=0.001, pledge=0.01, margin=0.1, alpha=0.3, beta=0.1, pool_id=556,
+    pool2 = Pool(owner=2, cost=0.001, pledge=0.01, margin=0.1, a0=0.3, beta=0.1, pool_id=556,
                  reward_function_option=0, total_stake=total_stake)
     pool2.stake = 0.1
-    pool3 = Pool(owner=2, cost=0.001, pledge=0.002, margin=0.1, alpha=0.3, beta=0.1, pool_id=557,
+    pool3 = Pool(owner=2, cost=0.001, pledge=0.002, margin=0.1, a0=0.3, beta=0.1, pool_id=557,
                  reward_function_option=0, total_stake=total_stake)
     pool3.stake = 0.05
     pools_list = [pool1, pool2, pool3]
@@ -70,7 +70,7 @@ def test_get_min_aggregate_pledge(mocker):
     stake_per_pool = 0.001
     for i in range(num_pools):
         pools_list.append(
-            Pool(owner=i, cost=0.001, pledge=stake_per_pool, margin=0.1, alpha=0.3, beta=0.1, pool_id=100 + i,
+            Pool(owner=i, cost=0.001, pledge=stake_per_pool, margin=0.1, a0=0.3, beta=0.1, pool_id=100 + i,
                  reward_function_option=0, total_stake=total_stake))
     mocker.patch('logic.sim.Simulation.get_pools_list', return_value=pools_list)
     min_aggr_pledge = get_min_aggregate_pledge(model)
@@ -93,17 +93,17 @@ def test_get_pool_splitter_count(mocker):
     model = logic.sim.Simulation()
 
     pools_list = [
-        Pool(owner=i, cost=0.001, pledge=0.001, margin=0.1, alpha=0.3, beta=0.1, pool_id=555, reward_function_option=0,
+        Pool(owner=i, cost=0.001, pledge=0.001, margin=0.1, a0=0.3, beta=0.1, pool_id=555, reward_function_option=0,
              total_stake=1)
         for i in range(1, 11)]
     pools_list.append(
-        Pool(owner=2, cost=0.001, pledge=0.01, margin=0.1, alpha=0.3, beta=0.1, pool_id=556, reward_function_option=0,
+        Pool(owner=2, cost=0.001, pledge=0.01, margin=0.1, a0=0.3, beta=0.1, pool_id=556, reward_function_option=0,
              total_stake=1))
     pools_list.append(
-        Pool(owner=2, cost=0.001, pledge=0.01, margin=0.1, alpha=0.3, beta=0.1, pool_id=556, reward_function_option=0,
+        Pool(owner=2, cost=0.001, pledge=0.01, margin=0.1, a0=0.3, beta=0.1, pool_id=556, reward_function_option=0,
              total_stake=1))
     pools_list.append(
-        Pool(owner=5, cost=0.001, pledge=0.01, margin=0.1, alpha=0.3, beta=0.1, pool_id=556, reward_function_option=0,
+        Pool(owner=5, cost=0.001, pledge=0.01, margin=0.1, a0=0.3, beta=0.1, pool_id=556, reward_function_option=0,
              total_stake=1))
 
     mocker.patch('logic.sim.Simulation.get_pools_list', return_value=pools_list)
@@ -140,16 +140,16 @@ def test_get_gini_id_coeff_pool_count():
 
     pools = {}
     pools_1 = [
-        Pool(owner=1, cost=0.001, pledge=0.01, margin=0.1, alpha=0.3, beta=0.1, pool_id=i, reward_function_option=0,
+        Pool(owner=1, cost=0.001, pledge=0.01, margin=0.1, a0=0.3, beta=0.1, pool_id=i, reward_function_option=0,
              total_stake=1)
         for i in range(11)]
     for pool in pools_1:
         pools[pool.id] = pool
-    pools[11] = Pool(owner=2, cost=0.001, pledge=0.01, margin=0.1, alpha=0.3, beta=0.1, pool_id=11,
+    pools[11] = Pool(owner=2, cost=0.001, pledge=0.01, margin=0.1, a0=0.3, beta=0.1, pool_id=11,
                      reward_function_option=0, total_stake=1)
-    pools[12] = Pool(owner=2, cost=0.001, pledge=0.05, margin=0.1, alpha=0.3, beta=0.1, pool_id=12,
+    pools[12] = Pool(owner=2, cost=0.001, pledge=0.05, margin=0.1, a0=0.3, beta=0.1, pool_id=12,
                      reward_function_option=0, total_stake=1)
-    pools[13] = Pool(owner=5, cost=0.001, pledge=0.06, margin=0.1, alpha=0.3, beta=0.1, pool_id=13,
+    pools[13] = Pool(owner=5, cost=0.001, pledge=0.06, margin=0.1, a0=0.3, beta=0.1, pool_id=13,
                      reward_function_option=0, total_stake=1)
     model.pools = pools
 
@@ -162,16 +162,16 @@ def test_get_gini_id_coeff_stake():
 
     pools = {}
     pools_1 = [
-        Pool(owner=1, cost=0.001, pledge=0.01, margin=0.1, alpha=0.3, beta=0.1, pool_id=i,
+        Pool(owner=1, cost=0.001, pledge=0.01, margin=0.1, a0=0.3, beta=0.1, pool_id=i,
              reward_function_option=0, total_stake=1)
         for i in range(11)]
     for pool in pools_1:
         pools[pool.id] = pool
-    pools[11] = Pool(owner=2, cost=0.001, pledge=0.01, margin=0.1, alpha=0.3, beta=0.1, pool_id=11,
+    pools[11] = Pool(owner=2, cost=0.001, pledge=0.01, margin=0.1, a0=0.3, beta=0.1, pool_id=11,
                      reward_function_option=0, total_stake=1)
-    pools[12] = Pool(owner=2, cost=0.001, pledge=0.05, margin=0.1, alpha=0.3, beta=0.1, pool_id=12,
+    pools[12] = Pool(owner=2, cost=0.001, pledge=0.05, margin=0.1, a0=0.3, beta=0.1, pool_id=12,
                      reward_function_option=0, total_stake=1)
-    pools[13] = Pool(owner=5, cost=0.001, pledge=0.06, margin=0.1, alpha=0.3, beta=0.1, pool_id=13,
+    pools[13] = Pool(owner=5, cost=0.001, pledge=0.06, margin=0.1, a0=0.3, beta=0.1, pool_id=13,
                      reward_function_option=0, total_stake=1)
     model.pools = pools
 
@@ -183,14 +183,14 @@ def test_get_gini_id_coeff_pool_count_k_agents():
     model = logic.sim.Simulation(k=5)
     pools = {}
     pools_1 = [
-        Pool(owner=1, cost=0.001, pledge=0.01, margin=0.1, alpha=0.3, beta=0.1, pool_id=i,
+        Pool(owner=1, cost=0.001, pledge=0.01, margin=0.1, a0=0.3, beta=0.1, pool_id=i,
              reward_function_option=0, total_stake=1)
         for i in range(3)]
     for pool in pools_1:
         pools[pool.id] = pool
-    pools[3] = Pool(owner=2, cost=0.001, pledge=0.01, margin=0.1, alpha=0.3, beta=0.1, pool_id=11,
+    pools[3] = Pool(owner=2, cost=0.001, pledge=0.01, margin=0.1, a0=0.3, beta=0.1, pool_id=11,
                     reward_function_option=0, total_stake=1)
-    pools[4] = Pool(owner=5, cost=0.001, pledge=0.06, margin=0.1, alpha=0.3, beta=0.1, pool_id=13,
+    pools[4] = Pool(owner=5, cost=0.001, pledge=0.06, margin=0.1, a0=0.3, beta=0.1, pool_id=13,
                     reward_function_option=0, total_stake=1)
     model.pools = pools
 
@@ -202,7 +202,7 @@ def test_get_nakamoto_coefficient():
     model = logic.sim.Simulation()
     pools = {}
     pools_1 = [
-        Pool(owner=1, cost=0.001, pledge=0.01, margin=0.1, alpha=0.3, beta=0.1, pool_id=i,
+        Pool(owner=1, cost=0.001, pledge=0.01, margin=0.1, a0=0.3, beta=0.1, pool_id=i,
              reward_function_option=0, total_stake=1)
         for i in range(5)]
     for pool in pools_1:
@@ -210,17 +210,17 @@ def test_get_nakamoto_coefficient():
         pools[pool.id] = pool
 
     pools_2 = [
-        Pool(owner=2, cost=0.001, pledge=0.01, margin=0.1, alpha=0.3, beta=0.1, pool_id=i,
+        Pool(owner=2, cost=0.001, pledge=0.01, margin=0.1, a0=0.3, beta=0.1, pool_id=i,
              reward_function_option=0, total_stake=1)
         for i in range(5, 8)]
     for pool in pools_2:
         pool.stake = 0.1
         pools[pool.id] = pool
 
-    pools[8] = Pool(owner=3, cost=0.001, pledge=0.01, margin=0.1, alpha=0.3, beta=0.1, pool_id=11,
+    pools[8] = Pool(owner=3, cost=0.001, pledge=0.01, margin=0.1, a0=0.3, beta=0.1, pool_id=11,
                     reward_function_option=0, total_stake=1)
     pools[8].stake = 0.1
-    pools[9] = Pool(owner=4, cost=0.001, pledge=0.06, margin=0.1, alpha=0.3, beta=0.1, pool_id=13,
+    pools[9] = Pool(owner=4, cost=0.001, pledge=0.06, margin=0.1, a0=0.3, beta=0.1, pool_id=13,
                     reward_function_option=0, total_stake=1)
     pools[9].stake = 0.1
     model.pools = pools
@@ -235,7 +235,7 @@ def test_get_nakamoto_coefficient_total_stake_1():
     model = logic.sim.Simulation()
     pools = {}
     for i in range(300):
-        pools[i] = Pool(owner=i, cost=0.001, pledge=0.001, margin=0.1, alpha=0.3, beta=0.1, pool_id=i,
+        pools[i] = Pool(owner=i, cost=0.001, pledge=0.001, margin=0.1, a0=0.3, beta=0.1, pool_id=i,
                         reward_function_option=0, total_stake=1)
         pools[i].stake = 1 / 300
     model.pools = pools
@@ -251,11 +251,11 @@ def test_get_median_stk_rnk(mocker):
     mocker.patch('logic.sim.Simulation.get_agents_dict', return_value=agents)
     pools = []
     for i in range(3):
-        pools.append(Pool(owner=100, cost=0.001, pledge=0.001, margin=0.1, alpha=0.3, beta=0.1, pool_id=i,
+        pools.append(Pool(owner=100, cost=0.001, pledge=0.001, margin=0.1, a0=0.3, beta=0.1, pool_id=i,
                         reward_function_option=0, total_stake=1))
-    pools.append(Pool(owner=1, cost=0.001, pledge=0.001, margin=0.1, alpha=0.3, beta=0.1, pool_id=3,
+    pools.append(Pool(owner=1, cost=0.001, pledge=0.001, margin=0.1, a0=0.3, beta=0.1, pool_id=3,
                     reward_function_option=0, total_stake=1))
-    pools.append(Pool(owner=2, cost=0.001, pledge=0.001, margin=0.1, alpha=0.3, beta=0.1, pool_id=4,
+    pools.append(Pool(owner=2, cost=0.001, pledge=0.001, margin=0.1, a0=0.3, beta=0.1, pool_id=4,
                     reward_function_option=0, total_stake=1))
     mocker.patch('logic.sim.Simulation.get_pools_list', return_value=pools)
 

@@ -31,9 +31,9 @@ model_params = {
         "slider", "k", 10, 1, 100,
         description="The k value of the system."
     ),
-    "alpha": UserSettableParameter(
-        "slider", "α", 0.3, 0, 1, 0.01,
-        description="The alpha value of the system."
+    "a0": UserSettableParameter(
+        "slider", "a0", 0.3, 0, 1, 0.01,
+        description="The a0 value of the system."
     ),
     "cost_min": UserSettableParameter(
         "slider", "Minimum cost", 0.001, 0.001, 0.05, 0.001,

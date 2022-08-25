@@ -21,8 +21,8 @@ class Simulation(Model):
     Simulation of staking behaviour in Proof-of-Stake Blockchains.
     """
 
-    #todo split into two classes? simulation (with max_iterations, iterations_after_convergence etc) and rss (with k, alpha, reward function option, etc)
-    def __init__(self, n=1000, k=100, alpha=0.3, stake_distr_source='Pareto', profile_distr=None,
+    #todo split into two classes? simulation (with max_iterations, iterations_after_convergence etc) and rss (with k, a0, reward function option, etc)
+    def __init__(self, n=1000, k=100, a0=0.3, stake_distr_source='Pareto', profile_distr=None,
                  inactive_stake_fraction=0, inactive_stake_fraction_known=False, relative_utility_threshold=0,
                  absolute_utility_threshold=0, min_steps_to_keep_pool=0, seed=None, pareto_param=2.0,
                  max_iterations=1000, cost_min=1e-5, cost_max=1e-4, extra_pool_cost_fraction=0.4,
@@ -72,7 +72,7 @@ class Simulation(Model):
         self.current_era = 0
         total_eras = 1
 
-        extra_fields = ['n', 'k', 'alpha', 'relative_utility_threshold', 'absolute_utility_threshold',
+        extra_fields = ['n', 'k', 'a0', 'relative_utility_threshold', 'absolute_utility_threshold',
                  'min_steps_to_keep_pool', 'max_iterations', 'extra_pool_cost_fraction', 'agent_activation_order',
                   'reward_function_option', 'generate_graphs', 'pool_opening_process']
         adjustable_params = {} #todo define which args should not be saved as adjustable params (e.g. inactive_stake_fraction)
@@ -266,11 +266,11 @@ class Simulation(Model):
         decimals = 15
         row_list.extend([
             [agent_id, round(agents[agent_id].stake, decimals), round(agents[agent_id].cost, decimals),
-             round(hlp.calculate_potential_profit(agents[agent_id].stake, agents[agent_id].cost, self.alpha, self.beta, self.reward_function_option, self.total_stake), decimals),
+             round(hlp.calculate_potential_profit(agents[agent_id].stake, agents[agent_id].cost, self.a0, self.beta, self.reward_function_option, self.total_stake), decimals),
              "Abstainer" if agents[agent_id].strategy is None else "Operator" if len(agents[agent_id].strategy.owned_pools) > 0 else "Delegator",
              0 if agents[agent_id].strategy is None else len(agents[agent_id].strategy.owned_pools),
-             hlp.calculate_pool_splitting_profit(self.alpha, self.extra_pool_cost_fraction, agents[agent_id].cost, agents[agent_id].stake / self.total_stake),
-             "YES" if hlp.calculate_pool_splitting_profit(self.alpha, self.extra_pool_cost_fraction, agents[agent_id].cost, agents[agent_id].stake / self.total_stake) > 0 else "NO"
+             hlp.calculate_pool_splitting_profit(self.a0, self.extra_pool_cost_fraction, agents[agent_id].cost, agents[agent_id].stake / self.total_stake),
+             "YES" if hlp.calculate_pool_splitting_profit(self.a0, self.extra_pool_cost_fraction, agents[agent_id].cost, agents[agent_id].stake / self.total_stake) > 0 else "NO"
              ] for agent_id in range(len(agents))
         ])
 
@@ -315,10 +315,10 @@ class Simulation(Model):
         # todo also include input descriptors here, like NC prior?
         # todo add equilibrium step  / number of rounds
         filepath = "output/" + filename
-        header = ["id", "n", "k", "alpha", "phi", "activation order", "reward function", # "stk distr", "min cost", "max cost",
+        header = ["id", "n", "k", "a0", "phi", "activation order", "reward function", # "stk distr", "min cost", "max cost",
                   "descriptor", "-",
                   "#pools", "#operators", "nakamoto coeff", "comments"]
-        row = [self.seq_id, self.n, self.k, self.alpha, self.extra_pool_cost_fraction, self.agent_activation_order,
+        row = [self.seq_id, self.n, self.k, self.a0, self.extra_pool_cost_fraction, self.agent_activation_order,
                self.reward_function_option, self.execution_id[self.execution_id.index('-')+1:], "",
                reporters.get_number_of_pools(self), reporters.get_operator_count(self), reporters.get_nakamoto_coefficient(self), ""]
         hlp.write_to_csv(filepath, header, row)
@@ -411,7 +411,7 @@ class Simulation(Model):
             return 0, 0, 0
         # sort pools based on their myopic desirability
         # break ties with pool id
-        current_profit = hlp.calculate_current_profit(pool.stake, pool.pledge, pool.cost, self.alpha, self.beta,
+        current_profit = hlp.calculate_current_profit(pool.stake, pool.pledge, pool.cost, self.a0, self.beta,
                                                   self.reward_function_option, self.total_stake)
         myopic_desirability = hlp.calculate_myopic_pool_desirability(pool.margin, current_profit)
         return -myopic_desirability, pool.id

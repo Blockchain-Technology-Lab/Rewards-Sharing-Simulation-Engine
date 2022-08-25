@@ -13,7 +13,7 @@ import logic.helper as hlp
 # todo review failing test
 def test_calculate_operator_utility():
     model = Simulation(total_stake=1)
-    pool = Pool(cost=0.001, pledge=0.1, owner=156, margin=0.1, alpha=0.3, beta=0.1, pool_id=555,
+    pool = Pool(cost=0.001, pledge=0.1, owner=156, margin=0.1, a0=0.3, beta=0.1, pool_id=555,
                 reward_function_option=0, total_stake=1)
     model.pools[555] = pool
     agent = Stakeholder(unique_id=156, model=model, stake=0.1, cost=0.001)
@@ -30,16 +30,16 @@ def test_calculate_margin_semi_perfect_strategy():
     agent156 = Stakeholder(156, model, stake=0.001)
     agent157 = Stakeholder(157, model, stake=0.005)
     agent159 = Stakeholder(159, model, stake=0.0001)
-    pool555 = Pool(cost=0.001, pledge=0.001, owner=156, alpha=0.3, beta=0.1, pool_id=555, reward_function_option=0,
+    pool555 = Pool(cost=0.001, pledge=0.001, owner=156, a0=0.3, beta=0.1, pool_id=555, reward_function_option=0,
                    total_stake=total_stake)
     model.pools[555] = pool555
-    pool556 = Pool(cost=0.001, pledge=0.002, owner=157, alpha=0.3, beta=0.1, pool_id=556, reward_function_option=0,
+    pool556 = Pool(cost=0.001, pledge=0.002, owner=157, a0=0.3, beta=0.1, pool_id=556, reward_function_option=0,
                    total_stake=total_stake)
     model.pools[556] = pool556
-    pool557 = Pool(cost=0.001, pledge=0.003, owner=157, alpha=0.3, beta=0.1, pool_id=557, reward_function_option=0,
+    pool557 = Pool(cost=0.001, pledge=0.003, owner=157, a0=0.3, beta=0.1, pool_id=557, reward_function_option=0,
                    total_stake=total_stake)
     model.pools[557] = pool557
-    pool558 = Pool(cost=0.001, pledge=0.0001, owner=159, alpha=0.3, beta=0.1, pool_id=558, reward_function_option=0,
+    pool558 = Pool(cost=0.001, pledge=0.0001, owner=159, a0=0.3, beta=0.1, pool_id=558, reward_function_option=0,
                    total_stake=total_stake)
     model.pools[558] = pool558
 
@@ -62,7 +62,7 @@ def test_close_pool():
     total_stake = 1
     model = Simulation(total_stake=total_stake)
     agent = Stakeholder(156, model, 0.001)
-    pool = Pool(cost=0.001, pledge=0.001, owner=156, margin=0.2, alpha=0.3, beta=0.1, pool_id=555,
+    pool = Pool(cost=0.001, pledge=0.001, owner=156, margin=0.2, a0=0.3, beta=0.1, pool_id=555,
                 reward_function_option=0, total_stake=total_stake)
     model.pools[555] = pool
 
@@ -87,11 +87,11 @@ def test_determine_pools_to_keep():
     total_stake = 1
     model = Simulation(total_stake=total_stake)
     agent = Stakeholder(unique_id=1, model=model, stake=0.005)
-    pool1 = Pool(cost=0.001, pledge=0.001, owner=1, margin=0.2, alpha=0.3, beta=0.1, pool_id=1,
+    pool1 = Pool(cost=0.001, pledge=0.001, owner=1, margin=0.2, a0=0.3, beta=0.1, pool_id=1,
                  reward_function_option=0, total_stake=total_stake)
-    pool2 = Pool(cost=0.001, pledge=0.001, owner=1, margin=0.2, alpha=0.3, beta=0.1, pool_id=2,
+    pool2 = Pool(cost=0.001, pledge=0.001, owner=1, margin=0.2, a0=0.3, beta=0.1, pool_id=2,
                  reward_function_option=0, total_stake=total_stake)
-    pool3 = Pool(cost=0.001, pledge=0.001, owner=1, margin=0.1, alpha=0.3, beta=0.1, pool_id=3,
+    pool3 = Pool(cost=0.001, pledge=0.001, owner=1, margin=0.1, a0=0.3, beta=0.1, pool_id=3,
                  reward_function_option=0, total_stake=total_stake)
     current_pools = {1: pool1, 2: pool2, 3: pool3}
     agent.strategy.owned_pools = current_pools
@@ -125,16 +125,16 @@ def test_find_delegation_move():
     agent157 = Stakeholder(157, model, stake=0.005)
     agent158 = Stakeholder(158, model, stake=0.003)
     agent159 = Stakeholder(159, model, stake=0.0001)
-    pool555 = Pool(cost=0.001, pledge=0.001, owner=156, alpha=0.3, beta=0.1, pool_id=555, reward_function_option=0,
+    pool555 = Pool(cost=0.001, pledge=0.001, owner=156, a0=0.3, beta=0.1, pool_id=555, reward_function_option=0,
                    total_stake=total_stake, margin=0.1)
     model.pools[555] = pool555
-    pool556 = Pool(cost=0.001, pledge=0.002, owner=157, alpha=0.3, beta=0.1, pool_id=556, reward_function_option=0,
+    pool556 = Pool(cost=0.001, pledge=0.002, owner=157, a0=0.3, beta=0.1, pool_id=556, reward_function_option=0,
                    total_stake=total_stake, margin=0.1)
     model.pools[556] = pool556
-    pool557 = Pool(cost=0.001, pledge=0.003, owner=157, alpha=0.3, beta=0.1, pool_id=557, reward_function_option=0,
+    pool557 = Pool(cost=0.001, pledge=0.003, owner=157, a0=0.3, beta=0.1, pool_id=557, reward_function_option=0,
                    total_stake=total_stake, margin=0.1)
     model.pools[557] = pool557
-    pool558 = Pool(cost=0.001, pledge=0.003, owner=158, alpha=0.3, beta=0.1, pool_id=558, reward_function_option=0,
+    pool558 = Pool(cost=0.001, pledge=0.003, owner=158, a0=0.3, beta=0.1, pool_id=558, reward_function_option=0,
                    total_stake=total_stake, margin=0)
     model.pools[558] = pool558
 
@@ -190,10 +190,10 @@ def test_execute_strategy(mocker):
     mocker.patch('logic.sim.Simulation.get_agents_dict', return_value=agents_dict)
 
     # setting: there are two pools, one of them has two delegators and the other has none
-    pool1 = Pool(cost=0.001, pledge=0.003, owner=1, alpha=0.3, beta=0.1, pool_id=1, reward_function_option=0,
+    pool1 = Pool(cost=0.001, pledge=0.003, owner=1, a0=0.3, beta=0.1, pool_id=1, reward_function_option=0,
                    total_stake=total_stake, margin=0.1)
     model.pools[1] = pool1
-    pool2 = Pool(cost=0.001, pledge=0.002, owner=2, alpha=0.3, beta=0.1, pool_id=2, reward_function_option=0,
+    pool2 = Pool(cost=0.001, pledge=0.002, owner=2, a0=0.3, beta=0.1, pool_id=2, reward_function_option=0,
                    total_stake=total_stake, margin=0)
     model.pools[2] = pool2
     agent1.strategy = Strategy(stake_allocations=None, owned_pools={1: pool1})
@@ -242,7 +242,7 @@ def test_execute_strategy(mocker):
 
 
     # new strategy for delegator: open pool
-    pool3 = Pool(cost=0.001, pledge=0.001, owner=3, alpha=0.3, beta=0.1, pool_id=3, reward_function_option=0,
+    pool3 = Pool(cost=0.001, pledge=0.001, owner=3, a0=0.3, beta=0.1, pool_id=3, reward_function_option=0,
                  total_stake=total_stake, margin=0)
     new_strategy3 = Strategy(stake_allocations=None, owned_pools={3: pool3})
     agent3.new_strategy = new_strategy3
