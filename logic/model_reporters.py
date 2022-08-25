@@ -21,13 +21,6 @@ def get_median_margin(model):
     margins = [pool.margin for pool in pools]
     return statistics.median(margins) if len(margins) > 0 else 0
 
-
-def get_pool_sizes(model):
-    pool_stakes = {pool_id: pool.stake for pool_id, pool in model.pools.items()}
-    return [pool_stakes[i] if i in pool_stakes else 0 for i in range(1, MAX_NUM_POOLS)] \
-        if len(pool_stakes) > 0 else [0] * MAX_NUM_POOLS
-
-
 def get_avg_pledge(model):
     current_pool_pledges = [pool.pledge for pool in model.get_pools_list()]
     return statistics.mean(current_pool_pledges) if len(current_pool_pledges) > 0 else 0
@@ -212,9 +205,8 @@ def get_min_aggregate_pledge(model):
 def get_pledge_rate(model):
     """
     Pledge rate is defined as: total_pledge / total_active_stake
-    and can be used as an indication of the system's degree of decentralisation
     :param model: instance of the simulation
-    :return: the pledge rate of the model's current configuration
+    :return: the pledge rate of the model at its current state
     """
     pools = model.get_pools_list()
     if len(pools) == 0:
@@ -394,7 +386,7 @@ def get_gini_id_coeff_stake_fraction(model):
     return gini_coefficient(stake_per_agent) / stake_per_agent.size
 
 
-def get_active_stake_pools(model):
+def get_total_delegated_stake(model):
     return sum([pool.stake for pool in model.get_pools_list()])
 
 
@@ -410,7 +402,7 @@ def get_stake_distr_stats(model):
 def get_operator_count(model):
     return len({pool.owner for pool in model.get_pools_list()})
 
-#todo make sure that all model reporters are here
+
 all_model_reporters = {
     "Pool count": get_number_of_pools,
     "Total pledge": get_total_pledge,
@@ -442,7 +434,10 @@ all_model_reporters = {
     "Median margin": get_median_margin,
     "Stake per agent": get_pool_stakes_by_agent,
     "Stake per agent id": get_pool_stakes_by_agent_id,
-    "StakePairs": get_stakes_n_margins
+    "StakePairs": get_stakes_n_margins,
+    "Total delegated stake": get_total_delegated_stake,
+    "Total agent stake": get_active_stake_agents,
+    "Operator count": get_operator_count
 }
 
 reporter_ids = {
@@ -463,9 +458,10 @@ reporter_ids = {
     15: "Mean stake rank",
     16: "Mean cost rank",
     17: "Median stake rank",
-    18: "Median cost rank", #todo fix numbering
-    20: "Number of pool splitters",
-    21: "Cost efficient stakeholders",
+    18: "Median cost rank",
+    19: "Number of pool splitters",
+    20: "Cost efficient stakeholders",
+    21: "StakePairs",
     22: "Gini-id",
     23: "Gini-id stake",
     24: "Gini-id (fraction)",
@@ -473,6 +469,8 @@ reporter_ids = {
     26: "Mean margin",
     27: "Median margin",
     28: "Stake per agent",
-    29: "StakePairs",
-    30: "Stake per agent id"
+    30: "Stake per agent id",
+    31: "Total delegated stake",
+    32: "Total agent stake",
+    33: "Operator count"
 }

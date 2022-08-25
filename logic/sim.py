@@ -17,10 +17,6 @@ import logic.model_reporters as reporters
 import logic.stakeholder_profiles as profiles
 
 class Simulation(Model):
-    """
-    Simulation of staking behaviour in Proof-of-Stake Blockchains.
-    """
-
     #todo split into two classes? simulation (with max_iterations, iterations_after_convergence etc) and rss (with k, a0, reward function option, etc)
     def __init__(self, n=1000, k=100, a0=0.3, stake_distr_source='Pareto', profile_distr=None,
                  inactive_stake_fraction=0, inactive_stake_fraction_known=False, relative_utility_threshold=0,
@@ -40,7 +36,7 @@ class Simulation(Model):
             args.pop('input_from_file')
             args.pop('args')
         if args['metrics'] is None:
-            args['metrics'] = [1, 2, 4, 6, 17, 18, 26, 27, 28, 29, 30, 3]
+            args['metrics'] = [1, 2, 4, 6, 17, 18, 21, 26, 27, 28, 30, 3]
         if args['profile_distr'] is None:
             args['profile_distr'] = [1, 0, 0]
 
@@ -236,7 +232,7 @@ class Simulation(Model):
         """
         return self.consecutive_idle_steps >= self.iterations_after_convergence
 
-    def export_args_file(self, args): #todo rename to metadata?
+    def export_args_file(self, args):
         filename = 'args.json'
         filepath = self.directory / filename
         hlp.export_json_file(args, filepath)
@@ -374,7 +370,7 @@ class Simulation(Model):
         it's not necessarily equal to the sum of all active agents' stake
         """
         # Revise active stake
-        active_stake = reporters.get_active_stake_pools(self)
+        active_stake = reporters.get_total_delegated_stake(self)
         self.perceived_active_stake = active_stake
         # Revise expected number of pools, k  (note that the value of beta, which is used to calculate rewards, does not change in this case)
         self.k = math.ceil(round(active_stake / self.beta, 12))  # first rounding to 12 decimal digits to avoid floating point errors

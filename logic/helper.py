@@ -535,10 +535,6 @@ def plot_aggregate_data_heatmap(df, variables, model_reporters, output_dir):
         plt.savefig(path / filename, bbox_inches='tight')
         plt.close(fig)
 
-#todo add exchange rate functionality
-def convert_currency(dollar_value, ada_price):
-    return dollar_value / ada_price
-
 def utility_from_profitable_pool(r, c, l, b, m):
     return l / b * (r - c) * (1 - m) + m * (r - c)
 
