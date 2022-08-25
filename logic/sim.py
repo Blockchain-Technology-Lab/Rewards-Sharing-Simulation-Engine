@@ -60,7 +60,7 @@ class Simulation(Model):
         if execution_id == '' or execution_id == 'temp':
             # No identifier was provided by the user, so we construct one based on the simulation's parameter values
             execution_id = hlp.generate_execution_id(args)
-        execution_id = str(seq_id) + '-' + execution_id + '-seed-' + seed
+        execution_id = str(seq_id) + '-' + execution_id
         self.execution_id = execution_id
 
         path = pathlib.Path.cwd() / "output" / args['parent_dir'] / self.execution_id
@@ -209,7 +209,7 @@ class Simulation(Model):
         if self.current_step_idle:
             self.consecutive_idle_steps += 1
             if self.has_converged():
-                self.equilibrium_steps.append(current_step - self.iterations_after_convergence + 1)
+                self.equilibrium_steps.append(current_step - self.iterations_after_convergence)
                 if self.current_era < self.total_eras - 1:
                     self.adjust_params()
                 else:
