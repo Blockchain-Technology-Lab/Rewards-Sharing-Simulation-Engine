@@ -7,7 +7,6 @@ Laboratory.
 See the [documentation](https://blockchain-technology-lab.github.io/Cardano-Pooling-Simulator/) for detailed 
 instructions on how to install and use the simulation engine. 
 
----------------------
 ## Installation
 To install the simulation engine, simply clone this project:
 
@@ -54,7 +53,7 @@ Again, running:
     
     python batch-run.py --help 
 
-will show all the different options and the default values of the parameters.
+will show all the different options and the default values of all parameters.
 
 ## License
 This project is licensed under the terms of the Apache 2.0 [license](LICENSE).
