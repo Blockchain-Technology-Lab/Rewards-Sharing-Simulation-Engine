@@ -5,14 +5,14 @@
     <meta http-equiv="X-UA-Compatible" content="IE=edge" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
       <link rel="shortcut icon" href="../img/favicon.ico" />
-    <title>Configuation - Cardano Pooling Simulator - Docs</title>
+    <title>Configuration - Cardano Pooling Simulator - Docs</title>
     <link rel="stylesheet" href="../css/theme.css" />
     <link rel="stylesheet" href="../css/theme_extra.css" />
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.5.0/styles/github.min.css" />
     
       <script>
         // Current page data
-        var mkdocs_page_name = "Configuation";
+        var mkdocs_page_name = "Configuration";
         var mkdocs_page_input_path = "configuration.md";
         var mkdocs_page_url = null;
       </script>
@@ -45,21 +45,21 @@
                 </li>
               </ul>
               <ul>
-                <li class="toctree-l1"><a class="reference internal" href="../overview/">Overview</a>
-                </li>
-              </ul>
-              <ul>
                 <li class="toctree-l1"><a class="reference internal" href="../setup/">Setup</a>
                 </li>
               </ul>
               <ul class="current">
-                <li class="toctree-l1 current"><a class="reference internal current" href="./">Configuation</a>
+                <li class="toctree-l1 current"><a class="reference internal current" href="./">Configuration</a>
     <ul class="current">
     </ul>
                 </li>
               </ul>
               <ul>
                 <li class="toctree-l1"><a class="reference internal" href="../examples/">Examples</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../output/">Output</a>
                 </li>
               </ul>
       </div>
@@ -76,7 +76,7 @@
         <div class="rst-content"><div role="navigation" aria-label="breadcrumbs navigation">
   <ul class="wy-breadcrumbs">
     <li><a href=".." class="icon icon-home" alt="Docs"></a> &raquo;</li>
-      <li>Configuation</li>
+      <li>Configuration</li>
     <li class="wy-breadcrumbs-aside">
     </li>
   </ul>
@@ -86,7 +86,14 @@
             <div class="section" itemprop="articleBody">
               
                 <h1 id="configuration">Configuration</h1>
-<p>The simulation engine is highly configurable. From the reward scheme parameters to be used to the output files to be generated, there are numerous variables that can vary from run to run.</p>
+<p>The simulation engine is highly configurable. From the reward scheme parameters to be used to the output files to be 
+generated, there are numerous variables that can vary from execution to execution. This customisation is performed
+using command-line arguments when running the main or batch-run script. We will go through all the available options 
+here, but it's also possible to get an overview of the arguments and their default values by running the help command:</p>
+<p>..  code-block:: bash</p>
+<pre><code>python main.py --help
+python batch-run.py --help
+</code></pre>
               
             </div>
           </div><footer>
