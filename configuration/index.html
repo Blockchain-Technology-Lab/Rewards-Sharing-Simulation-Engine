@@ -90,10 +90,39 @@
 generated, there are numerous variables that can vary from execution to execution. This customisation is performed
 using command-line arguments when running the main or batch-run script. We will go through all the available options 
 here, but it's also possible to get an overview of the arguments and their default values by running the help command:</p>
-<p>..  code-block:: bash</p>
 <pre><code>python main.py --help
 python batch-run.py --help
 </code></pre>
+<table>
+<thead>
+<tr>
+<th>Argument</th>
+<th>Description</th>
+<th>Accepted values</th>
+<th>Default value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>--n</td>
+<td>The number of stakeholders / agents in the simulation.</td>
+<td>Any natural number</td>
+<td>1000</td>
+</tr>
+<tr>
+<td>--k</td>
+<td>The target number of pools of the system (reward sharing scheme parameter)</td>
+<td>Any natural number &lt; n</td>
+<td>100</td>
+</tr>
+<tr>
+<td>--a0</td>
+<td>Stake infuence / Sybil resilience factor (reward sharing scheme parameter)</td>
+<td>Any non-negative real number</td>
+<td>0.3</td>
+</tr>
+</tbody>
+</table>
               
             </div>
           </div><footer>
