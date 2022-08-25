@@ -6,4 +6,4 @@
 ## Batch runs
 
 
-## Interactive session
+## Interactive browser session

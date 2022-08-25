@@ -1,8 +1,8 @@
 site_name: Cardano Pooling Simulator - Docs
 nav:
         - Home: index.md
-        - Overview: overview.md
         - Setup: setup.md
-        - Configuation: configuration.md
-        - Examples: examples.md 
+        - Configuration: configuration.md
+        - Examples: examples.md
+        - Output: output.md
 theme: readthedocs
