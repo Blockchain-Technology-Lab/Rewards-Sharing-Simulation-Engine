@@ -1,8 +1,8 @@
-# PoS-Pooling-Games-Simulation
+# Cardano Pooling Simulator
 Tool to simulate staking behaviour in Proof-of-Stake blockchains, especially tailored towards Cardano.
 
-Written in Python 3.9 by Christina Ovezik, Research Engineer at the University of Edinburgh's Blockchain Technology
-Laboratory.
+Written in Python 3.9 by Christina Ovezik, Research Engineer at the University of Edinburgh's [Blockchain Technology
+Laboratory](https://www.ed.ac.uk/informatics/blockchain).
 
 See the [documentation](https://blockchain-technology-lab.github.io/Cardano-Pooling-Simulator/) for detailed 
 instructions on how to install and use the simulation engine. 
