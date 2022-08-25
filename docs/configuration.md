@@ -5,8 +5,12 @@ generated, there are numerous variables that can vary from execution to executio
 using command-line arguments when running the main or batch-run script. We will go through all the available options 
 here, but it's also possible to get an overview of the arguments and their default values by running the help command:
 
-..  code-block:: bash
-
 	python main.py --help
     python batch-run.py --help
 
+
+| Argument | Description | Accepted values | Default value |
+| -------- | ----------- | --------------- | ------------- |
+| --n      | The number of stakeholders / agents in the simulation. | Any natural number | 1000 |
+| --k      | The target number of pools of the system (reward sharing scheme parameter) | Any natural number < n | 100 |
+| --a0     | Stake infuence / Sybil resilience factor (reward sharing scheme parameter) | Any non-negative real number | 0.3 |
