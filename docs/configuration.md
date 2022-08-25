@@ -11,6 +11,6 @@ here, but it's also possible to get an overview of the arguments and their defau
 
 | Argument | Description | Accepted values | Default value |
 | -------- | ----------- | --------------- | ------------- |
-| --n      | The number of stakeholders / agents in the simulation. | Any natural number | 1000 |
-| --k      | The target number of pools of the system (reward sharing scheme parameter) | Any natural number < n | 100 |
-| --a0     | Stake infuence / Sybil resilience factor (reward sharing scheme parameter) | Any non-negative real number | 0.3 |
+| --n      | The number of stakeholders / agents<br>in the simulation. | Any natural number | 1000 |
+| --k      | The target number of pools of the<br>system (reward sharing scheme parameter) | Any natural number < n | 100 |
+| --a0     | Stake infuence / Sybil resilience<br>factor (reward sharing scheme parameter) | Any non-negative real number | 0.3 |
