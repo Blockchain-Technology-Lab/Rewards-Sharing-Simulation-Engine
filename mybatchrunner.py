@@ -151,6 +151,7 @@ class MyBatchRunner(BatchRunnerMP):
             for run in run_iter_args:
                 params, model_data = self._run_wrappermp(run)
                 results[params] = model_data
+                self._intermediate_result_prep_mp(params, model_data)
 
             self._result_prep_mp(results)
 
