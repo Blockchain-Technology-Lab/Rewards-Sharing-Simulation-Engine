@@ -16,7 +16,6 @@ class Stakeholder(Agent):
         super().__init__(unique_id, model)
         self.cost = cost  # the cost of running one pool for this agent
         self.stake = stake
-        self.remaining_min_steps_to_keep_pool = 0
         self.new_strategy = None
         if strategy is None:
             # Initialise strategy to an "empty" strategy
@@ -30,9 +29,6 @@ class Stakeholder(Agent):
             # but does not apply them yet, and advance() then applies the changes". When they don't move simultaneously,
             # they can advance (i.e. execute their strategy) right after updating their strategy
             self.advance()
-        if self.remaining_min_steps_to_keep_pool > 0:
-            # For agents that have recently opened a pool
-            self.remaining_min_steps_to_keep_pool -= 1
 
     def advance(self):
         if self.new_strategy is not None:
@@ -54,15 +50,12 @@ class Stakeholder(Agent):
 
         # For all agents, find a possible delegation strategy and calculate its potential utility
         # unless they are pool operators with recently opened pools (we assume that they will keep them at least for a bit)
-        if self.remaining_min_steps_to_keep_pool == 0:
-            delegator_strategy = self.find_delegation_move()
-            delegator_utility = self.calculate_expected_utility(delegator_strategy)
-            possible_moves["delegator"] = delegator_utility, delegator_strategy
-            pool_strategy = self.choose_pool_strategy()
-            if pool_strategy[1] is not None:
-                possible_moves["operator"] = pool_strategy
-        else:
-            raise ValueError("Pool opening process '{}' is not supported".format(self.model.pool_opening_process))
+        delegator_strategy = self.find_delegation_move()
+        delegator_utility = self.calculate_expected_utility(delegator_strategy)
+        possible_moves["delegator"] = delegator_utility, delegator_strategy
+        pool_strategy = self.choose_pool_strategy()
+        if pool_strategy[1] is not None:
+            possible_moves["operator"] = pool_strategy
 
         # Compare the above with the utility of the current strategy and pick one of the 3
         # in case of a tie, the max function picks the element with the lowest index, so we have strategically ordered
@@ -190,10 +183,7 @@ class Stakeholder(Agent):
             # If the agent hasn't made any pools yet, consider operating up to as many pools as they can saturate with pledge + 1
             num_pools_options = {i for i in range(1, math.ceil(self.stake / self.model.beta) + 1)}
         else:
-            num_pools_options = {max(i, 1) for i in
-                                 range(current_num_pools, current_num_pools + max_new_pools_per_round + 1)}
-            if self.remaining_min_steps_to_keep_pool <= 0:
-                num_pools_options.update(range(1, current_num_pools))
+            num_pools_options = {i for i in range(1, current_num_pools + max_new_pools_per_round + 1)}
 
         for num_pools in num_pools_options:
             owned_pools_copies = self.determine_pools_to_keep(num_pools)
@@ -372,7 +362,6 @@ class Stakeholder(Agent):
     def open_pool(self, pool_id):
         pool = self.strategy.owned_pools[pool_id]
         self.model.pools[pool_id] = pool
-        self.remaining_min_steps_to_keep_pool = self.model.min_steps_to_keep_pool
         # include in pool rankings
         self.model.pool_rankings.add(pool)
         self.model.pool_rankings_myopic.add(pool)

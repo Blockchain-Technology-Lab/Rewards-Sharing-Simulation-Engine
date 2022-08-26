@@ -20,11 +20,11 @@ class Simulation(Model):
     #todo split into two classes? simulation (with max_iterations, iterations_after_convergence etc) and rss (with k, a0, reward function option, etc)
     def __init__(self, n=1000, k=100, a0=0.3, stake_distr_source='Pareto', profile_distr=None,
                  inactive_stake_fraction=0, inactive_stake_fraction_known=False, relative_utility_threshold=0,
-                 absolute_utility_threshold=0, min_steps_to_keep_pool=0, seed=None, pareto_param=2.0,
+                 absolute_utility_threshold=0, seed=None, pareto_param=2.0,
                  max_iterations=1000, cost_min=1e-5, cost_max=1e-4, extra_pool_cost_fraction=0.4,
                  agent_activation_order="Random", total_stake=-1, iterations_after_convergence=10,
                  reward_function_option=0, execution_id='', seq_id=-1, parent_dir='', metrics=None,
-                 generate_graphs=True, input_from_file=False, pool_opening_process='local-search'):
+                 generate_graphs=True, input_from_file=False):
         # todo make sure that the input is valid? n > 0, 0 < k <= n
         if input_from_file:
             args = hlp.read_args_from_file("args.json")
@@ -69,8 +69,8 @@ class Simulation(Model):
         total_eras = 1
 
         extra_fields = ['n', 'k', 'a0', 'relative_utility_threshold', 'absolute_utility_threshold',
-                 'min_steps_to_keep_pool', 'max_iterations', 'extra_pool_cost_fraction', 'agent_activation_order',
-                  'reward_function_option', 'generate_graphs', 'pool_opening_process']
+                 'max_iterations', 'extra_pool_cost_fraction', 'agent_activation_order',
+                  'reward_function_option', 'generate_graphs']
         adjustable_params = {} #todo define which args should not be saved as adjustable params (e.g. inactive_stake_fraction)
         for field in extra_fields:
             value = args[field]
@@ -123,7 +123,7 @@ class Simulation(Model):
 
         self.consecutive_idle_steps = 0  # steps towards convergence
         self.current_step_idle = True
-        self.iterations_after_convergence = max(min_steps_to_keep_pool + 1, args['iterations_after_convergence'])
+        self.iterations_after_convergence = args['iterations_after_convergence']
         self.pools = dict()
         self.revision_frequency = 10  # defines how often agents revise their belief about the active stake and expected #pools
         self.initialise_pool_id_seq()  # initialise pool id sequence for the new model run

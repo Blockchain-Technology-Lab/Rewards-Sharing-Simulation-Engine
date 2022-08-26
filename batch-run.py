@@ -23,9 +23,9 @@ def main():
                              'randomly and then used for all executions of the batch run.')
     parser.add_argument('--max_iterations', type=int, default=2000,
                         help='The maximum number of iterations of the system. Default is 1000.')
-    parser.add_argument('--n', nargs="+", type=int, default=1000,
+    parser.add_argument('--n', nargs="+", type=int, default=100,
                         help='The number of agents (natural number). Default is 100.')
-    parser.add_argument('--k', nargs="+", type=int, default=[100, 501, 100],
+    parser.add_argument('--k', nargs="+", type=int, default=[10, 31, 10],
                         help='The k value of the system (natural number). Default is 10.')
     parser.add_argument('--a0', nargs="+", type=float, default=0.3,
                         help='The a0 value of the system (decimal number between 0 and 1). Default is 0.3')
@@ -53,11 +53,9 @@ def main():
                         help='The utility increase ratio under which moves are disregarded. Default is 0%%.')
     parser.add_argument('--absolute_utility_threshold', nargs="+", type=float, default=0,
                         help='The utility threshold under which moves are disregarded. Default is 1e-9.')
-    parser.add_argument('--pool_opening_process', type=str, default='local-search',
-                        help='The heuristic to use for determining a pool strategy. Options: local-search (default), plus-one.')
     parser.add_argument('--iterations_after_convergence', type=int, default=10,
                         help='The minimum consecutive idle iterations that are required before terminations. '
-                             'Default is 10. But if min_steps_to_keep_pool > ms then ms = min_steps_to_keep_pool + 1.')
+                             'Default is 10.')
 
     args_dict = vars(parser.parse_args())
 

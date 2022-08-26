@@ -32,8 +32,6 @@ def main():
                         help='agent activation order. Default is random.')
     parser.add_argument('--seed', default=None,
                         help='Seed for reproducibility. Default is None, which means that no seed is given.')
-    parser.add_argument("--min_steps_to_keep_pool", type=int, default=0,
-                        help='The number of steps for which an agent remains idle after opening a pool. Default is 0.')
     parser.add_argument('--profile_distr', nargs="+", type=float, default=[1, 0, 0],
                         help='The probability distribution for assigning different profiles to the agents. Default is [1, 0, 0], i.e. 100%% non-myopic agents.')
     parser.add_argument('--inactive_stake_fraction', type=float, default=0,
@@ -44,7 +42,7 @@ def main():
                         help='The maximum number of iterations of the system. Default is 2000.')
     parser.add_argument('--iterations_after_convergence', type=int, default=10,
                         help='The minimum consecutive idle iterations that are required before terminations. '
-                             'Default is 10. But if min_steps_to_keep_pool > ms then ms = min_steps_to_keep_pool + 1.')
+                             'Default is 10.')
     parser.add_argument('--stake_distr_source', type=str, default='pareto',
                         help='The distribution type to use for the initial allocation of stake to the agents.')
     parser.add_argument('--execution_id', type=str, default='',
@@ -60,8 +58,6 @@ def main():
                         help='The list of ids that correspond to metrics that are tracked during the simulation. Default is [1,2,3]')
     parser.add_argument('--generate_graphs', type=bool, default=True, action=argparse.BooleanOptionalAction,
                         help='If True then the graphs are generated upon completion. Default is True.')
-    parser.add_argument('--pool_opening_process', type=str, default='local-search',
-                        help='The heuristic to use for determining a pool strategy. Options: local-search (default), plus-one.')
 
     args = parser.parse_args()
 
@@ -78,7 +74,6 @@ def main():
         inactive_stake_fraction_known= args.inactive_stake_fraction_known,
         relative_utility_threshold=args.relative_utility_threshold,
         absolute_utility_threshold=args.absolute_utility_threshold,
-        min_steps_to_keep_pool=args.min_steps_to_keep_pool,
         seed=args.seed,
         pareto_param=args.pareto_param,
         max_iterations=args.max_iterations,
@@ -94,8 +89,7 @@ def main():
         #parent_dir
         metrics=args.metrics,
         generate_graphs=args.generate_graphs,
-        input_from_file=args.input_from_file,
-        pool_opening_process=args.pool_opening_process
+        input_from_file=args.input_from_file
     )
 
     sim.run_model()
