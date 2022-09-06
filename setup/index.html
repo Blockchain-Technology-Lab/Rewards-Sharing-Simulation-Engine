@@ -93,25 +93,28 @@
               
                 <h1 id="setup">Setup</h1>
 <h2 id="dependencies">Dependencies</h2>
-<p>The simulation engine is written in Python 3.9, so the first thing to ensure if you want to run it on your machine is 
-that you have Python 3.9 installed. </p>
-<p>Having the right version of Python, you can now install the requirements for the project, which can be found in the 
-<a href="requirements.txt">requirements file</a>. To install all of them in one go, you can run the following from the root 
-directory of the project (assuming that the <code>python</code> command corresponds to a Python 3.9 installation):</p>
+<p>The simulation engine is written in Python 3.9, so the first thing to ensure when running it on some machine is 
+that Python 3.9 is installed there. The remaining dependencies of the project can be found in the 
+<a href="requirements.txt">requirements file</a>. Running the following from the root directory of the project installs all 
+required packages in one go (assuming that the <code>python</code> command corresponds to a Python 3.9 installation):</p>
 <pre><code>python -m pip install -r requirements.txt
 </code></pre>
 <h2 id="installation">Installation</h2>
-<p>Installing the simulation engine is very simple, as it only involves cloning the relevant github project:</p>
+<p>Installing the simulation engine is very simple, as it only involves cloning the relevant 
+<a href="https://github.com/Blockchain-Technology-Laboratory/Cardano-Pooling-Simulator">Github project</a>:</p>
 <pre><code>git clone https://github.com/Blockchain-Technology-Lab/Cardano-Pooling-Simulator.git
 </code></pre>
 <h2 id="execution">Execution</h2>
-<p>To run the simulation, navigate to the directory of the project and run the main script:</p>
-<pre><code>cd Cardano-Pooling-Simulator
-python main.py
+<p>To run the simulation, navigate to the directory of the project and run the <code>main.py</code> script from a terminal:</p>
+<pre><code>python main.py
 </code></pre>
-<p>It is also possible to run the simulation with different parameters (e.g. number of agents). For a full list of options
-refer to the <a href="../configuration/">Configuration</a> page, and for examples of using the simulation engine in different ways 
-see the <a href="../examples/">Examples</a> page.</p>
+<p>This executes the simulation with the default options (1000 agents, k = 100, a0 = 0.3, and so on). It is also possible 
+to run the simulation with different parameters. For example, to if we want a simulation with 10,000 agents and target 
+number of pools k = 500, we can run the following:</p>
+<pre><code>python main.py --n=10000 --k=500
+</code></pre>
+<p>For the full list of options that the simulation accepts, refer to the <a href="../configuration/">Configuration</a> page, and for 
+examples of using the simulation engine in different ways see the <a href="../examples/">Examples</a> page.</p>
               
             </div>
           </div><footer>
