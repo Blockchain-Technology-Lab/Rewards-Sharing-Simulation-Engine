@@ -8,9 +8,11 @@ here, but it's also possible to get an overview of the arguments and their defau
 	python main.py --help
     python batch-run.py --help
 
+## Command-line options
 
-| Argument | Description | Accepted values | Default value |
-| -------- | ----------- | --------------- | ------------- |
-| --n      | The number of stakeholders / agents<br>in the simulation. | Any natural number | 1000 |
-| --k      | The target number of pools of the<br>system (reward sharing scheme parameter) | Any natural number < n | 100 |
-| --a0     | Stake infuence / Sybil resilience<br>factor (reward sharing scheme parameter) | Any non-negative real number | 0.3 |
+| Argument | Description                                                                    | Accepted values              | Default value |
+|----------|--------------------------------------------------------------------------------|------------------------------|---------------|
+| --n      | The number of stakeholders / agents in the simulation.                         | Any natural number           | 1000          |
+| k        | The target number of pools of the system (reward sharing scheme parameter)     | Any natural number           | 100           |
+| --a0     | Stake influence / Sybil resilience<br>factor (reward sharing scheme parameter) | Any non-negative real number | 0.3           |
+
