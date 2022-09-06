@@ -90,42 +90,23 @@
                 <h1 id="configuration">Configuration</h1>
 <p>The simulation engine is highly configurable. From the reward scheme parameters to be used to the output files to be 
 generated, there are numerous variables that can vary from execution to execution. This customisation is performed
-using command-line arguments when running the main or batch-run script. We will go through all the available options 
-here, but it's also possible to get an overview of the arguments and their default values by running the help command:</p>
+using command-line arguments when running the <code>main.py</code> or <code>batch-run.py</code> scripts. We will go through all the 
+available options here, but it's also possible to get an overview of the arguments and their default values by running 
+the corresponding help commands:</p>
 <pre><code>python main.py --help
 python batch-run.py --help
 </code></pre>
 <h2 id="command-line-options">Command-line options</h2>
-<table>
-<thead>
-<tr>
-<th>Argument</th>
-<th>Description</th>
-<th>Accepted values</th>
-<th>Default value</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>--n</td>
-<td>The number of stakeholders / agents in the simulation.</td>
-<td>Any natural number</td>
-<td>1000</td>
-</tr>
-<tr>
-<td>k</td>
-<td>The target number of pools of the system (reward sharing scheme parameter)</td>
-<td>Any natural number</td>
-<td>100</td>
-</tr>
-<tr>
-<td>--a0</td>
-<td>Stake influence / Sybil resilience<br>factor (reward sharing scheme parameter)</td>
-<td>Any non-negative real number</td>
-<td>0.3</td>
-</tr>
-</tbody>
-</table>
+<p>These are all the arguments that can be configured during execution from the command line. </p>
+<p><strong>--n</strong>: The number of stakeholders / agents in the simulation. The default value is <strong>1000</strong>, but any natural number 
+is accepted. Note that the higher the value of <strong>n</strong> the slower the simulation becomes.</p>
+<hr />
+<p><strong>--k</strong>: The target number of pools of the system (reward sharing scheme parameter). The default value is <strong>100</strong>, but 
+any natural number &lt; <strong>n</strong> is accepted. Note that the higher the value of <strong>k</strong> the slower the simulation becomes.</p>
+<hr />
+<p><strong>--a0</strong>: Stake influence factor (reward sharing scheme parameter). The default value is <strong>0.3</strong>, but any non-negative 
+real number is accepted. </p>
+<hr />
               
             </div>
           </div><footer>
