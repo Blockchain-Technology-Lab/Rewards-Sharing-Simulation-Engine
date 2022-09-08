@@ -4,7 +4,7 @@ All these files are saved within a folder named “output”, which is created a
 
 ## Output from single run
 Each execution of the simulation generates a new folder for the output of that specific execution. The folder is named 
-based on the local serial number[^1] of the execution and a user-provided identifier (or an automatically generated one if 
+based on the local serial number<sup>[1](#footnote1)</sup> of the execution and a user-provided identifier (or an automatically generated one if 
 the user does not define one for that instance).
 
 Specifically, the folder is populated with the following:
@@ -63,4 +63,4 @@ execution id produces a folder that looks like this:
 ![batch run output screenshot](batch-run-output.png)
 
 
-[^1]: Keeping track of the serial number is done using a local file named "sequence.dat". 
+<a name="footnote1">1</a>: Keeping track of the serial number is done using a local file named "sequence.dat". 
