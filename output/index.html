@@ -59,11 +59,17 @@
               <ul class="current">
                 <li class="toctree-l1 current"><a class="reference internal current" href="./">Output</a>
     <ul class="current">
-    <li class="toctree-l2"><a class="reference internal" href="#output-from-single-runs">Output from single runs</a>
+    <li class="toctree-l2"><a class="reference internal" href="#output-from-single-run">Output from single run</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#files-that-characterize-the-input-of-the-execution">Files that characterize the input of the execution</a>
     </li>
-    <li class="toctree-l2"><a class="reference internal" href="#output-from-batch-runs">Output from batch runs</a>
+    <li class="toctree-l3"><a class="reference internal" href="#files-that-track-the-evolution-of-the-execution">Files that track the evolution of the execution</a>
     </li>
-    <li class="toctree-l2"><a class="reference internal" href="#output-from-interactive-browser-session">Output from interactive browser session</a>
+    <li class="toctree-l3"><a class="reference internal" href="#files-that-characterize-the-outcome-of-the-execution">Files that characterize the outcome of the execution</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#output-from-batch-run">Output from batch run</a>
     </li>
     </ul>
                 </li>
@@ -92,9 +98,60 @@
             <div class="section" itemprop="articleBody">
               
                 <h1 id="output">Output</h1>
-<h2 id="output-from-single-runs">Output from single runs</h2>
-<h2 id="output-from-batch-runs">Output from batch runs</h2>
-<h2 id="output-from-interactive-browser-session">Output from interactive browser session</h2>
+<p>Every time the simulation engine is used, it produces some output files to describe the simulations that were executed. 
+All these files are saved within a folder named “output”, which is created automatically if it doesn't already exist.</p>
+<h2 id="output-from-single-run">Output from single run</h2>
+<p>Each execution of the simulation generates a new folder for the output of that specific execution. The folder is named 
+based on the local serial number[^1] of the execution and a user-provided identifier (or an automatically generated one if 
+the user does not define one for that instance).</p>
+<p>Specifically, the folder is populated with the following:</p>
+<h3 id="files-that-characterize-the-input-of-the-execution">Files that characterize the input of the execution</h3>
+<ul>
+<li><strong>args.json</strong>: A json file that lists all the parameters of the simulation and the values they take during this 
+execution.</li>
+<li><strong>initial-state-descriptors.json</strong>: A json file that describes the initial state of the system for this execution, 
+including the highest and lowest stake values owned by the stakeholders, the Nakamoto coefficient prior (how many 
+stakeholders collectively control the majority of the stake before any pooling takes place), and more. The number that
+was used as the seed for pseudo-randomness is also listed there, to allow for reproducibility of the results.</li>
+</ul>
+<h3 id="files-that-track-the-evolution-of-the-execution">Files that track the evolution of the execution</h3>
+<ul>
+<li><strong>metrics.csv</strong>: A csv file that reports various metrics for each round of the simulation (e.g. pool count or total 
+pledge). The specific metrics that are tracked depend on the input of the simulation (see the relevant part of the
+<a href="../configuration/">Configuration</a> page for all options). </li>
+<li><strong>Figures</strong>: If the relevant option is activated (see <a href="../configuration/">Configuration</a>), a graph is produced for each
+tracked metric, illustrating its evolution throughout the course of the simulation.</li>
+</ul>
+<h3 id="files-that-characterize-the-outcome-of-the-execution">Files that characterize the outcome of the execution</h3>
+<ul>
+<li><strong>final-state-descriptors.json</strong>: A json file that describes the final state of the system for this execution, 
+including the number of pools, the number of distinct operators, and more. It is also stated in this file whether the
+simulation reached an equilibrium or not.</li>
+<li><strong>final-state-pools.csv</strong>: A csv file that lists information about the pools that are active in the system upon 
+termination of the simulation. This includes for each pool its owner's id, its pledge, total stake, profit margin, and 
+more. </li>
+<li><strong>final-state-stakeholders.csv</strong>: A csv file that lists information about the stakeholders upon termination of the 
+simulation. This includes predetermined attributes, like the initial stake or cost value of a stakeholder, as well as 
+characteristics relating to the final state of the simulation, such as the number of pools they end up operating or the
+total stake they control through their pools.</li>
+<li><strong>simulation-object.pkl</strong>: A <a href="https://docs.python.org/3/library/pickle.html">pickled</a> file containing the instance of 
+the simulation as a Python object (only useful for developers that may want to use it to extract more data).</li>
+</ul>
+<hr />
+<p>For example, running the simulation for the first time with "simulation-test" as the execution id produces a folder
+that looks like this:</p>
+<p><img alt="output screenshot" src="sim-output.png" /></p>
+<h2 id="output-from-batch-run">Output from batch run</h2>
+<p>Similarly with the single run, each batch run execution generates a new folder, which is named based on the local serial 
+number and a user-provided identifier (or the generic "batch-run" if the user does not define an id for that instance).
+Within this folder, more folders are created, each corresponding to an instance of the simulation and having the format 
+described above.</p>
+<p>In the case of batch runs, one more file is created, which contains aggregate results (some metrics for each simulation 
+instance) and is used to create graphs (saved under "Figures") and compare the different executions and the impact of the changing input.</p>
+<p>For example, executing a batch run the second time the simulation engine is used, with "batch-run-varying-k" as the 
+execution id produces a folder that looks like this:</p>
+<p><img alt="batch run output screenshot" src="batch-run-output.png" /></p>
+<p>[^1]: Keeping track of the serial number is done using a local file named "sequence.dat". </p>
               
             </div>
           </div><footer>
