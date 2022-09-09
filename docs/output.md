@@ -46,7 +46,7 @@ the simulation as a Python object (only useful for developers that may want to u
 For example, running the simulation for the first time with "simulation-test" as the execution id produces a folder
 that looks like this:
 
-![output screenshot](sim-output.png)
+![output screenshot](img/sim-output.png)
 
 ## Output from batch run
 Similarly with the single run, each batch run execution generates a new folder, which is named based on the local serial 
@@ -60,7 +60,7 @@ instance) and is used to create graphs (saved under "Figures") and compare the d
 For example, executing a batch run the second time the simulation engine is used, with "batch-run-varying-k" as the 
 execution id produces a folder that looks like this:
 
-![batch run output screenshot](batch-run-output.png)
+![batch run output screenshot](img/batch-run-output.png)
 
 
 <a name="footnote1">1</a>: Keeping track of the serial number is done using a local file named "sequence.dat". 
