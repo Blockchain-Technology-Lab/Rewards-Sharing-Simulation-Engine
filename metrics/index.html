@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+      <link rel="shortcut icon" href="../img/favicon.ico" />
+    <title>Metrics - Cardano Pooling Simulator - Docs</title>
+    <link rel="stylesheet" href="../css/theme.css" />
+    <link rel="stylesheet" href="../css/theme_extra.css" />
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.5.0/styles/github.min.css" />
+    
+      <script>
+        // Current page data
+        var mkdocs_page_name = "Metrics";
+        var mkdocs_page_input_path = "metrics.md";
+        var mkdocs_page_url = null;
+      </script>
+    
+    <script src="../js/jquery-3.6.0.min.js" defer></script>
+    <!--[if lt IE 9]>
+      <script src="../js/html5shiv.min.js"></script>
+    <![endif]-->
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.5.0/highlight.min.js"></script>
+      <script>hljs.initHighlightingOnLoad();</script> 
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side stickynav">
+    <div class="wy-side-scroll">
+      <div class="wy-side-nav-search">
+          <a href=".." class="icon icon-home"> Cardano Pooling Simulator - Docs
+        </a><div role="search">
+  <form id ="rtd-search-form" class="wy-form" action="../search.html" method="get">
+      <input type="text" name="q" placeholder="Search docs" title="Type search term here" />
+  </form>
+</div>
+      </div>
+
+      <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="..">Home</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../setup/">Setup</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../configuration/">Configuration</a>
+                </li>
+              </ul>
+              <ul class="current">
+                <li class="toctree-l1 current"><a class="reference internal current" href="./">Metrics</a>
+    <ul class="current">
+    </ul>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../examples/">Examples</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../output/">Output</a>
+                </li>
+              </ul>
+      </div>
+    </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+      <nav class="wy-nav-top" role="navigation" aria-label="Mobile navigation menu">
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="..">Cardano Pooling Simulator - Docs</a>
+        
+      </nav>
+      <div class="wy-nav-content">
+        <div class="rst-content"><div role="navigation" aria-label="breadcrumbs navigation">
+  <ul class="wy-breadcrumbs">
+    <li><a href=".." class="icon icon-home" alt="Docs"></a> &raquo;</li>
+      <li>Metrics</li>
+    <li class="wy-breadcrumbs-aside">
+    </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+            <div class="section" itemprop="articleBody">
+              
+                <h1 id="metrics">Metrics</h1>
+<p>There are several metrics, or model reporters, that can be tracked during a simulation. Each of them is associated with 
+an id for convenience. We provide details for all of them below:</p>
+<ol>
+<li><strong>Pool count</strong>: the number of active pools in the system.</li>
+<li><strong>Total pledge</strong>: the total pledged stake of the system (sum of all pools' pledges).</li>
+<li><strong>Mean pledge</strong>: the average value of stake that is pledged in pools.</li>
+<li><strong>Median pledge</strong>: the median value of stake that is pledged in pools.</li>
+<li><strong>Average pools per operator</strong>: the average number of pools that an operator controls.</li>
+<li><strong>Max pools per operator</strong>: the maximum number of pools that an operator controls.</li>
+<li><strong>Median pools per operator</strong>: the median number of pools that an operator controls.</li>
+<li><strong>Average saturation rate</strong>: the average saturation rate (stake / saturation threshold) across all active pools.</li>
+<li><strong>Nakamoto coefficient</strong>: the minimum number of entities that collectively control more than 50% of the system's 
+     active stake through their pools.</li>
+<li><strong>Statistical distance</strong>: the <a href="https://en.wikipedia.org/wiki/Statistical_distance">statistical distance</a> of the 
+    distributions of the stake that agents controlled at the beginning of the simulation vs on this round.</li>
+<li><strong>Min-aggregate pledge</strong>: the minimum aggregate pledge of pools that collectively control more than 50% of the 
+    system's active stake.</li>
+<li><strong>Pledge rate</strong>: the fraction of active stake that is used as pledge (total pledge / total active stake).</li>
+<li><strong>Pool homogeneity factor</strong>: a metric that describes how homogeneous the pools of the system are (the highest 
+    possible value is 1, which is given when all pools have the same size).</li>
+<li><strong>Iterations</strong>: the number of iterations that the simulation has gone through.</li>
+<li><strong>Mean stake rank</strong>: the average rank of pool operators regarding their initial stake.</li>
+<li><strong>Mean cost rank</strong>: the average rank of pool operators regarding their initial cost.</li>
+<li><strong>Median stake rank</strong>: the median rank of pool operators regarding their initial stake.</li>
+<li><strong>Median cost rank</strong>: the median rank of pool operators regarding their initial cost.</li>
+<li><strong>Number of pool splitters</strong>: the number of stakeholders that operate two or more pools.</li>
+<li><strong>Cost efficient stakeholders</strong>: the number of agents for whom it is possible to make profit by operating a pool.</li>
+<li><strong>StakePairs</strong>: a mapping of each pool id to its stake and profit margin.</li>
+<li><strong>Gini-id</strong>: a variation of the gini coefficient, where we consider each agent as an “id” and each pool as a “coin”. 
+    Then the gini-id is the gini coefficient considering each party with the coins they have.  In case of each agent 
+    operating one pool this coefficient is 0.</li>
+<li><strong>Gini-id stake</strong>: like the gini-id above, but considering the total stake each agent controls through their pools 
+    instead of the number of pools they operate.</li>
+<li><strong>Mean margin</strong>: the average profit margin across all active pools.</li>
+<li><strong>Median margin</strong>: the median profit margin across all active pools.</li>
+<li><strong>Stake per agent</strong>: a list where each element corresponds to the total stake controlled through an agent's pool for 
+    some agent</li>
+<li><strong>Stake per agent id</strong>: a mapping of each agent id to the total stake that said agent controls through their pools.</li>
+<li><strong>Total delegated stake</strong>: the total stake delegated to active pools (including pledged stake).</li>
+<li><strong>Total agent stake</strong>: the total stake held by agents.</li>
+<li><strong>Operator count</strong>: the number of stakeholders that operate pools.</li>
+</ol>
+<p>Refer to the <a href="../configuration/">Configuration</a> page for details on specifying which metrics will be used during a 
+simulation.</p>
+              
+            </div>
+          </div><footer>
+    <div class="rst-footer-buttons" role="navigation" aria-label="Footer Navigation">
+        <a href="../configuration/" class="btn btn-neutral float-left" title="Configuration"><span class="icon icon-circle-arrow-left"></span> Previous</a>
+        <a href="../examples/" class="btn btn-neutral float-right" title="Examples">Next <span class="icon icon-circle-arrow-right"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <!-- Copyright etc -->
+  </div>
+
+  Built with <a href="https://www.mkdocs.org/">MkDocs</a> using a <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
+</footer>
+          
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+
+  <div class="rst-versions" role="note" aria-label="Versions">
+  <span class="rst-current-version" data-toggle="rst-current-version">
+    
+    
+      <span><a href="../configuration/" style="color: #fcfcfc">&laquo; Previous</a></span>
+    
+    
+      <span><a href="../examples/" style="color: #fcfcfc">Next &raquo;</a></span>
+    
+  </span>
+</div>
+    <script>var base_url = '..';</script>
+    <script src="../js/theme_extra.js" defer></script>
+    <script src="../js/theme.js" defer></script>
+      <script src="../search/main.js" defer></script>
+    <script defer>
+        window.onload = function () {
+            SphinxRtdTheme.Navigation.enable(true);
+        };
+    </script>
+
+</body>
+</html>
