@@ -1,6 +1,6 @@
-# Cardano Pooling Simulator’s Documentation
+# Rewards Sharing Simulation Engine - Documentation
 
-This is the documentation for the Cardano Pooling Simulation Engine built by the University of Edinburgh's Blockchain 
+This is the documentation for the Rewards Sharing Simulation Engine built by the University of Edinburgh's Blockchain 
 Technology Lab. 
 The source code is available on [Github](https://github.com/Blockchain-Technology-Laboratory/Cardano-Pooling-Simulator).
 

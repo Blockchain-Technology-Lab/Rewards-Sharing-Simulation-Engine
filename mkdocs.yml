@@ -1,4 +1,4 @@
-site_name: Cardano Pooling Simulator - Docs
+site_name: Rewards Sharing Simulation Engine - Docs
 nav:
         - Home: index.md
         - Setup: setup.md
