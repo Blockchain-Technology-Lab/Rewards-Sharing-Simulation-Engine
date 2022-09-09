@@ -3,6 +3,7 @@ nav:
         - Home: index.md
         - Setup: setup.md
         - Configuration: configuration.md
+        - Metrics: metrics.md
         - Examples: examples.md
         - Output: output.md
 theme: readthedocs
