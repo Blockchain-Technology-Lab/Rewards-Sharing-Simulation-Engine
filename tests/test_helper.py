@@ -51,7 +51,7 @@ def test_calculate_pool_reward_variable_stake():
         relative_pledge=pledges[i] / total_stake,
         a0=a0,
         beta=saturation_point,
-        reward_function_option=0,
+        reward_function=0,
         total_stake=total_stake
     ) for i in range(len(stakes))]
 
@@ -71,7 +71,7 @@ def test_calculate_pool_reward_variable_pledge():
         relative_pledge=pledges[i] / total_stake,
         a0=a0,
         beta=saturation_point,
-        reward_function_option=0,
+        reward_function=0,
         total_stake=total_stake
     ) for i in range(len(stakes))]
 
@@ -92,7 +92,7 @@ def test_calculate_pool_reward_variable_stake_a0_zero():
         relative_pledge=pledges[i] / total_stake,
         a0=a0,
         beta=saturation_point,
-        reward_function_option=0,
+        reward_function=0,
         total_stake=total_stake
     ) for i in range(len(stakes))]
 
@@ -112,7 +112,7 @@ def test_calculate_pool_reward_variable_pledge_a0_zero():
         relative_pledge=pledges[i] / total_stake,
         a0=a0,
         beta=saturation_point,
-        reward_function_option=0,
+        reward_function=0,
         total_stake=total_stake
     ) for i in range(len(stakes))]
 
@@ -170,7 +170,7 @@ def test_calculate_pool_reward_curve_pledge_benefit():
         relative_pledge=pledges[i] / total_stake,
         a0=a0,
         beta=saturation_point,
-        reward_function_option=0,
+        reward_function=0,
         total_stake=total_stake
     ) for i in range(len(stakes))]
 
@@ -179,7 +179,7 @@ def test_calculate_pool_reward_curve_pledge_benefit():
         relative_pledge=pledges[i] / total_stake,
         a0=a0,
         beta=saturation_point,
-        reward_function_option=4,
+        reward_function=4,
         curve_root=1,
         total_stake=total_stake
     ) for i in range(len(stakes))]
@@ -191,7 +191,7 @@ def test_calculate_pool_reward_curve_pledge_benefit():
         relative_pledge=pledges[i] / total_stake,
         a0=a0,
         beta=saturation_point,
-        reward_function_option=4,
+        reward_function=4,
         curve_root=3,
         total_stake=total_stake
     ) for i in range(len(stakes))]
@@ -207,11 +207,11 @@ def test_calculate_pool_stake_nm():
     total_stake = 1
 
     pools = {i: Pool(pool_id=i, cost=0.0001, pledge=0.001, owner=i, a0=a0, beta=beta,
-                     reward_function_option=reward_func, total_stake=total_stake, margin=0) for i in range(1, 11)}
+                     reward_function=reward_func, total_stake=total_stake, margin=0) for i in range(1, 11)}
 
     # pool does not belong in the top k, so stake_nm = pledge
     pool_11 = Pool(pool_id=11, cost=0.0001, pledge=0.001, owner=11, a0=a0, beta=beta,
-                   reward_function_option=reward_func, total_stake=total_stake, margin=0.2)
+                   reward_function=reward_func, total_stake=total_stake, margin=0.2)
     pools[11] = pool_11
     ranks = list(pools.values())
     ranks.sort(key=hlp.pool_comparison_key)
@@ -220,7 +220,7 @@ def test_calculate_pool_stake_nm():
 
     # pool belongs in the top k and pool_stake < beta, so stake_nm = beta
     pool_11 = Pool(pool_id=11, cost=0.0001, pledge=0.002, owner=11, a0=a0, beta=beta,
-                   reward_function_option=reward_func, total_stake=total_stake, margin=0)
+                   reward_function=reward_func, total_stake=total_stake, margin=0)
     pools[11] = pool_11
     ranks = list(pools.values())
     ranks.sort(key=hlp.pool_comparison_key)
@@ -229,7 +229,7 @@ def test_calculate_pool_stake_nm():
 
     # pool belongs in the top k and pool_stake > beta, so stake_nm = pool_stake
     pool_11 = Pool(pool_id=11, cost=0.0001, pledge=0.2, owner=11, a0=a0, beta=beta,
-                   reward_function_option=reward_func, total_stake=total_stake, margin=0)
+                   reward_function=reward_func, total_stake=total_stake, margin=0)
     pools[11] = pool_11
     ranks = list(pools.values())
     ranks.sort(key=hlp.pool_comparison_key)
@@ -238,7 +238,7 @@ def test_calculate_pool_stake_nm():
 
     # pool doesn't belong in the top k because of (id) tie breaking, so stake_nm = pool_pledge
     pool_11 = Pool(pool_id=11, cost=0.0001, pledge=0.001, owner=11, a0=a0, beta=beta,
-                   reward_function_option=reward_func, total_stake=total_stake, margin=0)
+                   reward_function=reward_func, total_stake=total_stake, margin=0)
     pools[11] = pool_11
     ranks = list(pools.values())
     ranks.sort(key=hlp.pool_comparison_key)
@@ -249,7 +249,7 @@ def test_calculate_pool_stake_nm():
     k = 100 # increase k
     beta = 0.01
     pool_11 = Pool(pool_id=11, cost=0.001, pledge=0.00001, owner=11, a0=a0, beta=beta,
-                   reward_function_option=reward_func, total_stake=total_stake, margin=0)
+                   reward_function=reward_func, total_stake=total_stake, margin=0)
     pools[11] = pool_11
     ranks = list(pools.values())
     ranks.sort(key=hlp.pool_comparison_key)

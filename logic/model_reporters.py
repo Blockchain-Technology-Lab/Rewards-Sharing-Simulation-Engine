@@ -253,7 +253,7 @@ def get_avg_cost_rnk(model):
     all_agents = model.get_agents_dict()
     negative_cost_ranks = hlp.calculate_ranks({agent_id: -agent.cost for agent_id, agent in all_agents.items()})
     pool_owner_cost_ranks = [negative_cost_ranks[pool.owner] for pool in pools]
-    return round(statistics.mean(pool_owner_cost_ranks)) if len(pool_owner_cost_ranks) > 0 else -1
+    return round(statistics.mean(pool_owner_cost_ranks)) if len(pool_owner_cost_ranks) > 0 else 0
 
 
 def get_median_stk_rnk(model):
@@ -262,7 +262,7 @@ def get_median_stk_rnk(model):
     stakes = {agent_id: agent.stake for agent_id, agent in all_agents.items()}
     stake_ranks = hlp.calculate_ranks(stakes)
     pool_owner_stk_ranks = [stake_ranks[pool.owner] for pool in pools]
-    return round(statistics.median(pool_owner_stk_ranks)) if len(pool_owner_stk_ranks) > 0 else -1
+    return round(statistics.median(pool_owner_stk_ranks)) if len(pool_owner_stk_ranks) > 0 else 0
 
 
 def get_median_cost_rnk(model):
@@ -287,7 +287,7 @@ def get_pool_splitter_count(model):
 def get_cost_efficient_count(model):
     all_agents = model.get_agents_list()
     potential_profits = [
-        hlp.calculate_potential_profit(agent.stake, agent.cost, model.a0, model.beta, model.reward_function_option, model.total_stake)
+        hlp.calculate_potential_profit(agent.stake, agent.cost, model.a0, model.beta, model.reward_function, model.total_stake)
         for agent in all_agents
     ]
     positive_potential_profits = [pp for pp in potential_profits if pp > 0]
@@ -346,16 +346,6 @@ def get_gini_id_coeff_pool_count_k_agents(model):
     return gini_coefficient(pools_per_agent)
 
 
-def get_gini_id_coeff_pool_count_fraction(model):
-    # gather data
-    pools = model.get_pools_list()
-    pools_owned = collections.defaultdict(lambda: 0)
-    for pool in pools:
-        pools_owned[pool.owner] += 1
-    pools_per_agent = np.fromiter(pools_owned.values(), dtype=int)
-    return gini_coefficient(pools_per_agent) / pools_per_agent.size
-
-
 def get_gini_id_coeff_stake(model):
     pools = model.get_pools_list()
     stake_controlled = collections.defaultdict(lambda: 0)
@@ -377,17 +367,11 @@ def get_gini_id_coeff_stake_k_agents(model):
     return gini_coefficient(stake_per_agent)
 
 
-def get_gini_id_coeff_stake_fraction(model):
-    pools = model.get_pools_list()
-    stake_controlled = collections.defaultdict(lambda: 0)
-    for pool in pools:
-        stake_controlled[pool.owner] += pool.stake
-    stake_per_agent = np.fromiter(stake_controlled.values(), dtype=float)
-    return gini_coefficient(stake_per_agent) / stake_per_agent.size
-
-
 def get_total_delegated_stake(model):
-    return sum([pool.stake for pool in model.get_pools_list()])
+    pools = model.get_pools_list()
+    del_stake = sum([pool.stake for pool in pools])
+    total_stake = model.total_stake
+    return del_stake
 
 
 def get_active_stake_agents(model):
@@ -428,8 +412,6 @@ all_model_reporters = {
     "Gini-id stake": get_gini_id_coeff_stake,
     "Gini-id (k)": get_gini_id_coeff_pool_count_k_agents,
     "Gini-id stake (k)": get_gini_id_coeff_stake_k_agents,
-    "Gini-id (fraction)": get_gini_id_coeff_pool_count_fraction,
-    "Gini-id stake (fraction)": get_gini_id_coeff_stake_fraction,
     "Mean margin": get_avg_margin,
     "Median margin": get_median_margin,
     "Stake per agent": get_pool_stakes_by_agent,
@@ -464,13 +446,11 @@ reporter_ids = {
     21: "StakePairs",
     22: "Gini-id",
     23: "Gini-id stake",
-    24: "Gini-id (fraction)",
-    25: "Gini-id stake (fraction)",
-    26: "Mean margin",
-    27: "Median margin",
-    28: "Stake per agent",
-    30: "Stake per agent id",
-    31: "Total delegated stake",
-    32: "Total agent stake",
-    33: "Operator count"
+    24: "Mean margin",
+    25: "Median margin",
+    26: "Stake per agent",
+    27: "Stake per agent id",
+    28: "Total delegated stake",
+    29: "Total agent stake",
+    30: "Operator count"
 }

@@ -15,46 +15,51 @@ if __name__ == "__main__":
 
     # single value for fixed params and [lower_bound, upper_bound, step] for variable params
     parser = argparse.ArgumentParser(description='Pooling Games Batch Run')
-    parser.add_argument('--execution_id', type=str, default='unnamed-batch-run',
+    parser.add_argument('--execution_id', nargs="?", type=str, default='batch-run',
                         help='The identifier of this execution, to be used for naming the output files.')
-    parser.add_argument('--seed', default='None',
+    parser.add_argument('--seed', nargs="?", default='None',
                         help='Seed for reproducibility. Default is None, which means that a seed will be generated '
                              'randomly and then used for all executions of the batch run.')
-    parser.add_argument('--max_iterations', type=int, default=2000,
+    parser.add_argument('--max_iterations', nargs="?", type=int, default=2000,
                         help='The maximum number of iterations of the system. Default is 1000.')
-    parser.add_argument('--n', nargs="+", type=int, default=100,
+    parser.add_argument('--n', nargs="*", type=int, default=100,
                         help='The number of agents (natural number). Default is 100.')
-    parser.add_argument('--k', nargs="+", type=int, default=[10, 31, 10],
+    parser.add_argument('--k', nargs="*", type=int, default=[10, 31, 10],
                         help='The k value of the system (natural number). Default is 10.')
-    parser.add_argument('--a0', nargs="+", type=float, default=0.3,
+    parser.add_argument('--a0', nargs="*", type=float, default=0.3,
                         help='The a0 value of the system (decimal number between 0 and 1). Default is 0.3')
-    parser.add_argument('--inactive_stake_fraction', type=float, default=0,
+    parser.add_argument('--inactive_stake_fraction', nargs="*", type=float, default=0,
                         help='The fraction of the total stake that remains inactive (does not belong to any of the agents). Default is 0.')
     parser.add_argument('--inactive_stake_fraction_known', type=bool, default=False,
                         action=argparse.BooleanOptionalAction,
                         help='Is the inactive stake fraction of the system known beforehand? Default is no.')
-    parser.add_argument('--pareto_param', nargs="+", type=float, default=2.0,
+    parser.add_argument('--pareto_param', nargs="*", type=float, default=2.0,
                         help='The shape value of the Pareto distribution for the initial stake allocation.')
-    parser.add_argument('--cost_min', nargs="+", type=float, default=1e-4,
+    parser.add_argument('--cost_min', nargs="*", type=float, default=1e-4,
                         help='The minimum possible cost for operating a stake pool. Default is 1e-4.')
-    parser.add_argument('--cost_max', type=float, default=1e-3,
+    parser.add_argument('--cost_max', nargs="*", type=float, default=1e-3,
                         help='The maximum possible cost for operating a stake pool. Default is 2e-3.')
-    parser.add_argument('--extra_pool_cost_fraction', nargs="+", type=float, default=0.4,
+    parser.add_argument('--extra_pool_cost_fraction', nargs="*", type=float, default=0.4,
                         help='The factor that determines how much an additional pool costs as a fraction of '
                              'the original cost value of the stakeholder. Default is 40%%.')
-    parser.add_argument('--stake_distr_source', type=str, default='Pareto',
+    parser.add_argument('--stake_distr_source', nargs="?", type=str, default='Pareto',
                         help='The distribution type to use for the initial allocation of stake to the agents.')
-    parser.add_argument('--reward_function_option', type=int, default=0,
+    parser.add_argument('--reward_function', nargs="?", type=int, default=0, choices=range(4),
                         help='The reward function to use in the simulation. 0 for the old function, 1 for the new one, '
-                             '2 for alternative-1 and 3 for alternative-2.')
+                             '2 for alternative-1 and 3 for alternative-2.') #todo update help
     parser.add_argument('--relative_utility_threshold', nargs="+", type=float, default=0,
                         help='The utility increase ratio under which moves are disregarded. Default is 0%%.')
     parser.add_argument('--absolute_utility_threshold', nargs="+", type=float, default=0,
                         help='The utility threshold under which moves are disregarded. Default is 1e-9.')
-    parser.add_argument('--iterations_after_convergence', type=int, default=10,
+    parser.add_argument('--iterations_after_convergence', type=int, default=10, #todo remove from here and set as constant (or read from json file)
                         help='The minimum consecutive idle iterations that are required before terminations. '
                              'Default is 10.')
-    # todo deal with profile_distr and other list (aka unhashable) params
+    parser.add_argument('--agent_profile_distr', nargs="*", type=float, default=[1, 0, 0],
+                        help='The probability distribution for assigning different profiles to the agents. Default is [1, 0, 0], i.e. 100%% non-myopic agents.')
+    #todo add choices to some args
+
+    # args missing from here: agent_profile_distr, generate graphs, metrics, input_from_file, agent_activation_order
+    # make sure that all args are fine with batch run
 
     args_dict = vars(parser.parse_args())
 
@@ -69,6 +74,8 @@ if __name__ == "__main__":
     params = {
         "seed": seed
     }
+
+    args_dict.pop("agent_profile_distr") #todo deal with this instead of popping
     variable_params = {}
 
     for arg_name, arg_values in args_dict.items():
@@ -93,8 +100,8 @@ if __name__ == "__main__":
     results, batch_run_directory = custom_batch_run(
         sim.Simulation,
         parameters=params,
-        iterations=1,
-        max_steps=1000,
+        iterations=1, #todo for multiple iterations is the seed different? (check results too)
+        max_steps=params['max_iterations'],
         number_processes=None,
         data_collection_period=-1,
         display_progress=True,

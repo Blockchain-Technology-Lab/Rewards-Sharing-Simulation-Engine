@@ -10,13 +10,13 @@ import json
 import matplotlib.pyplot as plt
 from matplotlib import ticker
 import seaborn as sns
+import argparse
 
 sns.set_theme()
 
 TOTAL_EPOCH_REWARDS_R = 1
-MAX_NUM_POOLS = 1000
-MIN_STAKE_UNIT = 2.2e-17 #todo change to reflect how much 1 lovelace is depending on total stake?
-MIN_COST_PER_POOL = 1e-6
+MAX_NUM_POOLS = 1000 #todo this is only used for run_viz, keep or not?
+MIN_STAKE_UNIT = 2.2e-17 #todo change to reflect how much 1 lovelace is depending on total stake? better have it as fraction (wait this is fraction, right?) so then make calcs
 
 #todo make this read from file only?
 def read_stake_distr_from_file(num_agents=10000, seed=42):
@@ -161,7 +161,7 @@ def normalize_distr(dstr, normal_sum=1):
     return nrm_dstr
 
 @lru_cache(maxsize=1024)
-def calculate_potential_profit(pledge, cost, a0, beta, reward_function_option, total_stake):
+def calculate_potential_profit(pledge, cost, a0, beta, reward_function, total_stake):
     """
     Calculate a pool's potential profit, which can be defined as the profit it would get at saturation level
     :param pledge:
@@ -172,28 +172,26 @@ def calculate_potential_profit(pledge, cost, a0, beta, reward_function_option, t
     """
     relative_stake = beta / total_stake
     relative_pledge = pledge / total_stake
-    potential_reward = calculate_pool_reward(relative_stake, relative_pledge, a0, beta, reward_function_option, total_stake)
+    potential_reward = calculate_pool_reward(relative_stake, relative_pledge, a0, beta, reward_function, total_stake)
     return potential_reward - cost
 
 @lru_cache(maxsize=1024)
-def calculate_current_profit(stake, pledge, cost, a0, beta, reward_function_option, total_stake):
+def calculate_current_profit(stake, pledge, cost, a0, beta, reward_function, total_stake):
     relative_pledge = pledge / total_stake
     relative_stake = stake / total_stake
-    reward = calculate_pool_reward(relative_stake, relative_pledge, a0, beta, reward_function_option, total_stake)
+    reward = calculate_pool_reward(relative_stake, relative_pledge, a0, beta, reward_function, total_stake)
     return reward - cost
 
 @lru_cache(maxsize=1024)
-def calculate_pool_reward(relative_stake, relative_pledge, a0, beta, reward_function_option, total_stake, curve_root=3, crossover_factor=8):
+def calculate_pool_reward(relative_stake, relative_pledge, a0, beta, reward_function, total_stake, curve_root=3, crossover_factor=8):
     beta = beta / total_stake
-    if reward_function_option == 0:
+    if reward_function == 0:
         return calculate_pool_reward_original(relative_stake, relative_pledge, a0, beta)
-    elif reward_function_option == 1:
+    elif reward_function == 1:
         return calculate_pool_reward_simplified(relative_stake, relative_pledge, a0, beta)
-    elif reward_function_option == 2:
+    elif reward_function == 2:
         return calculate_pool_reward_flat_pledge_benefit(relative_stake, relative_pledge, a0, beta)
-    elif reward_function_option == 3:
-        return calculate_pool_reward_new_sqrt(relative_stake, relative_pledge, a0, beta)
-    elif reward_function_option == 4:
+    elif reward_function == 3:
         return calculate_pool_reward_curve_pledge_benefit(relative_stake, relative_pledge, a0, beta, curve_root, crossover_factor, total_stake)
     else:
         raise ValueError("Invalid option for reward function.")
@@ -230,12 +228,6 @@ def calculate_pool_reward_flat_pledge_benefit(relative_stake, relative_pledge, a
     pledge_ = min(relative_pledge, beta)
     stake_ = min(relative_stake, beta)
     r = (TOTAL_EPOCH_REWARDS_R / (1 + a0)) * (stake_ + a0 * pledge_)
-    return r
-
-def calculate_pool_reward_new_sqrt(relative_stake, relative_pledge, a0, beta):
-    pledge_ = min(relative_pledge, beta)
-    stake_ = min(relative_stake, beta)
-    r = (TOTAL_EPOCH_REWARDS_R / (1 + a0)) * stake_ * (1 + (a0 * sqrt(pledge_) / beta))
     return r
 
 def calculate_pool_reward_curve_pledge_benefit(relative_stake, relative_pledge, a0, relative_beta, curve_root,
@@ -334,18 +326,18 @@ def calculate_myopic_pool_desirability(margin, current_profit):
     return max((1 - margin) * current_profit, 0)
 
 @lru_cache(maxsize=1024)
-def calculate_operator_utility_from_pool(pool_stake, pledge, margin, cost, a0, beta, reward_function_option, total_stake):
+def calculate_operator_utility_from_pool(pool_stake, pledge, margin, cost, a0, beta, reward_function, total_stake):
     relative_pool_stake = pool_stake / total_stake
     relative_pledge = pledge / total_stake
-    r = calculate_pool_reward(relative_pool_stake, relative_pledge, a0, beta, reward_function_option, total_stake)
+    r = calculate_pool_reward(relative_pool_stake, relative_pledge, a0, beta, reward_function, total_stake)
     stake_fraction = pledge / pool_stake
     return calculate_operator_reward_from_pool(pool_margin=margin, pool_cost=cost, pool_reward=r, operator_stake_fraction=stake_fraction)
 
 @lru_cache(maxsize=1024)
-def calculate_delegator_utility_from_pool(stake_allocation, pool_stake, pledge, margin, cost, a0, beta, reward_function_option, total_stake):
+def calculate_delegator_utility_from_pool(stake_allocation, pool_stake, pledge, margin, cost, a0, beta, reward_function, total_stake):
     relative_pool_stake = pool_stake / total_stake
     relative_pledge = pledge / total_stake
-    r = calculate_pool_reward(relative_pool_stake, relative_pledge, a0, beta, reward_function_option, total_stake)
+    r = calculate_pool_reward(relative_pool_stake, relative_pledge, a0, beta, reward_function, total_stake)
     stake_fraction = stake_allocation / pool_stake
     return calculate_delegator_reward_from_pool(pool_margin=margin, pool_cost=cost, pool_reward=r, delegator_stake_fraction=stake_fraction)
 
@@ -611,3 +603,62 @@ def pool_comparison_key(pool):
         return 0, 0, 0
     return -pool.desirability, -pool.potential_profit, pool.id
 
+def add_script_arguments(parser):
+    #todo is it possible to check input for correctness, e.g. cost_max >= cost_min >= 0, extra_cost_function >=0, n>0, k>0, a0>=0, utility thresholds > 0
+    parser.add_argument('--n', type=int, default=100,
+                        help='The number of agents (natural number). Default is 1000.')
+    parser.add_argument('--k', nargs="+", type=int, default=10,
+                        help='The k value of the system (natural number). Default is 100.')
+    parser.add_argument('--a0', nargs="+", type=float, default=0.3,
+                        help='The a0 value of the system (decimal number between 0 and 1). Default is 0.3')
+    parser.add_argument('--reward_function', type=int, default=0, choices=range(4),
+                        help='The reward function to use in the simulation. 0 for the original function, 1 for a '
+                             'simplified version, 2 for alternative-1 and 3 for alternative-2.')
+    parser.add_argument('--agent_profile_distr', nargs="+", type=float, default=[1, 0, 0],
+                        help='The weights for assigning different profiles to the agents. Default is [1, 0, 0], i.e. '
+                             '100%% non-myopic agents.')
+    parser.add_argument('--cost_min', type=float, default=1e-5,
+                        help='The minimum possible cost for operating a stake pool. Default is 1e-5.')
+    parser.add_argument('--cost_max', type=float, default=1e-4,
+                        help='The maximum possible cost for operating a stake pool. Default is 1e-4.')
+    parser.add_argument('--extra_pool_cost_fraction', nargs="+", type=float, default=0.4,
+                        help='The factor that determines how much an additional pool costs as a fraction of '
+                             'the original cost value of the stakeholder. Default is 40%%.')
+    parser.add_argument('--agent_activation_order', type=str.lower, default='random',
+                        choices=['random', 'sequential', 'simultaneous', 'semisimultaneous'],
+                        help='The order with which agents are activated. Default is "Random". Other options are '
+                             '"Sequential" and "Semisimultaneous".')
+    parser.add_argument('--absolute_utility_threshold', nargs="+", type=float, default=1e-9,
+                        help='The utility threshold under which moves are disregarded. Default is 1e-9.')
+    parser.add_argument('--relative_utility_threshold', nargs="+", type=float, default=0,
+                        help='The utility increase ratio under which moves are disregarded. Default is 0%%.')
+    parser.add_argument('--stake_distr_source', type=str.lower, default='pareto', choices = ["pareto", "flat",
+                                                                                             "disparity", "file"],
+                        help='The distribution type to use for the initial allocation of stake to the agents.')
+    parser.add_argument('--pareto_param', type=float, default=2.0,
+                        help='The parameter that determines the shape of the distribution that the stake will be '
+                             'sampled from. Default is 2.')
+    parser.add_argument('--inactive_stake_fraction', type=float, default=0,
+                        help='The fraction of the total stake that remains inactive (does not belong to any of the agents). Default is 0.')
+    parser.add_argument('--inactive_stake_fraction_known', type=bool, default=False,
+                        action=argparse.BooleanOptionalAction,
+                        help='Is the inactive stake fraction of the system known beforehand? Default is no.')
+    parser.add_argument('--iterations_after_convergence', type=int, default=10,
+                        help='The minimum consecutive idle iterations that are required before terminations. '
+                             'Default is 10.')
+    parser.add_argument('--max_iterations', type=int, default=2000,
+                        help='The maximum number of iterations of the system. Default is 2000.')
+    parser.add_argument('--metrics', nargs="+", type=int, default=None,
+                        help='The list of ids that correspond to metrics that are tracked during the simulation. Default '
+                             'is [1, 2, 3, 4, 6, 17, 18, 26, 27]')
+    parser.add_argument('--generate_graphs', type=bool, default=True, action=argparse.BooleanOptionalAction,
+                        help='If True then graphs relating to the tracked metrics are generated upon completion. Default '
+                             'is True.'),
+    parser.add_argument('--seed', type=int, default=None,
+                        help='Seed for reproducibility. Default is None, which means that a seed is chosen at random.')
+    parser.add_argument('--execution_id', type=str, default='',
+                        help='An optional identifier for the specific simulation run, '
+                             'which will be used to name the output folder / files.')
+    parser.add_argument('--input_from_file', type=bool, default=False, action=argparse.BooleanOptionalAction,
+                        help='If True then the input is read from a file (args.json) and any other command line '
+                             'arguments are discarded. Default is False.')

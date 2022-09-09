@@ -10,7 +10,6 @@ from mesa import Model
 from mesa.datacollection import DataCollector
 from mesa.time import BaseScheduler, SimultaneousActivation, RandomActivation
 
-from logic.stakeholder import Stakeholder
 from logic.activations import SemiSimultaneousActivation
 import logic.helper as hlp
 import logic.model_reporters as reporters
@@ -18,12 +17,12 @@ import logic.stakeholder_profiles as profiles
 
 class Simulation(Model):
     #todo split into two classes? simulation (with max_iterations, iterations_after_convergence etc) and rss (with k, a0, reward function option, etc)
-    def __init__(self, n=1000, k=100, a0=0.3, stake_distr_source='Pareto', profile_distr=None,
+    def __init__(self, n=1000, k=100, a0=0.3, stake_distr_source='Pareto', agent_profile_distr=None,
                  inactive_stake_fraction=0, inactive_stake_fraction_known=False, relative_utility_threshold=0,
                  absolute_utility_threshold=0, seed=None, pareto_param=2.0,
                  max_iterations=1000, cost_min=1e-5, cost_max=1e-4, extra_pool_cost_fraction=0.4,
-                 agent_activation_order="Random", total_stake=-1, iterations_after_convergence=10,
-                 reward_function_option=0, execution_id='', seq_id=-1, parent_dir='', metrics=None,
+                 agent_activation_order="random", total_stake=-1, iterations_after_convergence=10,
+                 reward_function=0, execution_id='', seq_id=-1, parent_dir='', metrics=None,
                  generate_graphs=True, input_from_file=False):
         # todo make sure that the input is valid? n > 0, 0 < k <= n
         if input_from_file:
@@ -36,9 +35,9 @@ class Simulation(Model):
             args.pop('input_from_file')
             args.pop('args')
         if args['metrics'] is None:
-            args['metrics'] = [1, 2, 3, 4, 6, 17, 18, 26, 27]
-        if args['profile_distr'] is None:
-            args['profile_distr'] = [1, 0, 0]
+            args['metrics'] = [1, 2, 3, 4, 6, 17, 18, 24, 25]
+        if args['agent_profile_distr'] is None:
+            args['agent_profile_distr'] = [1, 0, 0]
 
         seed = args['seed']
         if seed is None or seed == 'None':
@@ -70,7 +69,7 @@ class Simulation(Model):
 
         extra_fields = ['n', 'k', 'a0', 'relative_utility_threshold', 'absolute_utility_threshold',
                  'max_iterations', 'extra_pool_cost_fraction', 'agent_activation_order',
-                  'reward_function_option', 'generate_graphs']
+                  'reward_function', 'generate_graphs']
         adjustable_params = {} #todo define which args should not be saved as adjustable params (e.g. inactive_stake_fraction)
         for field in extra_fields:
             value = args[field]
@@ -94,11 +93,11 @@ class Simulation(Model):
 
         self.running = True  # for batch running and visualisation purposes
         agent_activation_orders = {
-            "Random": RandomActivation,
-            "Sequential": BaseScheduler,
-            "Simultaneous": SimultaneousActivation,
+            "random": RandomActivation,
+            "sequential": BaseScheduler,
+            "simultaneous": SimultaneousActivation,
             # note that during simultaneous activation agents apply their moves sequentially which may not be the expected behaviour
-            "Semisimultaneous": SemiSimultaneousActivation
+            "semisimultaneous": SemiSimultaneousActivation
         }
         self.schedule = agent_activation_orders[self.agent_activation_order](self)
 
@@ -108,7 +107,7 @@ class Simulation(Model):
         self.pool_rankings_myopic = SortedList([None] * (self.k + 1),
                                                key=self.pool_comparison_key_myopic)  # all pools ranked from best to worst myopically
 
-        total_stake = self.initialize_agents(args['profile_distr'], args['cost_min'], args['cost_max'],
+        total_stake = self.initialize_agents(args['agent_profile_distr'], args['cost_min'], args['cost_max'],
                                              args['pareto_param'], args['stake_distr_source'].lower(),
                                              imposed_total_stake=args['total_stake'], seed=seed)
         self.total_stake = total_stake / (1 - args['inactive_stake_fraction'])
@@ -138,7 +137,7 @@ class Simulation(Model):
         self.equilibrium_steps = []
         self.pivot_steps = []
 
-    def initialize_agents(self, profile_distr, cost_min, cost_max, pareto_param, stake_distr_source, imposed_total_stake, seed):
+    def initialize_agents(self, agent_profile_distr, cost_min, cost_max, pareto_param, stake_distr_source, imposed_total_stake, seed):
         if stake_distr_source == 'file':
             stake_distribution = hlp.read_stake_distr_from_file(num_agents=self.n)
         elif stake_distr_source == 'pareto':
@@ -150,8 +149,6 @@ class Simulation(Model):
             stake_distribution = hlp.generate_stake_distr_flat(num_agents=self.n, total_stake=self.n)#max(imposed_total_stake, 1))
         elif stake_distr_source == 'disparity':
             stake_distribution = hlp.generate_sake_distr_disparity(n=self.n)
-        else:
-            raise ValueError("Unsupported stake distribution source '{}'.".format(stake_distr_source))
         total_stake = sum(stake_distribution)
 
         # Allocate cost to the agents, sampling from a uniform distribution
@@ -162,11 +159,10 @@ class Simulation(Model):
         #cost_distribution = hlp.generate_cost_distr_nrm(num_agents=self.n, low=cost_min, high=cost_max, mean=5e-6, stddev=5e-1)
         #cost_distribution = hlp.generate_cost_distr_bands_manual(num_agents=self.n, low=cost_min, high=cost_max, num_bands=1)
 
-        agent_profiles = self.random.choices(list(profiles.profile_mapping.keys()), k=self.n, weights=profile_distr)
+        agent_profiles = self.random.choices(list(profiles.profile_mapping.keys()), k=self.n, weights=agent_profile_distr)
         for i in range(self.n):
-            agent_profile = agent_profiles[i]
-            profile_class = profiles.profile_mapping[agent_profile]
-            agent = profile_class(
+            agent_type = profiles.profile_mapping[agent_profiles[i]]
+            agent = agent_type(
                 unique_id=i,
                 model=self,
                 stake=stake_distribution[i],
@@ -252,25 +248,27 @@ class Simulation(Model):
             'Nakamoto coefficient prior': reporters.get_nakamoto_coefficient(self),
             'Cost efficient agents': reporters.get_cost_efficient_count(self)
         }
-        filename = "input-descriptors.json"
+        filename = "initial-state-descriptors.json"
         filepath = self.directory / filename
         hlp.export_json_file(descriptors, filepath)
 
     def export_agents_file(self):
-        row_list = [["Agent id", "Stake", "Cost", "Potential Profit","Status", "Pools owned", "Pool splitting profit", "Profitable pool splitter"]]
+        row_list = [["Agent id", "Initial stake", "Cost", "Potential Profit","Status", "Pools owned", "Total pool stake",
+                     "Pool splitting profit", "Profitable pool splitter"]]
         agents = self.get_agents_dict()
         decimals = 15
         row_list.extend([
             [agent_id, round(agents[agent_id].stake, decimals), round(agents[agent_id].cost, decimals),
-             round(hlp.calculate_potential_profit(agents[agent_id].stake, agents[agent_id].cost, self.a0, self.beta, self.reward_function_option, self.total_stake), decimals),
+             round(hlp.calculate_potential_profit(agents[agent_id].stake, agents[agent_id].cost, self.a0, self.beta, self.reward_function, self.total_stake), decimals),
              "Abstainer" if agents[agent_id].strategy is None else "Operator" if len(agents[agent_id].strategy.owned_pools) > 0 else "Delegator",
              0 if agents[agent_id].strategy is None else len(agents[agent_id].strategy.owned_pools),
+             0 if agents[agent_id].strategy is None else sum([pool.stake for pool in agents[agent_id].strategy.owned_pools.values()]),
              hlp.calculate_pool_splitting_profit(self.a0, self.extra_pool_cost_fraction, agents[agent_id].cost, agents[agent_id].stake / self.total_stake),
              "YES" if hlp.calculate_pool_splitting_profit(self.a0, self.extra_pool_cost_fraction, agents[agent_id].cost, agents[agent_id].stake / self.total_stake) > 0 else "NO"
              ] for agent_id in range(len(agents))
         ])
 
-        prefix = 'final_configuration_stakeholders-' if self.has_converged() else 'intermediate_configuration_stakeholders-'
+        prefix = 'final-state-stakeholders-'
         filename = prefix + self.execution_id + '.csv'
         filepath = self.directory / filename
         hlp.export_csv_file(row_list, filepath)
@@ -285,20 +283,21 @@ class Simulation(Model):
             [[pool.id, pool.owner, round(agents[pool.owner].stake, decimals), round(pool.pledge, decimals),
               round(pool.stake, decimals), round(agents[pool.owner].cost, decimals), round(pool.cost, decimals),
               round(pool.margin, decimals), pool.potential_profit, pool.desirability] for pool in pools])
-        prefix = 'final_configuration_pools-' if self.has_converged() else 'intermediate_configuration_pools-'
+        prefix = 'final-state-pools-'
         filename = prefix + self.execution_id + '.csv'
         filepath = self.directory / filename
         hlp.export_csv_file(row_list, filepath)
 
     def export_metrics_file(self):
         df = self.datacollector.get_model_vars_dataframe()
-        filename = 'metrics-' + self.execution_id + '.csv'
+        filename = 'metrics.csv'
         filepath = self.directory / filename
         df.to_csv(filepath, index_label='Round')
 
-    def export_output_desc_file(self, filename = "output-descriptors.json"):
+    def export_output_desc_file(self, filename = "final-state-descriptors.json"):
         # generate file that describes the state of the system at termination
         descriptors = {
+            'Equilibrium reached': 'Yes' if self.has_converged() else 'No',
             'Pool count': reporters.get_number_of_pools(self),
             'Operator count': reporters.get_operator_count(self),
             'Nakamoto coefficient': reporters.get_nakamoto_coefficient(self),
@@ -315,12 +314,12 @@ class Simulation(Model):
                   "descriptor", "-",
                   "#pools", "#operators", "nakamoto coeff", "comments"]
         row = [self.seq_id, self.n, self.k, self.a0, self.extra_pool_cost_fraction, self.agent_activation_order,
-               self.reward_function_option, self.execution_id[self.execution_id.index('-')+1:], "",
+               self.reward_function, self.execution_id[self.execution_id.index('-')+1:], "",
                reporters.get_number_of_pools(self), reporters.get_operator_count(self), reporters.get_nakamoto_coefficient(self), ""]
         hlp.write_to_csv(filepath, header, row)
 
     def save_model_state_pkl(self):
-        filename = "simulation-object-" + self.execution_id + ".pkl"
+        filename = "simulation-object.pkl"
         pickled_simulation_filepath = self.directory / filename
         with open(pickled_simulation_filepath, "wb") as pkl_file:
             pkl.dump(self, pkl_file)
@@ -335,7 +334,7 @@ class Simulation(Model):
         all_reporter_colours['Mean pledge'] = 'red'
         all_reporter_colours["Pool count"] = 'C0'
         all_reporter_colours["Total pledge"] = 'purple'
-        all_reporter_colours["Nakamoto coefficient"] = 'pink'
+        all_reporter_colours["Nakamoto coefficient"] = 'pink' #todo maybe remove custom colors
 
         df = self.datacollector.get_model_vars_dataframe()
         for col in df.columns:
@@ -357,6 +356,7 @@ class Simulation(Model):
     def get_agents_list(self):
         return self.schedule.agents
 
+    #todo add verbosity levels (or at least verbose and non-verbose version)
     def get_status(self):
         print("Step {}: {} pools"
               .format(self.schedule.steps, len(self.pools)))
@@ -371,9 +371,11 @@ class Simulation(Model):
         """
         # Revise active stake
         active_stake = reporters.get_total_delegated_stake(self)
+        #todo ensure that this is < total stake (for simultaneous act)
         self.perceived_active_stake = active_stake
         # Revise expected number of pools, k  (note that the value of beta, which is used to calculate rewards, does not change in this case)
         self.k = math.ceil(round(active_stake / self.beta, 12))  # first rounding to 12 decimal digits to avoid floating point errors
+        return
 
     def adjust_params(self):
         self.current_era += 1
@@ -408,6 +410,6 @@ class Simulation(Model):
         # sort pools based on their myopic desirability
         # break ties with pool id
         current_profit = hlp.calculate_current_profit(pool.stake, pool.pledge, pool.cost, self.a0, self.beta,
-                                                  self.reward_function_option, self.total_stake)
+                                                  self.reward_function, self.total_stake)
         myopic_desirability = hlp.calculate_myopic_pool_desirability(pool.margin, current_profit)
         return -myopic_desirability, pool.id
