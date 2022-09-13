@@ -380,6 +380,9 @@ class Simulation(Model):
     def adjust_params(self):
         self.current_era += 1
         change_occured = False
+        for pool in self.pools.values():
+            self.pool_rankings.remove(pool)
+            self.pool_rankings_myopic.remove(pool)
         for key, value in self.adjustable_params.items():
             if len(value) > self.current_era:
                 setattr(self, key, value[self.current_era])
@@ -389,6 +392,13 @@ class Simulation(Model):
                     # update beta in case the value of k changes
                     self.beta = self.total_stake / self.k
                     #todo if I care enough about it update k again in case of known inactive_stake_fraction
+        for pool in self.pools.values():
+            pool.potential_profit = hlp.calculate_potential_profit(pool.pledge, pool.cost, self.a0, self.beta,
+                                                                   self.reward_function, self.total_stake)
+            pool.desirability = hlp.calculate_pool_desirability(margin=pool.margin, potential_profit=pool.potential_profit)
+            self.pool_rankings.add(pool)
+            self.pool_rankings_myopic.add(pool)
+
         if change_occured:
             self.pivot_steps.append(self.schedule.steps)
 
