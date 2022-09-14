@@ -4,7 +4,7 @@ import numpy as np
 from scipy import stats
 import csv
 import pathlib
-from math import sqrt, floor, log10
+from math import floor, log10
 from functools import lru_cache
 import json
 import matplotlib.pyplot as plt
@@ -12,11 +12,14 @@ from matplotlib import ticker
 import seaborn as sns
 import argparse
 
+from logic.stakeholder_profiles import PROFILE_MAPPING
+from logic.model_reporters import REPORTER_IDS
+
 sns.set_theme()
 
 TOTAL_EPOCH_REWARDS_R = 1
 MAX_NUM_POOLS = 1000 #todo this is only used for run_viz, keep or not?
-MIN_STAKE_UNIT = 2.2e-17 #todo change to reflect how much 1 lovelace is depending on total stake? better have it as fraction (wait this is fraction, right?) so then make calcs
+MIN_STAKE_UNIT = 2.2e-17 #todo explain how we got this value
 
 #todo make this read from file only?
 def read_stake_distr_from_file(num_agents=10000, seed=42):
@@ -45,7 +48,7 @@ def read_stake_distr_from_file(num_agents=10000, seed=42):
         return rng.choice(stk_dstr, num_agents, replace=False)
     return rng.choice(stk_dstr, num_agents, replace=True)
 
-def generate_sake_distr_disparity(n, x=0.3, c=3):
+def generate_stake_distr_disparity(n, x=0.3, c=3):
     stk_dstr = []
     high_end_stake = x / c
     low_end_stake = (1 - x) / (n - c)
@@ -58,6 +61,8 @@ def generate_sake_distr_disparity(n, x=0.3, c=3):
     return stk_dstr
 
 def generate_cost_distr_disparity(n, low, high, c=10):
+    if high < low:
+        raise ValueError("invalid cost_max ( < cost_min)")
     costs = []
     costs.extend([high for _ in range(c)])
     costs.extend([low for _ in range(n-c)])
@@ -108,18 +113,23 @@ def generate_cost_distr_unfrm(num_agents, low, high, seed=156):
     :param high:
     :return:
     """
+    if high < low:
+        raise ValueError("invalid cost_max ( < cost_min)")
     rng = default_rng(seed=int(seed))
     costs = rng.uniform(low=low, high=high, size=num_agents)
     return costs
 
 def generate_cost_distr_bands(num_agents, low, high, num_bands, seed=156):
+    if high < low:
+        raise ValueError("invalid cost_max ( < cost_min)")
     rng = default_rng(seed=seed)
     bands = rng.uniform(low=low, high=high, size=num_bands)
     costs = rng.choice(bands, num_agents)
     return costs
 
 def generate_cost_distr_bands_manual(num_agents, low, high, num_bands, seed=156):
-    low_cost_agents = 5
+    if high < low:
+        raise ValueError("invalid cost_max ( < cost_min)")
     rng = default_rng(seed=seed)
     bands = rng.uniform(low=low, high=high, size=num_bands)
     costs = rng.choice(bands, num_agents-3)
@@ -136,6 +146,8 @@ def generate_cost_distr_nrm(num_agents, low, high, mean, stddev):
     Generate a distribution for the agents' costs of operating pools,
     sampling from a truncated normal distribution
     """
+    if high < low:
+        raise ValueError("invalid cost_max ( < cost_min)")
     costs = stats.truncnorm.rvs(low, high, loc=mean, scale=stddev, size=num_agents)
     return costs
 
@@ -570,60 +582,99 @@ def pool_comparison_key(pool):
         return 0, 0, 0
     return -pool.desirability, -pool.potential_profit, pool.id
 
+def positive_int(value):
+    int_value = int(value)
+    if int_value <= 0:
+        raise argparse.ArgumentTypeError("invalid positive int value: {}".format(value))
+    return int_value
+
+def non_negative_int(value):
+    int_value = int(value)
+    if int_value < 0:
+        raise argparse.ArgumentTypeError("invalid non-negative int value: {}".format(value))
+    return int_value
+
+def positive_float(value):
+    float_value = float(value)
+    if float_value <= 0:
+        raise argparse.ArgumentTypeError("invalid positive float value: {}".format(value))
+    return float_value
+
+def non_negative_float(value):
+    float_value = float(value)
+    if float_value < 0:
+        raise argparse.ArgumentTypeError("invalid non-negative float value: {}".format(value))
+    return float_value
+
+def fraction(value):
+    float_value = float(value)
+    if float_value < 0 or float_value > 1:
+        raise argparse.ArgumentTypeError("invalid fraction value: {}".format(value))
+    return float_value
+
 def add_script_arguments(parser):
-    #todo is it possible to check input for correctness, e.g. cost_max >= cost_min >= 0, extra_cost_function >=0, n>0, k>0, a0>=0, utility thresholds > 0
-    parser.add_argument('--n', type=int, default=1000,
+    """
+    This function adds arguments to be parsed by the argument parser. Note that we use custom types to impose
+    restrictions to the input so that it is compatible with the simulation (e.g. the number of agents must be a positive
+    integer). Also note that the value of "nargs" for each argument defines the number of command-line values that will
+    be associated with this argument (e.g. at most one for the number of agents, exactly as many as the number of
+    different profiles for the agent profile distribution, or any number of values for the arguments that can be
+    adjusted during the course of the simulation, such as k.
+    @param parser: an argparse.ArgumentParser object
+    """
+    parser.add_argument('--n', nargs="?", type=positive_int, default=1000,
                         help='The number of agents (natural number). Default is 1000.')
-    parser.add_argument('--k', nargs="+", type=int, default=100,
+    parser.add_argument('--k', nargs="+", type=positive_int, default=100,
                         help='The k value of the system (natural number). Default is 100.')
-    parser.add_argument('--a0', nargs="+", type=float, default=0.3,
+    parser.add_argument('--a0', nargs="+", type=non_negative_float, default=0.3,
                         help='The a0 value of the system (decimal number between 0 and 1). Default is 0.3')
-    parser.add_argument('--reward_function', type=int, default=0, choices=range(4),
+    parser.add_argument('--reward_function', nargs="+", type=int, default=0, choices=range(4),
                         help='The reward function to use in the simulation. 0 for the original function, 1 for a '
                              'simplified version, 2 for alternative-1 and 3 for alternative-2.')
-    parser.add_argument('--agent_profile_distr', nargs="+", type=float, default=[1, 0, 0],
+    parser.add_argument('--agent_profile_distr', nargs=len(PROFILE_MAPPING), type=non_negative_float, default=[1, 0, 0],
                         help='The weights for assigning different profiles to the agents. Default is [1, 0, 0], i.e. '
                              '100%% non-myopic agents.')
-    parser.add_argument('--cost_min', type=float, default=1e-5,
+    parser.add_argument('--cost_min', nargs="?", type=non_negative_float, default=1e-5,
                         help='The minimum possible cost for operating a stake pool. Default is 1e-5.')
-    parser.add_argument('--cost_max', type=float, default=1e-4,
+    parser.add_argument('--cost_max', nargs="?", type=non_negative_float, default=1e-4,
                         help='The maximum possible cost for operating a stake pool. Default is 1e-4.')
-    parser.add_argument('--extra_pool_cost_fraction', nargs="+", type=float, default=0.4,
+    parser.add_argument('--extra_pool_cost_fraction', nargs="?", type=non_negative_float, default=0.4,
                         help='The factor that determines how much an additional pool costs as a fraction of '
                              'the original cost value of the stakeholder. Default is 40%%.')
-    parser.add_argument('--agent_activation_order', type=str.lower, default='random',
+    parser.add_argument('--agent_activation_order', nargs="?", type=str.lower, default='random',
                         choices=['random', 'sequential', 'simultaneous', 'semisimultaneous'],
                         help='The order with which agents are activated. Default is "Random". Other options are '
                              '"Sequential" and "Semisimultaneous".')
-    parser.add_argument('--absolute_utility_threshold', nargs="+", type=float, default=1e-9,
+    parser.add_argument('--absolute_utility_threshold', nargs="?", type=non_negative_float, default=1e-9,
                         help='The utility threshold under which moves are disregarded. Default is 1e-9.')
-    parser.add_argument('--relative_utility_threshold', nargs="+", type=float, default=0,
+    parser.add_argument('--relative_utility_threshold', nargs="?", type=non_negative_float, default=0,
                         help='The utility increase ratio under which moves are disregarded. Default is 0%%.')
-    parser.add_argument('--stake_distr_source', type=str.lower, default='pareto', choices = ["pareto", "flat",
+    parser.add_argument('--stake_distr_source', nargs="?", type=str.lower, default='pareto', choices = ["pareto", "flat",
                                                                                              "disparity", "file"],
                         help='The distribution type to use for the initial allocation of stake to the agents.')
-    parser.add_argument('--pareto_param', type=float, default=2.0,
+    parser.add_argument('--pareto_param', nargs="?", type=positive_float, default=2.0,
                         help='The parameter that determines the shape of the distribution that the stake will be '
-                             'sampled from. Default is 2.')
-    parser.add_argument('--inactive_stake_fraction', type=float, default=0,
-                        help='The fraction of the total stake that remains inactive (does not belong to any of the agents). Default is 0.')
+                             'sampled from (in the case that stake_distr_source is pareto). Default is 2.')
+    parser.add_argument('--inactive_stake_fraction',  nargs="?", type=fraction, default=0,
+                        help='The fraction of the total stake that remains inactive (does not belong to any of the '
+                             'agents). Default is 0.')
     parser.add_argument('--inactive_stake_fraction_known', type=bool, default=False,
                         action=argparse.BooleanOptionalAction,
                         help='Is the inactive stake fraction of the system known beforehand? Default is no.')
-    parser.add_argument('--iterations_after_convergence', type=int, default=10,
+    parser.add_argument('--iterations_after_convergence',  nargs="?", type=int, default=10,
                         help='The minimum consecutive idle iterations that are required before terminations. '
                              'Default is 10.')
-    parser.add_argument('--max_iterations', type=int, default=2000,
+    parser.add_argument('--max_iterations',  nargs="?", type=positive_int, default=2000,
                         help='The maximum number of iterations of the system. Default is 2000.')
-    parser.add_argument('--metrics', nargs="+", type=int, default=None,
-                        help='The list of ids that correspond to metrics that are tracked during the simulation. Default '
+    parser.add_argument('--metrics', nargs="+", type=int, default=None, choices=range(1, len(REPORTER_IDS)+1),
+                        help='The list of ids that correspond to metrics that are tracked during the simulation. Default'
                              'is [1, 2, 3, 4, 6, 17, 18, 26, 27]')
     parser.add_argument('--generate_graphs', type=bool, default=True, action=argparse.BooleanOptionalAction,
-                        help='If True then graphs relating to the tracked metrics are generated upon completion. Default '
+                        help='If True then graphs relating to the tracked metrics are generated upon completion. Default'
                              'is True.'),
-    parser.add_argument('--seed', type=int, default=None,
+    parser.add_argument('--seed',  nargs="?", type=non_negative_int, default=None,
                         help='Seed for reproducibility. Default is None, which means that a seed is chosen at random.')
-    parser.add_argument('--execution_id', type=str, default='',
+    parser.add_argument('--execution_id',  nargs="?", type=str, default='',
                         help='An optional identifier for the specific simulation run, '
                              'which will be used to name the output folder / files.')
     parser.add_argument('--input_from_file', type=bool, default=False, action=argparse.BooleanOptionalAction,

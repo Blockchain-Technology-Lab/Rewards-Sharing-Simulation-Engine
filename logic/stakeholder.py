@@ -7,7 +7,6 @@ import math
 import logic.helper as hlp
 from logic.pool import Pool
 from logic.strategy import Strategy
-from logic.helper import MIN_STAKE_UNIT
 
 #todo move methods to children classes when necessary
 class Stakeholder(Agent):
@@ -18,7 +17,7 @@ class Stakeholder(Agent):
         self.stake = stake
         self.new_strategy = None
         if strategy is None:
-            # Initialise strategy to an "empty" strategy
+            # Initialize strategy to an "empty" strategy
             strategy = Strategy()
         self.strategy = strategy
 
@@ -279,16 +278,16 @@ class Stakeholder(Agent):
             # first attempt to delegate to unsaturated pools
             best_pool = eligible_pools_ranked.pop(0)
             stake_to_saturation = saturation_point - best_pool.stake
-            if stake_to_saturation < MIN_STAKE_UNIT:
+            if stake_to_saturation < hlp.MIN_STAKE_UNIT:
                 if best_saturated_pool is None:
                     best_saturated_pool = best_pool
                 continue
             allocation = min(stake_to_delegate, stake_to_saturation)
             stake_to_delegate -= allocation
             allocations[best_pool.id] = allocation
-            if stake_to_delegate < MIN_STAKE_UNIT:
+            if stake_to_delegate < hlp.MIN_STAKE_UNIT:
                 break
-        if stake_to_delegate >= MIN_STAKE_UNIT and best_saturated_pool is not None:
+        if stake_to_delegate >= hlp.MIN_STAKE_UNIT and best_saturated_pool is not None:
             # if the stake to delegate does not fit in unsaturated pools, delegate to the saturated one with the highest desirability
             allocations[best_saturated_pool.id] = stake_to_delegate
 
@@ -303,7 +302,7 @@ class Stakeholder(Agent):
     def find_delegation_move(self, stake_to_delegate=None):
         if stake_to_delegate is None:
             stake_to_delegate = self.stake
-        if stake_to_delegate < MIN_STAKE_UNIT:
+        if stake_to_delegate < hlp.MIN_STAKE_UNIT:
             return Strategy()
 
         allocations = self.determine_stake_allocations(stake_to_delegate)

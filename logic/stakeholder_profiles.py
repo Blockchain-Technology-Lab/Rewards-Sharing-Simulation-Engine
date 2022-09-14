@@ -164,7 +164,7 @@ class Abstainer(Stakeholder):
     def update_strategy(self):
         return
 
-profile_mapping = {
+PROFILE_MAPPING = {
     0: NonMyopicStakeholder,
     1: MyopicStakeholder,
     2: Abstainer

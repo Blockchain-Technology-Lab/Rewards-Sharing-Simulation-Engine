@@ -3,7 +3,6 @@ import collections
 from gekko import GEKKO
 import numpy as np
 
-from logic.helper import MAX_NUM_POOLS
 import logic.helper as hlp
 
 def get_number_of_pools(model):
@@ -386,7 +385,7 @@ def get_operator_count(model):
     return len({pool.owner for pool in model.get_pools_list()})
 
 
-all_model_reporters = {
+ALL_MODEL_REPORTEERS = {
     "Pool count": get_number_of_pools,
     "Total pledge": get_total_pledge,
     "Mean pledge": get_avg_pledge,
@@ -421,7 +420,7 @@ all_model_reporters = {
     "Operator count": get_operator_count
 }
 
-reporter_ids = {
+REPORTER_IDS = {
     1: "Pool count",
     2: "Total pledge",
     3: "Mean pledge",

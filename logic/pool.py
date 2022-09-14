@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 import logic.helper as hlp
-from logic.helper import MIN_STAKE_UNIT
 
 class Pool:
 
@@ -37,7 +36,7 @@ class Pool:
             self.stake -= self.delegators[delegator_id]
         self.stake += new_delegation
         self.delegators[delegator_id] = new_delegation
-        if self.delegators[delegator_id] < MIN_STAKE_UNIT:
+        if self.delegators[delegator_id] < hlp.MIN_STAKE_UNIT:
             self.delegators.pop(delegator_id)
 
 

@@ -64,14 +64,14 @@ class Simulation(Model):
         self.directory = path
         self.export_args_file(args)
 
-        # An era is defined as a time period during which the parameters of the model don't change
+        # An era is defined as a time period during which the parameters of the reward sharing scheme don't change
         self.current_era = 0
         total_eras = 1
 
         extra_fields = ['n', 'k', 'a0', 'relative_utility_threshold', 'absolute_utility_threshold',
                  'max_iterations', 'extra_pool_cost_fraction', 'agent_activation_order',
                   'reward_function', 'generate_graphs']
-        adjustable_params = {} #todo define which args should not be saved as adjustable params (e.g. inactive_stake_fraction)
+        adjustable_params = {}
         for field in extra_fields:
             value = args[field]
             if isinstance(value, list):
@@ -131,11 +131,11 @@ class Simulation(Model):
         self.iterations_after_convergence = args['iterations_after_convergence']
         self.pools = dict()
         self.revision_frequency = 10  # defines how often agents revise their belief about the active stake and expected #pools
-        self.initialise_pool_id_seq()  # initialise pool id sequence for the new model run
+        self.initialize_pool_id_seq()  # initialize pool id sequence for the new model run
 
         # metrics to track at every step of the simulation
         model_reporters = {
-            reporters.reporter_ids[reporter_id]: reporters.all_model_reporters[reporters.reporter_ids[reporter_id]] for
+            reporters.REPORTER_IDS[reporter_id]: reporters.ALL_MODEL_REPORTEERS[reporters.REPORTER_IDS[reporter_id]] for
             reporter_id in args['metrics']}
         self.datacollector = DataCollector(model_reporters=model_reporters)
 
@@ -153,7 +153,7 @@ class Simulation(Model):
             # Distribute the total stake of the system evenly to all agents
             stake_distribution = hlp.generate_stake_distr_flat(num_agents=self.n)
         elif stake_distr_source == 'disparity':
-            stake_distribution = hlp.generate_sake_distr_disparity(n=self.n)
+            stake_distribution = hlp.generate_stake_distr_disparity(n=self.n)
         total_stake = sum(stake_distribution)
 
         # Allocate cost to the agents, sampling from a uniform distribution
@@ -164,9 +164,9 @@ class Simulation(Model):
         #cost_distribution = hlp.generate_cost_distr_nrm(num_agents=self.n, low=cost_min, high=cost_max, mean=5e-6, stddev=5e-1)
         #cost_distribution = hlp.generate_cost_distr_bands_manual(num_agents=self.n, low=cost_min, high=cost_max, num_bands=1)
 
-        agent_profiles = self.random.choices(list(profiles.profile_mapping.keys()), k=self.n, weights=agent_profile_distr)
+        agent_profiles = self.random.choices(list(profiles.PROFILE_MAPPING.keys()), k=self.n, weights=agent_profile_distr)
         for i in range(self.n):
-            agent_type = profiles.profile_mapping[agent_profiles[i]]
+            agent_type = profiles.PROFILE_MAPPING[agent_profiles[i]]
             agent = agent_type(
                 unique_id=i,
                 model=self,
@@ -192,7 +192,7 @@ class Simulation(Model):
             agent.stake += flt_error
 
     # todo use itertools instead (next)
-    def initialise_pool_id_seq(self): 
+    def initialize_pool_id_seq(self):
         self.id_seq = 0
 
     def get_next_pool_id(self):
@@ -237,7 +237,7 @@ class Simulation(Model):
         :return:
         """
         self.start_time = time.time()
-        self.initialise_pool_id_seq()  # initialise pool id sequence for the new model run
+        self.initialize_pool_id_seq()  # initialize pool id sequence for the new model run
         while self.schedule.steps <= self.max_iterations and self.running:
             self.step()
 
@@ -348,8 +348,8 @@ class Simulation(Model):
         pathlib.Path(figures_dir).mkdir(parents=True, exist_ok=True)
 
         rng = np.random.default_rng(seed=156)
-        random_colours = rng.random((len(reporters.all_model_reporters), 3))
-        all_reporter_colours = dict(zip(reporters.all_model_reporters.keys(), random_colours))
+        random_colours = rng.random((len(reporters.ALL_MODEL_REPORTEERS), 3))
+        all_reporter_colours = dict(zip(reporters.ALL_MODEL_REPORTEERS.keys(), random_colours))
         all_reporter_colours['Mean pledge'] = 'red'
         all_reporter_colours["Pool count"] = 'C0'
         all_reporter_colours["Total pledge"] = 'purple'
@@ -418,7 +418,6 @@ class Simulation(Model):
             pool.desirability = hlp.calculate_pool_desirability(margin=pool.margin, potential_profit=pool.potential_profit)
             self.pool_rankings.add(pool)
             self.pool_rankings_myopic.add(pool)
-
         if change_occured:
             self.pivot_steps.append(self.schedule.steps)
 
