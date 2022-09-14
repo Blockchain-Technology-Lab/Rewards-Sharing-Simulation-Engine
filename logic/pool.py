@@ -12,7 +12,7 @@ class Pool:
         self.is_private = is_private
         self.delegators = dict()
         self.set_profit(a0, beta, reward_function)
-        self.margin = margin
+        self._margin = margin
 
     @property
     def margin(self):
