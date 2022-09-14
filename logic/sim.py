@@ -15,16 +15,17 @@ import logic.helper as hlp
 import logic.model_reporters as reporters
 import logic.stakeholder_profiles as profiles
 
+#todo talk with AK about which arguments to have as command line and which as constants/json, ideas for making it more user friendly etc
 class Simulation(Model):
     #todo split into two classes? simulation (with max_iterations, iterations_after_convergence etc) and rss (with k, a0, reward function option, etc)
-    def __init__(self, n=1000, k=100, a0=0.3, stake_distr_source='Pareto', agent_profile_distr=None,
-                 inactive_stake_fraction=0, inactive_stake_fraction_known=False, relative_utility_threshold=0,
-                 absolute_utility_threshold=0, seed=None, pareto_param=2.0,
-                 max_iterations=1000, cost_min=1e-5, cost_max=1e-4, extra_pool_cost_fraction=0.4,
-                 agent_activation_order="random", total_stake=-1, iterations_after_convergence=10,
-                 reward_function=0, execution_id='', seq_id=-1, parent_dir='', metrics=None,
-                 generate_graphs=True, input_from_file=False):
-        # todo make sure that the input is valid? n > 0, 0 < k <= n
+    def __init__(
+            self, n=1000, k=100, a0=0.3, stake_distr_source='Pareto', agent_profile_distr=None,
+            inactive_stake_fraction=0, inactive_stake_fraction_known=False, relative_utility_threshold=0,
+            absolute_utility_threshold=0, seed=None, pareto_param=2.0, max_iterations=1000, cost_min=1e-5,
+            cost_max=1e-4, extra_pool_cost_fraction=0.4, agent_activation_order="random",
+            iterations_after_convergence=10, reward_function=0, execution_id='', seq_id=-1, parent_dir='',
+            metrics=None, generate_graphs=True, input_from_file=False
+    ):
         if input_from_file:
             args = hlp.read_args_from_file("args.json")
         else:
@@ -107,18 +108,23 @@ class Simulation(Model):
         self.pool_rankings_myopic = SortedList([None] * (self.k + 1),
                                                key=self.pool_comparison_key_myopic)  # all pools ranked from best to worst myopically
 
-        total_stake = self.initialize_agents(args['agent_profile_distr'], args['cost_min'], args['cost_max'],
-                                             args['pareto_param'], args['stake_distr_source'].lower(),
-                                             imposed_total_stake=args['total_stake'], seed=seed)
-        self.total_stake = total_stake / (1 - args['inactive_stake_fraction'])
+        total_stake = self.initialize_agents(
+            args['agent_profile_distr'], args['cost_min'], args['cost_max'], args['pareto_param'],
+            args['stake_distr_source'].lower(), seed=seed
+        )
+        total_stake /= (1 - args['inactive_stake_fraction'])
 
-        if self.total_stake <= 0:
+        if total_stake <= 0: #todo do I need this check?
             raise ValueError('Total stake must be > 0')
-        self.perceived_active_stake = self.total_stake
-        self.beta = self.total_stake / self.k
+        self.perceived_active_stake = total_stake
 
-        self.export_input_desc_file(seed)
+        if total_stake != 1:
+            # normalize stake values so that they are expressed as relative stakes
+            self.normalize_agent_stake(total_stake)
 
+        self.beta = 1 / self.k
+
+        self.export_input_desc_file(seed) #todo rename to initial state desc (also for final)
 
         self.consecutive_idle_steps = 0  # steps towards convergence
         self.current_step_idle = True
@@ -137,16 +143,15 @@ class Simulation(Model):
         self.equilibrium_steps = []
         self.pivot_steps = []
 
-    def initialize_agents(self, agent_profile_distr, cost_min, cost_max, pareto_param, stake_distr_source, imposed_total_stake, seed):
+    def initialize_agents(self, agent_profile_distr, cost_min, cost_max, pareto_param, stake_distr_source, seed):
         if stake_distr_source == 'file':
             stake_distribution = hlp.read_stake_distr_from_file(num_agents=self.n)
         elif stake_distr_source == 'pareto':
             # Allocate stake to the agents, sampling from a Pareto distribution
-            stake_distribution = hlp.generate_stake_distr_pareto(num_agents=self.n, pareto_param=pareto_param, seed=seed,
-                                                                 total_stake=imposed_total_stake)#, truncation_factor=self.k)
+            stake_distribution = hlp.generate_stake_distr_pareto(num_agents=self.n, pareto_param=pareto_param, seed=seed)#, truncation_factor=self.k)
         elif stake_distr_source == 'flat':
             # Distribute the total stake of the system evenly to all agents
-            stake_distribution = hlp.generate_stake_distr_flat(num_agents=self.n, total_stake=self.n)#max(imposed_total_stake, 1))
+            stake_distribution = hlp.generate_stake_distr_flat(num_agents=self.n)
         elif stake_distr_source == 'disparity':
             stake_distribution = hlp.generate_sake_distr_disparity(n=self.n)
         total_stake = sum(stake_distribution)
@@ -171,8 +176,23 @@ class Simulation(Model):
             self.schedule.add(agent)
         return total_stake
 
+    def normalize_agent_stake(self, total_stake):
+        """
+        Normalize agent stakes so that the total stake of the system is equal to 1.
+        @param total_stake: the total stake of the system prior to normalization (including agent stake and inactive stake)
+        """
+        norm_total_stake = 0
+        for agent in self.schedule.agents:
+            agent.stake /= total_stake
+            norm_total_stake += agent.stake
+        if norm_total_stake != 1:
+            # add (or subtract) tiny value from the last agent's stake to account for floating point errors and make
+            # sure that the sum of all agent stakes is equal to 1
+            flt_error = 1 - norm_total_stake
+            agent.stake += flt_error
+
     # todo use itertools instead (next)
-    def initialise_pool_id_seq(self):
+    def initialise_pool_id_seq(self): 
         self.id_seq = 0
 
     def get_next_pool_id(self):
@@ -200,7 +220,7 @@ class Simulation(Model):
         self.schedule.step()
         if self.current_step_idle:
             self.consecutive_idle_steps += 1
-            if self.has_converged():
+            if self.has_converged(): #todo make more verbose (announce convergence here) and then make param adjustments verbose too
                 self.equilibrium_steps.append(current_step - self.iterations_after_convergence)
                 if self.current_era < self.total_eras - 1:
                     self.adjust_params()
@@ -238,7 +258,6 @@ class Simulation(Model):
         stake_stats = reporters.get_stake_distr_stats(self)
         descriptors = {
             'Randomness seed': seed,
-            'Total stake': self.total_stake,
             'Active stake': reporters.get_active_stake_agents(self),
             'Max stake': stake_stats[0],
             'Min stake': stake_stats[1],
@@ -259,12 +278,12 @@ class Simulation(Model):
         decimals = 15
         row_list.extend([
             [agent_id, round(agents[agent_id].stake, decimals), round(agents[agent_id].cost, decimals),
-             round(hlp.calculate_potential_profit(agents[agent_id].stake, agents[agent_id].cost, self.a0, self.beta, self.reward_function, self.total_stake), decimals),
+             round(hlp.calculate_potential_profit(agents[agent_id].stake, agents[agent_id].cost, self.a0, self.beta, self.reward_function), decimals),
              "Abstainer" if agents[agent_id].strategy is None else "Operator" if len(agents[agent_id].strategy.owned_pools) > 0 else "Delegator",
              0 if agents[agent_id].strategy is None else len(agents[agent_id].strategy.owned_pools),
              0 if agents[agent_id].strategy is None else sum([pool.stake for pool in agents[agent_id].strategy.owned_pools.values()]),
-             hlp.calculate_pool_splitting_profit(self.a0, self.extra_pool_cost_fraction, agents[agent_id].cost, agents[agent_id].stake / self.total_stake),
-             "YES" if hlp.calculate_pool_splitting_profit(self.a0, self.extra_pool_cost_fraction, agents[agent_id].cost, agents[agent_id].stake / self.total_stake) > 0 else "NO"
+             hlp.calculate_pool_splitting_profit(self.a0, self.extra_pool_cost_fraction, agents[agent_id].cost, agents[agent_id].stake),
+             "YES" if hlp.calculate_pool_splitting_profit(self.a0, self.extra_pool_cost_fraction, agents[agent_id].cost, agents[agent_id].stake) > 0 else "NO"
              ] for agent_id in range(len(agents))
         ])
 
@@ -301,7 +320,7 @@ class Simulation(Model):
             'Pool count': reporters.get_number_of_pools(self),
             'Operator count': reporters.get_operator_count(self),
             'Nakamoto coefficient': reporters.get_nakamoto_coefficient(self),
-            'Total pledge fraction': (round(reporters.get_total_pledge(self) / self.total_stake, 4))
+            'Total pledge fraction': (round(reporters.get_total_pledge(self), 4))
         }
         filepath = self.directory / filename
         hlp.export_json_file(descriptors, filepath)
@@ -390,11 +409,12 @@ class Simulation(Model):
                 if key == 'k':
                     self.k = int(self.k)
                     # update beta in case the value of k changes
-                    self.beta = self.total_stake / self.k
+                    self.beta = 1 / self.k
                     #todo if I care enough about it update k again in case of known inactive_stake_fraction
         for pool in self.pools.values():
-            pool.potential_profit = hlp.calculate_potential_profit(pool.pledge, pool.cost, self.a0, self.beta,
-                                                                   self.reward_function, self.total_stake)
+            pool.potential_profit = hlp.calculate_potential_profit(
+                pool.pledge, pool.cost, self.a0, self.beta, self.reward_function
+            )
             pool.desirability = hlp.calculate_pool_desirability(margin=pool.margin, potential_profit=pool.potential_profit)
             self.pool_rankings.add(pool)
             self.pool_rankings_myopic.add(pool)
@@ -419,7 +439,8 @@ class Simulation(Model):
             return 0, 0, 0
         # sort pools based on their myopic desirability
         # break ties with pool id
-        current_profit = hlp.calculate_current_profit(pool.stake, pool.pledge, pool.cost, self.a0, self.beta,
-                                                  self.reward_function, self.total_stake)
+        current_profit = hlp.calculate_current_profit(
+            pool.stake, pool.pledge, pool.cost, self.a0, self.beta, self.reward_function
+        )
         myopic_desirability = hlp.calculate_myopic_pool_desirability(pool.margin, current_profit)
         return -myopic_desirability, pool.id

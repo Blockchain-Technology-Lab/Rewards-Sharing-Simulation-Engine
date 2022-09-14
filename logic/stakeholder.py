@@ -78,8 +78,10 @@ class Stakeholder(Agent):
         utility = 0
         # Calculate current (not expected) utility of operating own pools
         for pool in self.strategy.owned_pools.values():
-            utility += hlp.calculate_operator_utility_from_pool(pool_stake=pool.stake, pledge=pool.pledge, margin=pool.margin,
-                                                                    cost=pool.cost, a0=self.model.a0, beta=self.model.beta, reward_function=self.model.reward_function, total_stake= self.model.total_stake)
+            utility += hlp.calculate_operator_utility_from_pool(
+                pool_stake=pool.stake, pledge=pool.pledge, margin=pool.margin, cost=pool.cost, a0=self.model.a0,
+                beta=self.model.beta, reward_function=self.model.reward_function
+            )
         for pool_id, a in self.strategy.stake_allocations.items():
             utility += self.calculate_delegator_utility_from_pool(self.model.pools[pool_id], a)
         return utility
@@ -217,7 +219,7 @@ class Stakeholder(Agent):
             pool.pledge = pledge
             pool.is_private = pool.pledge >= self.model.beta
             pool.cost = cost_per_pool
-            pool.set_profit(self.model.a0, self.model.beta, self.model.reward_function, self.model.total_stake)
+            pool.set_profit(self.model.a0, self.model.beta, self.model.reward_function)
             pool.margin = margins[i] if len(margins) > i  else self.calculate_margin(pool)
 
         existing_pools_num = len(owned_pools)
@@ -225,10 +227,10 @@ class Stakeholder(Agent):
             # For pools under consideration of opening, create according to the strategy
             pool_id = self.model.get_next_pool_id()
             # todo maybe use a temp pool id here and assign final id at execution
-            pool = Pool(pool_id=pool_id, cost=cost_per_pool,
-                        pledge=pledge, owner=self.unique_id, a0=self.model.a0,
-                        beta=self.model.beta, is_private=pledge >= self.model.beta,
-                        reward_function=self.model.reward_function, total_stake=self.model.total_stake)
+            pool = Pool(
+                pool_id=pool_id, cost=cost_per_pool, pledge=pledge, owner=self.unique_id, a0=self.model.a0,
+                beta=self.model.beta, is_private=pledge >= self.model.beta, reward_function=self.model.reward_function
+            )
             # private pools have margin 0 but don't allow delegations
             pool.margin = margins[i] if len(margins) > i else self.calculate_margin(pool)
             owned_pools[pool_id] = pool

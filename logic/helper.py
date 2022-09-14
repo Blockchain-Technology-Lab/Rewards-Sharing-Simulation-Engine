@@ -64,14 +64,13 @@ def generate_cost_distr_disparity(n, low, high, c=10):
     return costs
 
 
-def generate_stake_distr_pareto(num_agents, pareto_param=2, seed=156, truncation_factor=-1, total_stake=-1):
+def generate_stake_distr_pareto(num_agents, pareto_param=2, seed=156, truncation_factor=-1):
     """
     Generate a distribution for the agents' initial stake (wealth),
     sampling from a Pareto distribution
     sampling from a Pareto distribution
     :param pareto_param: the shape parameter to be used for the Pareto distribution
     :param num_agents: the number of samples to draw
-    :param total_stake: the sum to normalize all stakes to, if positive
     :return:
     """
     rng = default_rng(seed=int(seed))
@@ -80,8 +79,6 @@ def generate_stake_distr_pareto(num_agents, pareto_param=2, seed=156, truncation
     stake_sample = list((rng.pareto(a, num_agents) + 1) * m)
     if truncation_factor > 0:
         stake_sample = truncate_pareto(rng, (a, m), stake_sample, truncation_factor)
-    if total_stake > 0:
-        stake_sample = normalize_distr(stake_sample, normal_sum=total_stake)
     return stake_sample
 
 
@@ -97,8 +94,8 @@ def truncate_pareto(rng, pareto_params, sample, truncation_factor):
             return sample
 
 
-def generate_stake_distr_flat(num_agents, total_stake=1):
-    stake_per_agent = total_stake / num_agents if num_agents > 0 else 0
+def generate_stake_distr_flat(num_agents):
+    stake_per_agent = 1 / num_agents if num_agents > 0 else 0
     return [stake_per_agent for _ in range(num_agents)]
 
 
@@ -139,29 +136,11 @@ def generate_cost_distr_nrm(num_agents, low, high, mean, stddev):
     Generate a distribution for the agents' costs of operating pools,
     sampling from a truncated normal distribution
     """
-    costs = stats.truncnorm.rvs(low, high,
-                                loc=mean, scale=stddev,
-                                size=num_agents)
+    costs = stats.truncnorm.rvs(low, high, loc=mean, scale=stddev, size=num_agents)
     return costs
 
-
-def normalize_distr(dstr, normal_sum=1):
-    """
-    returns an equivalent distribution where the sum equals 1 (or another value defined by normal_sum)
-    :param dstr:
-    :param normal_sum:
-    :return:
-    """
-    s = sum(dstr)
-    if s == 0:
-        return dstr
-    nrm_dstr = [normal_sum * i / s for i in dstr]
-    flt_error = normal_sum - sum(nrm_dstr)
-    nrm_dstr[-1] += flt_error
-    return nrm_dstr
-
 @lru_cache(maxsize=1024)
-def calculate_potential_profit(pledge, cost, a0, beta, reward_function, total_stake):
+def calculate_potential_profit(pledge, cost, a0, beta, reward_function):
     """
     Calculate a pool's potential profit, which can be defined as the profit it would get at saturation level
     :param pledge:
@@ -170,21 +149,16 @@ def calculate_potential_profit(pledge, cost, a0, beta, reward_function, total_st
     :param beta:
     :return: float, the maximum possible profit that this pool can yield
     """
-    relative_stake = beta / total_stake
-    relative_pledge = pledge / total_stake
-    potential_reward = calculate_pool_reward(relative_stake, relative_pledge, a0, beta, reward_function, total_stake)
+    potential_reward = calculate_pool_reward(beta, pledge, a0, beta, reward_function)
     return potential_reward - cost
 
 @lru_cache(maxsize=1024)
-def calculate_current_profit(stake, pledge, cost, a0, beta, reward_function, total_stake):
-    relative_pledge = pledge / total_stake
-    relative_stake = stake / total_stake
-    reward = calculate_pool_reward(relative_stake, relative_pledge, a0, beta, reward_function, total_stake)
+def calculate_current_profit(stake, pledge, cost, a0, beta, reward_function):
+    reward = calculate_pool_reward(stake, pledge, a0, beta, reward_function)
     return reward - cost
 
 @lru_cache(maxsize=1024)
-def calculate_pool_reward(relative_stake, relative_pledge, a0, beta, reward_function, total_stake, curve_root=3, crossover_factor=8):
-    beta = beta / total_stake
+def calculate_pool_reward(relative_stake, relative_pledge, a0, beta, reward_function, curve_root=3, crossover_factor=8):
     if reward_function == 0:
         return calculate_pool_reward_original(relative_stake, relative_pledge, a0, beta)
     elif reward_function == 1:
@@ -192,7 +166,7 @@ def calculate_pool_reward(relative_stake, relative_pledge, a0, beta, reward_func
     elif reward_function == 2:
         return calculate_pool_reward_flat_pledge_benefit(relative_stake, relative_pledge, a0, beta)
     elif reward_function == 3:
-        return calculate_pool_reward_curve_pledge_benefit(relative_stake, relative_pledge, a0, beta, curve_root, crossover_factor, total_stake)
+        return calculate_pool_reward_curve_pledge_benefit(relative_stake, relative_pledge, a0, beta, curve_root, crossover_factor)
     else:
         raise ValueError("Invalid option for reward function.")
 
@@ -230,12 +204,11 @@ def calculate_pool_reward_flat_pledge_benefit(relative_stake, relative_pledge, a
     r = (TOTAL_EPOCH_REWARDS_R / (1 + a0)) * (stake_ + a0 * pledge_)
     return r
 
-def calculate_pool_reward_curve_pledge_benefit(relative_stake, relative_pledge, a0, relative_beta, curve_root,
-                                               crossover_factor, total_stake):
-    crossover = relative_beta * total_stake / crossover_factor
-    pledge = relative_pledge * total_stake
-    pledge_factor = (pledge ** (1 / curve_root)) * (crossover ** ((curve_root - 1) / curve_root)) / total_stake
-    return calculate_pool_reward_original(relative_stake, pledge_factor, a0, relative_beta)
+def calculate_pool_reward_curve_pledge_benefit(
+        relative_stake, pledge, a0, beta, curve_root, crossover_factor):
+    crossover = beta / crossover_factor
+    pledge_factor = (pledge ** (1 / curve_root)) * (crossover ** ((curve_root - 1) / curve_root))
+    return calculate_pool_reward_original(relative_stake, pledge_factor, a0, beta)
 
 @lru_cache(maxsize=1024)
 def calculate_delegator_reward_from_pool(pool_margin, pool_cost, pool_reward, delegator_stake_fraction):
@@ -326,18 +299,14 @@ def calculate_myopic_pool_desirability(margin, current_profit):
     return max((1 - margin) * current_profit, 0)
 
 @lru_cache(maxsize=1024)
-def calculate_operator_utility_from_pool(pool_stake, pledge, margin, cost, a0, beta, reward_function, total_stake):
-    relative_pool_stake = pool_stake / total_stake
-    relative_pledge = pledge / total_stake
-    r = calculate_pool_reward(relative_pool_stake, relative_pledge, a0, beta, reward_function, total_stake)
+def calculate_operator_utility_from_pool(pool_stake, pledge, margin, cost, a0, beta, reward_function):
+    r = calculate_pool_reward(pool_stake, pledge, a0, beta, reward_function)
     stake_fraction = pledge / pool_stake
     return calculate_operator_reward_from_pool(pool_margin=margin, pool_cost=cost, pool_reward=r, operator_stake_fraction=stake_fraction)
 
 @lru_cache(maxsize=1024)
-def calculate_delegator_utility_from_pool(stake_allocation, pool_stake, pledge, margin, cost, a0, beta, reward_function, total_stake):
-    relative_pool_stake = pool_stake / total_stake
-    relative_pledge = pledge / total_stake
-    r = calculate_pool_reward(relative_pool_stake, relative_pledge, a0, beta, reward_function, total_stake)
+def calculate_delegator_utility_from_pool(stake_allocation, pool_stake, pledge, margin, cost, a0, beta, reward_function):
+    r = calculate_pool_reward(pool_stake, pledge, a0, beta, reward_function)
     stake_fraction = stake_allocation / pool_stake
     return calculate_delegator_reward_from_pool(pool_margin=margin, pool_cost=cost, pool_reward=r, delegator_stake_fraction=stake_fraction)
 
@@ -531,11 +500,10 @@ def utility_from_profitable_pool(r, c, l, b, m):
     return l / b * (r - c) * (1 - m) + m * (r - c)
 
 def util_by_margin_and_pools(agent, margin, num_pools):
-    total_stake = agent.model.total_stake
-    stake = agent.stake / total_stake
+    stake = agent.stake
     a0 = agent.model.a0
     k = agent.model.k
-    beta = agent.model.beta / total_stake
+    beta = agent.model.beta
     R = TOTAL_EPOCH_REWARDS_R
     phi = agent.model.extra_pool_cost_fraction
     initial_cost = agent.cost
@@ -564,7 +532,6 @@ def plot_margin_pools_heatmap(agent):
     k = agent.model.k
 
     x = np.linspace(1, k, k)
-    # x = np.linspace(1, 10, 10)
     y = np.linspace(0, 0.25, 1000)
     X, Y = np.meshgrid(x, y)
     zs = np.array(util_by_margin_and_pools(agent, np.ravel(Y), np.ravel(X)))
@@ -605,9 +572,9 @@ def pool_comparison_key(pool):
 
 def add_script_arguments(parser):
     #todo is it possible to check input for correctness, e.g. cost_max >= cost_min >= 0, extra_cost_function >=0, n>0, k>0, a0>=0, utility thresholds > 0
-    parser.add_argument('--n', type=int, default=100,
+    parser.add_argument('--n', type=int, default=1000,
                         help='The number of agents (natural number). Default is 1000.')
-    parser.add_argument('--k', nargs="+", type=int, default=10,
+    parser.add_argument('--k', nargs="+", type=int, default=100,
                         help='The k value of the system (natural number). Default is 100.')
     parser.add_argument('--a0', nargs="+", type=float, default=0.3,
                         help='The a0 value of the system (decimal number between 0 and 1). Default is 0.3')
@@ -662,3 +629,6 @@ def add_script_arguments(parser):
     parser.add_argument('--input_from_file', type=bool, default=False, action=argparse.BooleanOptionalAction,
                         help='If True then the input is read from a file (args.json) and any other command line '
                              'arguments are discarded. Default is False.')
+    parser.add_argument('--profile_code', type=bool, default=False, action=argparse.BooleanOptionalAction,
+                        help='If True then profiling is performed and the 10 most time-consuming lines of code are '
+                             'displayed ')

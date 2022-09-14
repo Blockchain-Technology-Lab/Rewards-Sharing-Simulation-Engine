@@ -287,7 +287,7 @@ def get_pool_splitter_count(model):
 def get_cost_efficient_count(model):
     all_agents = model.get_agents_list()
     potential_profits = [
-        hlp.calculate_potential_profit(agent.stake, agent.cost, model.a0, model.beta, model.reward_function, model.total_stake)
+        hlp.calculate_potential_profit(agent.stake, agent.cost, model.a0, model.beta, model.reward_function)
         for agent in all_agents
     ]
     positive_potential_profits = [pp for pp in potential_profits if pp > 0]
@@ -370,7 +370,6 @@ def get_gini_id_coeff_stake_k_agents(model):
 def get_total_delegated_stake(model):
     pools = model.get_pools_list()
     del_stake = sum([pool.stake for pool in pools])
-    total_stake = model.total_stake
     return del_stake
 
 

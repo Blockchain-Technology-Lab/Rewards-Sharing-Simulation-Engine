@@ -4,7 +4,7 @@ from logic.helper import MIN_STAKE_UNIT
 
 class Pool:
 
-    def __init__(self, pool_id, cost, pledge, owner, a0, beta, reward_function, total_stake, margin=-1, is_private=False):
+    def __init__(self, pool_id, cost, pledge, owner, a0, beta, reward_function, margin=-1, is_private=False):
         self.id = pool_id
         self.cost = cost
         self.pledge = pledge
@@ -12,7 +12,7 @@ class Pool:
         self.owner = owner
         self.is_private = is_private
         self.delegators = dict()
-        self.set_profit(a0, beta, reward_function, total_stake)
+        self.set_profit(a0, beta, reward_function)
         self.margin = margin
 
     @property
@@ -26,8 +26,8 @@ class Pool:
         #todo shouldn't it also change when pledge, cost / pp is changed? -> not an issue in practice because whenever pledge changes margin also changes but maybe can make it better
         self.set_desirability()
 
-    def set_profit(self, a0, beta, reward_function, total_stake):
-        self.potential_profit = hlp.calculate_potential_profit(self.pledge, self.cost, a0, beta, reward_function, total_stake)
+    def set_profit(self, a0, beta, reward_function):
+        self.potential_profit = hlp.calculate_potential_profit(self.pledge, self.cost, a0, beta, reward_function)
 
     def set_desirability(self):
         self.desirability = hlp.calculate_pool_desirability(margin=self.margin, potential_profit=self.potential_profit)
