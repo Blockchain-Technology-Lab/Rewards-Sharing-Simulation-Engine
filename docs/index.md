@@ -2,7 +2,8 @@
 
 This is the documentation for the Rewards Sharing Simulation Engine built by the University of Edinburgh's Blockchain 
 Technology Lab. 
-The source code is available on [Github](https://github.com/Blockchain-Technology-Laboratory/Cardano-Pooling-Simulator).
+The source code is available on 
+[Github](https://github.com/Blockchain-Technology-Laboratory/Rewards-Sharing-Simulation-Engine).
 
 ## Overview
 
@@ -25,7 +26,7 @@ draw inspiration from, see the [Examples](examples.md) page.
 
 If you have questions about the project that are not covered in the documentation or any other remark you would like to
 share with us and the wider community, please visit our dedicated 
-[Discussions](https://github.com/Blockchain-Technology-Lab/Cardano-Pooling-Simulator/discussions) section on Github and
+[Discussions](https://github.com/Blockchain-Technology-Lab/Rewards-Sharing-Simulation-Engine/discussions) section on Github and
 start a new thread or participate in an existing discussion if it is relevant to your concern.
 
 

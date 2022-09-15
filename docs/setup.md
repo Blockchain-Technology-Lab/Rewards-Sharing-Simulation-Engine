@@ -10,9 +10,9 @@ required packages in one go (assuming that the ```python``` command corresponds 
 
 ## Installation
 Installing the simulation engine is very simple, as it only involves cloning the relevant 
-[Github project](https://github.com/Blockchain-Technology-Laboratory/Cardano-Pooling-Simulator):
+[Github project](https://github.com/Blockchain-Technology-Laboratory/Rewards-Sharing-Simulation-Engine):
 
-    git clone https://github.com/Blockchain-Technology-Lab/Cardano-Pooling-Simulator.git
+    git clone https://github.com/Blockchain-Technology-Lab/Rewards-Sharing-Simulation-Engine.git
 
 ## Execution
 To run the simulation, navigate to the directory of the project and run the ```main.py``` script from a terminal:

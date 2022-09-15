@@ -1,16 +1,16 @@
-# Cardano Pooling Simulator
+# Rewards Sharing Simulation Engine
 Tool to simulate staking behaviour in Proof-of-Stake blockchains, especially tailored towards Cardano.
 
 Written in Python 3.9 by Christina Ovezik, Research Engineer at the University of Edinburgh's [Blockchain Technology
 Laboratory](https://www.ed.ac.uk/informatics/blockchain).
 
-Refer to the project's [documentation](https://blockchain-technology-lab.github.io/Cardano-Pooling-Simulator/) for 
+Refer to the project's [documentation](https://blockchain-technology-lab.github.io/Rewards-Sharing-Simulation-Engine/) for 
 detailed instructions and examples on how to interact with the simulation engine. 
 
 ## Installation
 To install the simulation engine, simply clone this project:
 
-    git clone https://github.com/Blockchain-Technology-Lab/Cardano-Pooling-Simulator.git
+    git clone https://github.com/Blockchain-Technology-Lab/Rewards-Sharing-Simulation-Engine.git
 
 Take note of the [requirements file](requirements.txt), which lists all the dependencies of the project, and make
 sure you have all of them installed before running the simulation. To install all of them in one go, you can run the 
