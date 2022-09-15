@@ -15,9 +15,9 @@ Run with two phases, first with k = 100 and then k = 200:
 
     python main.py --k 100 200 --execution_id=increasing-k
 
-Run with 10,000 agents, k = 500 and a specified seed (42):
+Run with 5,000 agents, k = 500 and a specified seed (42):
 
-    python main.py --n=10000 --k=1000 --seed=42 --execution_id=n-10K-k-1000-seed-42
+    python main.py --n=5000 --k=500 --seed=42 --execution_id=n-5K-k-500-seed-42
 
 
 ## Batch runs
