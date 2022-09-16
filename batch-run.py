@@ -2,13 +2,13 @@ import argparse
 import random
 import pandas as pd
 
-from logic.model_reporters import all_model_reporters
 from custom_batchrunner import custom_batch_run
 import time
 import numpy as np
 
 import logic.sim as sim
 import logic.helper as hlp
+from logic.model_reporters import ALL_MODEL_REPORTEERS
 
 if __name__ == "__main__":
     #multiprocessing.freeze_support()  # needed for multiprocessing to work on windows systems (comment out line to run on linux or mac / uncomment for windows) #todo is that still needed? if yes, detect os and act accordingly
@@ -112,9 +112,9 @@ if __name__ == "__main__":
     results_df = pd.DataFrame(results)
 
     rng = np.random.default_rng(seed=156)
-    random_colours = rng.random((len(all_model_reporters), 3))
-    all_reporter_colours = dict(zip(all_model_reporters.keys(), random_colours))
-    model_reporters = [key for key in results_df.keys() if key in all_model_reporters.keys()] #todo figure out if I can exclude some model reporters from the sim e.g. stake by agent (or somehow deal with them in plots if not excluded)
+    random_colours = rng.random((len(ALL_MODEL_REPORTEERS), 3))
+    all_reporter_colours = dict(zip(ALL_MODEL_REPORTEERS.keys(), random_colours))
+    model_reporters = [key for key in results_df.keys() if key in ALL_MODEL_REPORTEERS.keys()] #todo figure out if I can exclude some model reporters from the sim e.g. stake by agent (or somehow deal with them in plots if not excluded)
     for variable_param in variable_params:
         useLogAxis = True if variable_param == 'a0' else False
         for model_reporter in model_reporters:
