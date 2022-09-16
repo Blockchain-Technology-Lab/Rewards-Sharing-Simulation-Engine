@@ -36,7 +36,7 @@ class Simulation(Model):
             args.pop('input_from_file')
             args.pop('args')
         if args['metrics'] is None:
-            args['metrics'] = [1, 2, 3, 4, 6, 17, 18, 24, 25]
+            args['metrics'] = [1, 2, 6, 9, 17, 18, 25]
         if args['agent_profile_distr'] is None:
             args['agent_profile_distr'] = [1, 0, 0]
 
