@@ -356,15 +356,16 @@ class Simulation(Model):
         all_reporter_colours["Nakamoto coefficient"] = 'pink' #todo maybe remove custom colors
 
         df = self.datacollector.get_model_vars_dataframe()
-        for col in df.columns:
-            if isinstance(df[col][0], list):
-                hlp.plot_stack_area_chart(pool_sizes_by_step=df[col], execution_id=self.execution_id, path=figures_dir)
-            elif isinstance(df[col][0], dict):
-                pass
-            else:
-                hlp.plot_line(data=df[col], execution_id=self.execution_id, color=all_reporter_colours[col], title=col, x_label="Round",
-                          y_label=col, filename=col, equilibrium_steps=self.equilibrium_steps, pivot_steps=self.pivot_steps,
-                          path=figures_dir, show_equilibrium=True)
+        if len(df) > 0:
+            for col in df.columns:
+                if isinstance(df[col][0], list):
+                    hlp.plot_stack_area_chart(pool_sizes_by_step=df[col], execution_id=self.execution_id, path=figures_dir)
+                elif isinstance(df[col][0], dict):
+                    pass
+                else:
+                    hlp.plot_line(data=df[col], execution_id=self.execution_id, color=all_reporter_colours[col], title=col, x_label="Round",
+                              y_label=col, filename=col, equilibrium_steps=self.equilibrium_steps, pivot_steps=self.pivot_steps,
+                              path=figures_dir, show_equilibrium=True)
 
     def get_pools_list(self):
         return list(self.pools.values())
