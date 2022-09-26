@@ -30,6 +30,7 @@ def custom_batch_run(
     data_collection_period=-1,
     max_steps=1000,
     display_progress= True,
+    initial_seed=0
 ):
     """Batch run a mesa model with a set of parameter values.
 
@@ -64,7 +65,11 @@ def custom_batch_run(
 
     parameters.update({'parent_dir': path})
     kwargs_list, fixed_params = _make_model_kwargs(parameters)
-    final_kwargs_list = [copy(kwarg) for kwarg in kwargs_list for _ in range(iterations)]
+    final_kwargs_list = [
+        copy(kwarg_dict) | {'seed': initial_seed + i} # add different seed for each iteration with same param combination
+        for kwarg_dict in kwargs_list
+        for i in range(iterations)
+    ]
     for i, params in enumerate(final_kwargs_list):
         seq_id = i + 1
         execution_id = '-'.join([str(key) + '-' + str(value) for key, value in params.items() if key not in fixed_params])
@@ -213,7 +218,6 @@ def _collect_data(
 ) -> Tuple[Dict[str, Any], List[Dict[str, Any]]]:
     """Collect model and agent data from a model using mesas datacollector."""
     dc = model.datacollector
-
     model_data = {param: values[step] for param, values in dc.model_vars.items()}
 
     all_agents_data = []

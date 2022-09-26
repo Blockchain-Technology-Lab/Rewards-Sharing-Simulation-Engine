@@ -56,7 +56,6 @@ if __name__ == "__main__":
                              'Default is 10.')
     parser.add_argument('--agent_profile_distr', nargs="*", type=float, default=[1, 0, 0],
                         help='The probability distribution for assigning different profiles to the agents. Default is [1, 0, 0], i.e. 100%% non-myopic agents.')
-    #todo add choices to some args
 
     # args missing from here: agent_profile_distr, generate graphs, metrics, input_from_file, agent_activation_order
     # make sure that all args are fine with batch run
@@ -70,12 +69,11 @@ if __name__ == "__main__":
     args_dict.pop("seed")
     if seed == "None":
         seed = random.randint(0, 9999999)
-
-    params = {
-        "seed": seed
-    }
+    else:
+        seed = int(seed)
 
     args_dict.pop("agent_profile_distr") #todo deal with this instead of popping
+    params = {}
     variable_params = {}
 
     for arg_name, arg_values in args_dict.items():
@@ -100,12 +98,13 @@ if __name__ == "__main__":
     results, batch_run_directory = custom_batch_run(
         sim.Simulation,
         parameters=params,
-        iterations=1, #todo for multiple iterations is the seed different? (check results too)
+        iterations=1, #todo maybe add as command-line option
         max_steps=params['max_iterations'],
         number_processes=None,
         data_collection_period=-1,
         display_progress=True,
-        batch_run_id=batch_run_id
+        batch_run_id=batch_run_id,
+        initial_seed=seed
     )
     print("Batch run took  {:.2f} seconds to complete.".format(time.time() - start_time))
 
