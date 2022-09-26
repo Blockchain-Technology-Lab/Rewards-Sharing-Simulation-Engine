@@ -2,6 +2,7 @@ import statistics
 import collections
 from gekko import GEKKO
 import numpy as np
+from math import fsum
 
 import logic.helper as hlp
 
@@ -27,7 +28,7 @@ def get_avg_pledge(model):
 
 def get_total_pledge(model):
     current_pool_pledges = [pool.pledge for pool in model.get_pools_list()]
-    return sum(current_pool_pledges)
+    return fsum(current_pool_pledges)
 
 
 def get_median_pledge(model):
@@ -133,7 +134,7 @@ def get_nakamoto_coefficient(model):
         majority_control_agents = 0
         majority_control_stake = 0
         index = 0
-        total_stake = sum(sorted_final_stake)
+        total_stake = fsum(sorted_final_stake)
         while majority_control_stake <= total_stake / 2:
             majority_control_stake += sorted_final_stake[index]
             majority_control_agents += 1
@@ -149,22 +150,15 @@ def get_nakamoto_coefficient(model):
         controlled_stake[pool.owner] += pool.stake
 
     final_stake = [controlled_stake[agent_id] for agent_id in active_agents.keys()]
-    total_active_stake = sum(final_stake)
-
+    total_active_stake = fsum(final_stake)
     sorted_final_stake = sorted(final_stake, reverse=True)
-    # final_stake.sort(reverse=True)
-    majority_control_agents = 0
-    majority_control_stake = 0
-    index = 0
-    #todo make simpler
-    while majority_control_stake <= total_active_stake / 2:
-        majority_control_stake += sorted_final_stake[index]
-        majority_control_agents += 1
-        index += 1
-
-    return majority_control_agents
+    cumulative_final_stake = np.array([fsum(sorted_final_stake[:i+1]) for i in range(len(sorted_final_stake))])
+    majority_threshold = total_active_stake / 2
+    nc = np.argmax(cumulative_final_stake > majority_threshold) + 1
+    return nc
 
 
+# note that this reporter cannot be used with multiprocessing (i.e. with the way batch-run currently works)
 def get_min_aggregate_pledge(model):
     """
     Solve optimisation problem using solver
@@ -180,24 +174,24 @@ def get_min_aggregate_pledge(model):
     items = len(ids)
 
     # Create model
-    m = GEKKO()
+    g = GEKKO()
     # Variables
-    x = m.Array(m.Var, len(ids), lb=0, ub=1, integer=True)
+    x = g.Array(g.Var, items, lb=0, ub=1, integer=True)
     # Objective
-    m.Minimize(m.sum([pledges[i] * x[i] for i in range(items)]))
+    g.Minimize(g.sum([pledges[i] * x[i] for i in range(items)]))
     # Constraint
     lower_bound = sum(stakes) / 2
-    m.Equation(m.sum([stakes[i] * x[i] for i in range(items)]) >= lower_bound)
+    g.Equation(g.sum([stakes[i] * x[i] for i in range(items)]) >= lower_bound)
     # Optimize with APOPT
-    m.options.SOLVER = 1
+    g.options.SOLVER = 1
 
     try:
-        m.solve(disp=False) # choose disp = True to print details while running
-    except Exception:
+        g.solve(disp=False) # choose disp = True to print details while running
+    except Exception as e: #todo catch specific errors
         print("Min aggregate pledge not found")
         return -2
 
-    min_aggr_pledge = m.options.objfcnval
+    min_aggr_pledge = g.options.objfcnval
     return min_aggr_pledge
 
 
@@ -210,8 +204,8 @@ def get_pledge_rate(model):
     pools = model.get_pools_list()
     if len(pools) == 0:
         return 0
-    total_active_stake = sum([pool.stake for pool in pools])
-    total_pledge = sum([pool.pledge for pool in pools])
+    total_active_stake = fsum([pool.stake for pool in pools])
+    total_pledge = fsum([pool.pledge for pool in pools])
     return total_pledge / total_active_stake
 
 
@@ -229,7 +223,7 @@ def get_homogeneity_factor(model):
     max_stake = max(pool_stakes)
 
     ideal_area = pool_count * max_stake
-    actual_area = sum(pool_stakes)
+    actual_area = fsum(pool_stakes)
 
     return actual_area / ideal_area
 
@@ -368,12 +362,13 @@ def get_gini_id_coeff_stake_k_agents(model):
 
 def get_total_delegated_stake(model):
     pools = model.get_pools_list()
-    del_stake = sum([pool.stake for pool in pools])
+    del_stake = fsum([pool.stake for pool in pools])
+    total_stake = fsum([agent.stake for agent in model.schedule.agents])
     return del_stake
 
 
 def get_active_stake_agents(model):
-    return sum([agent.stake for agent in model.schedule.agents])
+    return fsum([agent.stake for agent in model.schedule.agents])
 
 
 def get_stake_distr_stats(model):

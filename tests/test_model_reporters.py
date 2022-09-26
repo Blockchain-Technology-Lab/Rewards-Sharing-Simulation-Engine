@@ -1,9 +1,9 @@
 import pytest
 
-from logic.model_reporters import *
-from logic.pool import Pool
-from logic.stakeholder_profiles import NonMyopicStakeholder
 import logic.sim
+from logic.stakeholder_profiles import NonMyopicStakeholder
+from logic.pool import Pool
+from logic.model_reporters import *
 
 
 # Note: need to 'pip install pytest-mock' to run some of these tests
@@ -195,9 +195,8 @@ def test_get_nakamoto_coefficient():
     assert nc == 2
 
 
-# todo review failing test
 def test_get_nakamoto_coefficient_total_stake_1():
-    model = logic.sim.Simulation()
+    model = logic.sim.Simulation(n=1000)
     pools = {}
     for i in range(300):
         pools[i] = Pool(owner=i, cost=0.001, pledge=0.001, margin=0.1, a0=0.3, beta=0.1, pool_id=i, reward_function=0)
