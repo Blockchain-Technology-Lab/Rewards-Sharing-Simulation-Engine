@@ -2,7 +2,6 @@
 import logic.helper as hlp
 
 class Pool:
-
     def __init__(self, pool_id, cost, pledge, owner, a0, beta, reward_function, margin=-1, is_private=False):
         self.id = pool_id
         self.cost = cost
@@ -13,6 +12,7 @@ class Pool:
         self.delegators = dict()
         self.set_profit(a0, beta, reward_function)
         self._margin = margin
+        self.set_desirability()
 
     @property
     def margin(self):
