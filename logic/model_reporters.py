@@ -64,7 +64,7 @@ def get_median_pools_per_operator(model):
 
 
 def get_avg_sat_rate(model):
-    sat_point = model.beta
+    sat_point = model.reward_scheme.beta
     current_pools = model.get_pools_list()
     if len(current_pools) == 0:
         return 0
@@ -280,7 +280,7 @@ def get_pool_splitter_count(model):
 def get_cost_efficient_count(model):
     all_agents = model.get_agents_list()
     potential_profits = [
-        hlp.calculate_potential_profit(agent.stake, agent.cost, model.a0, model.beta, model.reward_function)
+        hlp.calculate_potential_profit(reward_scheme=model.reward_scheme, pledge=agent.stake, cost=agent.cost)
         for agent in all_agents
     ]
     positive_potential_profits = [pp for pp in potential_profits if pp > 0]
@@ -333,8 +333,8 @@ def get_gini_id_coeff_pool_count_k_agents(model):
     for pool in pools:
         pools_owned[pool.owner] += 1
     pools_per_agent = np.fromiter(pools_owned.values(), dtype=int)
-    if pools_per_agent.size < model.k:
-        missing_values = model.k - pools_per_agent.size
+    if pools_per_agent.size < model.reward_scheme.k:
+        missing_values = model.reward_scheme.k - pools_per_agent.size
         pools_per_agent = np.append(pools_per_agent, np.zeros(missing_values, dtype=int))
     return gini_coefficient(pools_per_agent)
 
@@ -354,8 +354,8 @@ def get_gini_id_coeff_stake_k_agents(model):
     for pool in pools:
         stake_controlled[pool.owner] += pool.stake
     stake_per_agent = np.fromiter(stake_controlled.values(), dtype=float)
-    if stake_per_agent.size < model.k:
-        missing_values = model.k - stake_per_agent.size
+    if stake_per_agent.size < model.reward_scheme.k:
+        missing_values = model.reward_scheme.k - stake_per_agent.size
         stake_per_agent = np.append(stake_per_agent, np.zeros(missing_values, dtype=int))
     return gini_coefficient(stake_per_agent)
 

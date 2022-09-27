@@ -24,13 +24,13 @@ class NonMyopicStakeholder(Stakeholder):
         pool_stake_nm = hlp.calculate_pool_stake_NM(
             pool,
             all_pool_rankings,
-            self.model.beta,
-            self.model.k
+            self.model.reward_scheme.beta,
+            self.model.reward_scheme.k
         )
 
         return hlp.calculate_operator_utility_from_pool(
-            pool_stake=pool_stake_nm, pledge=pool.pledge, margin=pool.margin, cost=pool.cost, a0=self.model.a0,
-            beta=self.model.beta, reward_function=self.model.reward_function
+            pool_stake=pool_stake_nm, pledge=pool.pledge, margin=pool.margin, cost=pool.cost,
+            reward_scheme=self.model.reward_scheme
         )
 
 
@@ -42,20 +42,19 @@ class NonMyopicStakeholder(Stakeholder):
             hlp.calculate_pool_stake_NM(
                 pool,
                 self.rankings,
-                self.model.beta,
-                self.model.k
+                self.model.reward_scheme.beta,
+                self.model.reward_scheme.k
             ),
             current_stake
         )
         return hlp.calculate_delegator_utility_from_pool(
-            stake_allocation, pool_stake, pool.pledge, pool.margin, pool.cost, self.model.a0, self.model.beta,
-            self.model.reward_function
+            stake_allocation, pool_stake, pool.pledge, pool.margin, pool.cost, self.model.reward_scheme
         )
     def calculate_margins_and_utility(self, num_pools):
         cost_per_pool = self.calculate_cost_per_pool(num_pools)
         pledge_per_pool = self.determine_pledge_per_pool(num_pools)
         potential_profit_per_pool = hlp.calculate_potential_profit(
-            pledge_per_pool, cost_per_pool, self.model.a0, self.model.beta, self.model.reward_function
+            reward_scheme=self.model.reward_scheme, pledge=pledge_per_pool, cost=cost_per_pool
         )
         boost = 1e-6  # to ensure that the new desirability will be higher than the target one #todo tune boost
         margins = [] # note that pools by the same agent may end up with different margins  because of the different pools they aim to outperform
@@ -68,15 +67,14 @@ class NonMyopicStakeholder(Stakeholder):
         ]
 
         for t in range(1, num_pools+1):
-            target_pool = fixed_pools_ranked[self.model.k - t]
+            target_pool = fixed_pools_ranked[self.model.reward_scheme.k - t]
             target_desirability, target_pp =  (target_pool.desirability, target_pool.potential_profit) if target_pool is not None else (0, 0)
             target_desirability += boost
             if potential_profit_per_pool < target_desirability:
                 # can't reach target desirability even with zero margin, so we can assume that the pool won't be in the top k
                 margins.append(0)
                 utility += hlp.calculate_operator_utility_from_pool(
-                    pool_stake=pledge_per_pool, pledge=pledge_per_pool, margin=0, cost=cost_per_pool, a0=self.model.a0,
-                    beta=self.model.beta, reward_function=self.model.reward_function
+                    pool_stake=pledge_per_pool, pledge=pledge_per_pool, margin=0, cost=cost_per_pool, reward_scheme=self.model.reward_scheme
                 )
             else:
                 # the pool has potential to surpass the target desirability so we proceed by finding an appropriate margin
@@ -86,8 +84,8 @@ class NonMyopicStakeholder(Stakeholder):
                 margins.append(hlp.calculate_suitable_margin(potential_profit=potential_profit_per_pool,
                                                       target_desirability=max_target_desirability))
                 utility += hlp.calculate_operator_utility_from_pool(
-                    pool_stake=self.model.beta, pledge=pledge_per_pool, margin=margins[-1], cost=cost_per_pool,
-                    a0=self.model.a0, beta=self.model.beta, reward_function=self.model.reward_function
+                    pool_stake=self.model.reward_scheme.beta, pledge=pledge_per_pool, margin=margins[-1], cost=cost_per_pool,
+                    reward_scheme=self.model.reward_scheme
                 )
         return margins, utility
 
@@ -101,8 +99,7 @@ class MyopicStakeholder(Stakeholder):
         utility = 0
         for pool in potential_pools:
             pool_utility = hlp.calculate_operator_utility_from_pool(
-                pool_stake=pool.stake, pledge=pool.pledge, margin=pool.margin, cost=pool.cost, a0=self.model.a0,
-                beta=self.model.beta, reward_function=self.model.reward_function
+                pool_stake=pool.stake, pledge=pool.pledge, margin=pool.margin, cost=pool.cost, reward_scheme=self.model.reward_scheme
             )
             utility += pool_utility
         return utility
@@ -112,8 +109,7 @@ class MyopicStakeholder(Stakeholder):
             if pool.id in self.strategy.stake_allocations else 0
         current_stake = pool.stake - previous_allocation_to_pool + stake_allocation
         return hlp.calculate_delegator_utility_from_pool(
-            stake_allocation, current_stake, pool.pledge, pool.margin, pool.cost, self.model.a0, self.model.beta,
-            self.model.reward_function
+            stake_allocation, current_stake, pool.pledge, pool.margin, pool.cost, self.model.reward_scheme
         )
 
     def calculate_margins_and_utility(self, num_pools):
@@ -123,8 +119,7 @@ class MyopicStakeholder(Stakeholder):
         agent_total_delegated_stake = max(sum([pool.stake for pool in self.strategy.owned_pools.values()]), self.stake)
         expected_stake_per_pool = agent_total_delegated_stake / num_pools
         profit_per_pool = hlp.calculate_current_profit(
-            expected_stake_per_pool, pledge_per_pool, cost_per_pool, self.model.a0, self.model.beta,
-            self.model.reward_function
+            expected_stake_per_pool, pledge_per_pool, cost_per_pool, self.model.reward_scheme
         )
         boost = 1e-6  # to ensure that the new desirability will be higher than the target one #todo tune boost
         margins = [] # note that pools by the same agent may end up with different margins  because of the different pools they aim to outperform
@@ -137,13 +132,12 @@ class MyopicStakeholder(Stakeholder):
         ]
 
         for t in range(1, num_pools+1):
-            target_pool = fixed_pools_ranked[self.model.k - t]
+            target_pool = fixed_pools_ranked[self.model.reward_scheme.k - t]
             if target_pool is None:
                 target_desirability = 0
             else:
                 target_pool_current_profit = hlp.calculate_current_profit(
-                    target_pool.stake, target_pool.pledge, target_pool.cost, self.model.a0, self.model.beta,
-                    self.model.reward_function
+                    target_pool.stake, target_pool.pledge, target_pool.cost, self.model.reward_scheme
                 )
                 target_desirability = hlp.calculate_myopic_pool_desirability(target_pool.margin, target_pool_current_profit)
             target_desirability += boost
@@ -151,8 +145,8 @@ class MyopicStakeholder(Stakeholder):
             margins.append(hlp.calculate_suitable_margin(potential_profit=profit_per_pool,
                                                   target_desirability=target_desirability))
             utility += hlp.calculate_operator_utility_from_pool(
-                pool_stake=self.model.beta, pledge=pledge_per_pool, margin=margins[-1], cost=cost_per_pool,
-                a0=self.model.a0, beta=self.model.beta, reward_function=self.model.reward_function
+                pool_stake=self.model.reward_scheme.beta, pledge=pledge_per_pool, margin=margins[-1], cost=cost_per_pool,
+                reward_scheme=self.model.reward_scheme
             )
         return margins, utility
 

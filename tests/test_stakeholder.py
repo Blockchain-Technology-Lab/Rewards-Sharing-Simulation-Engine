@@ -1,11 +1,11 @@
 import pytest
 from copy import copy
 
-from logic.pool import Pool
 from logic.sim import Simulation
 from logic.stakeholder_profiles import NonMyopicStakeholder
 from logic.strategy import Strategy
 import logic.helper as hlp
+from logic.pool import Pool
 
 
 # todo add more tests (for other stakeholder profiles too)
@@ -13,7 +13,7 @@ import logic.helper as hlp
 # todo review failing test
 def test_calculate_operator_utility():
     model = Simulation()
-    pool = Pool(cost=0.001, pledge=0.1, owner=156, margin=0.1, a0=0.3, beta=0.1, pool_id=555, reward_function=0)
+    pool = Pool(cost=0.001, pledge=0.1, owner=156, margin=0.1, reward_scheme=model.reward_scheme, pool_id=555)
     model.pools[555] = pool
     agent = NonMyopicStakeholder(unique_id=156, model=model, stake=0.1, cost=0.001)
     strategy = Strategy(owned_pools={555: pool})
@@ -28,13 +28,13 @@ def test_calculate_margin():
     agent156 = NonMyopicStakeholder(156, model, stake=0.001, cost=0.001)
     agent157 = NonMyopicStakeholder(157, model, stake=0.005, cost=0.001)
     agent159 = NonMyopicStakeholder(159, model, stake=0.0001, cost=0.001)
-    pool555 = Pool(cost=0.001, pledge=0.001, owner=156, a0=0.3, beta=0.1, pool_id=555, reward_function=0)
+    pool555 = Pool(cost=0.001, pledge=0.001, owner=156, reward_scheme=model.reward_scheme, pool_id=555)
     model.pools[555] = pool555
-    pool556 = Pool(cost=0.001, pledge=0.002, owner=157, a0=0.3, beta=0.1, pool_id=556, reward_function=0)
+    pool556 = Pool(cost=0.001, pledge=0.002, owner=157, reward_scheme=model.reward_scheme, pool_id=556)
     model.pools[556] = pool556
-    pool557 = Pool(cost=0.001, pledge=0.003, owner=157, a0=0.3, beta=0.1, pool_id=557, reward_function=0)
+    pool557 = Pool(cost=0.001, pledge=0.003, owner=157, reward_scheme=model.reward_scheme, pool_id=557)
     model.pools[557] = pool557
-    pool558 = Pool(cost=0.001, pledge=0.0001, owner=159, a0=0.3, beta=0.1, pool_id=558, reward_function=0)
+    pool558 = Pool(cost=0.001, pledge=0.0001, owner=159, reward_scheme=model.reward_scheme, pool_id=558)
     model.pools[558] = pool558
 
     pool555.margin = agent156.calculate_margin(pool555)
@@ -56,7 +56,7 @@ def test_calculate_margin():
 def test_close_pool():
     model = Simulation()
     agent = NonMyopicStakeholder(unique_id=156, model=model, stake=0.001, cost=0.001)
-    pool = Pool(cost=0.001, pledge=0.001, owner=156, margin=0.2, a0=0.3, beta=0.1, pool_id=555, reward_function=0)
+    pool = Pool(cost=0.001, pledge=0.001, owner=156, margin=0.2, reward_scheme=model.reward_scheme, pool_id=555)
     model.pools[555] = pool
 
     agent.close_pool(555)
@@ -79,9 +79,9 @@ def test_close_pool():
 def test_determine_pools_to_keep():
     model = Simulation()
     agent = NonMyopicStakeholder(unique_id=1, model=model, stake=0.005, cost=0.001)
-    pool1 = Pool(cost=0.001, pledge=0.001, owner=1, margin=0.2, a0=0.3, beta=0.1, pool_id=1, reward_function=0)
-    pool2 = Pool(cost=0.001, pledge=0.001, owner=1, margin=0.2, a0=0.3, beta=0.1, pool_id=2, reward_function=0)
-    pool3 = Pool(cost=0.001, pledge=0.001, owner=1, margin=0.1, a0=0.3, beta=0.1, pool_id=3, reward_function=0)
+    pool1 = Pool(cost=0.001, pledge=0.001, owner=1, margin=0.2, reward_scheme=model.reward_scheme, pool_id=1)
+    pool2 = Pool(cost=0.001, pledge=0.001, owner=1, margin=0.2, reward_scheme=model.reward_scheme, pool_id=2)
+    pool3 = Pool(cost=0.001, pledge=0.001, owner=1, margin=0.1, reward_scheme=model.reward_scheme, pool_id=3)
     current_pools = {1: pool1, 2: pool2, 3: pool3}
     agent.strategy.owned_pools = current_pools
 
@@ -114,13 +114,13 @@ def test_find_delegation_move():
     agent157 = NonMyopicStakeholder(157, model, stake=0.005, cost=0.001)
     agent158 = NonMyopicStakeholder(158, model, stake=0.003, cost=0.001)
     agent159 = NonMyopicStakeholder(159, model, stake=0.0001, cost=0.001)
-    pool555 = Pool(cost=0.001, pledge=0.001, owner=156, a0=0.3, beta=0.1, pool_id=555, reward_function=0, margin=0.1)
+    pool555 = Pool(cost=0.001, pledge=0.001, owner=156, reward_scheme=model.reward_scheme, pool_id=555, margin=0.1)
     model.pools[555] = pool555
-    pool556 = Pool(cost=0.001, pledge=0.002, owner=157, a0=0.3, beta=0.1, pool_id=556, reward_function=0, margin=0.1)
+    pool556 = Pool(cost=0.001, pledge=0.002, owner=157, reward_scheme=model.reward_scheme, pool_id=556, margin=0.1)
     model.pools[556] = pool556
-    pool557 = Pool(cost=0.001, pledge=0.003, owner=157, a0=0.3, beta=0.1, pool_id=557, reward_function=0, margin=0.1)
+    pool557 = Pool(cost=0.001, pledge=0.003, owner=157, reward_scheme=model.reward_scheme, pool_id=557, margin=0.1)
     model.pools[557] = pool557
-    pool558 = Pool(cost=0.001, pledge=0.003, owner=158, a0=0.3, beta=0.1, pool_id=558, reward_function=0, margin=0)
+    pool558 = Pool(cost=0.001, pledge=0.003, owner=158, reward_scheme=model.reward_scheme, pool_id=558, margin=0)
     model.pools[558] = pool558
 
     # one pool with higher desirability, choose that
@@ -175,9 +175,9 @@ def test_execute_strategy(mocker):
     mocker.patch('logic.sim.Simulation.get_agents_dict', return_value=agents_dict)
 
     # setting: there are two pools, one of them has two delegators and the other has none
-    pool1 = Pool(cost=0.001, pledge=0.003, owner=1, a0=0.3, beta=0.1, pool_id=1, reward_function=0, margin=0.1)
+    pool1 = Pool(cost=0.001, pledge=0.003, owner=1, reward_scheme=model.reward_scheme, pool_id=1, margin=0.1)
     model.pools[1] = pool1
-    pool2 = Pool(cost=0.001, pledge=0.002, owner=2, a0=0.3, beta=0.1, pool_id=2, reward_function=0, margin=0)
+    pool2 = Pool(cost=0.001, pledge=0.002, owner=2, reward_scheme=model.reward_scheme, pool_id=2, margin=0)
     model.pools[2] = pool2
     agent1.strategy = Strategy(stake_allocations=None, owned_pools={1: pool1})
     agent2.strategy = Strategy(stake_allocations=None, owned_pools={2: pool2})

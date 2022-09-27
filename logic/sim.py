@@ -14,8 +14,8 @@ from logic.activations import SemiSimultaneousActivation
 import logic.helper as hlp
 import logic.model_reporters as reporters
 import logic.stakeholder_profiles as profiles
+import logic.reward_schemes as rss
 
-#todo talk with AK about which arguments to have as command line and which as constants/json, ideas for making it more user friendly etc
 class Simulation(Model):
     #todo split into two classes? simulation (with max_iterations, iterations_after_convergence etc) and rss (with k, a0, reward function option, etc)
     def __init__(
@@ -64,33 +64,38 @@ class Simulation(Model):
         self.directory = path
         self.export_args_file(args)
 
-        # An era is defined as a time period during which the parameters of the reward sharing scheme don't change
-        self.current_era = 0
-        total_eras = 1
+        # A phase is defined as period during which the parameters of the reward sharing scheme don't change
+        self.current_phase = 0
+        total_phases = 1
 
-        extra_fields = ['n', 'k', 'a0', 'relative_utility_threshold', 'absolute_utility_threshold',
-                 'max_iterations', 'extra_pool_cost_fraction', 'agent_activation_order',
-                  'reward_function', 'generate_graphs']
-        adjustable_params = {}
-        for field in extra_fields:
+        self.reward_scheme = rss.RSS_MAPPING[args['reward_function']](-1, -1)
+
+        other_fields = [
+            'n', 'k', 'a0', 'relative_utility_threshold', 'absolute_utility_threshold', 'max_iterations',
+            'extra_pool_cost_fraction', 'agent_activation_order', 'generate_graphs'
+        ]
+        multi_phase_params = {} #todo remember it's only rss that can change, do I really need this?
+        for field in other_fields:
+            if field in vars(self.reward_scheme) or '_' + field in vars(self.reward_scheme):
+                instance = self.reward_scheme
+            else:
+                instance = self
             value = args[field]
             if isinstance(value, list):
-                # a number of values were given for this field, to be used in different eras
-                adjustable_params[field] = value
-                setattr(self, field, value[self.current_era])
-                if len(value) > total_eras:
-                    total_eras = len(value)
+                # a number of values were given for this field, to be used in different phases
+                multi_phase_params[field] = value
+                setattr(instance, field, value[self.current_phase])
+                total_phases = max(len(value), total_phases)
             else:
-                setattr(self, field, value)
+                setattr(instance, field, value)
 
-        self.total_eras = total_eras
-        self.adjustable_params = adjustable_params
-        self.k = int(self.k) #todo no need if I ensure that the args stay int
-        self.n = int(self.n)
+        self.total_phases = total_phases
+        self.multi_phase_params = multi_phase_params
+        self.n = int(self.n) #todo no need if I ensure that the args stay int
         if args['inactive_stake_fraction_known']: #todo what if there are also Abstainer agents? do I keep both? if yes, do I update the inactive_stake_fraction?
             # The system is aware of the system's inactive stake fraction, so it inflates k (and subsequently lowers beta)
             # to make it possible to end up with the original desired number of pools
-            self.k = int(self.k / (1 - args['inactive_stake_fraction']))
+            self.reward_scheme.k = self.reward_scheme.k / (1 - args['inactive_stake_fraction']) #todo maybe add as method to rss class
 
         self.running = True  # for batch running and visualisation purposes
         agent_activation_orders = {
@@ -103,9 +108,9 @@ class Simulation(Model):
         self.schedule = agent_activation_orders[self.agent_activation_order](self)
 
         # Initialize rankings of the system's pools
-        self.pool_rankings = SortedList([None] * (self.k + 1),
+        self.pool_rankings = SortedList([None] * (self.reward_scheme.k + 1),
                                         key=hlp.pool_comparison_key)  # all pools ranked from best to worst non-myopically#todo do I need Nones?
-        self.pool_rankings_myopic = SortedList([None] * (self.k + 1),
+        self.pool_rankings_myopic = SortedList([None] * (self.reward_scheme.k + 1),
                                                key=self.pool_comparison_key_myopic)  # all pools ranked from best to worst myopically
 
         total_stake = self.initialize_agents(
@@ -121,8 +126,6 @@ class Simulation(Model):
         if total_stake != 1:
             # normalize stake values so that they are expressed as relative stakes
             self.normalize_agent_stake(total_stake)
-
-        self.beta = 1 / self.k
 
         self.export_input_desc_file(seed) #todo rename to initial state desc (also for final)
 
@@ -148,7 +151,7 @@ class Simulation(Model):
             stake_distribution = hlp.read_stake_distr_from_file(num_agents=self.n)
         elif stake_distr_source == 'pareto':
             # Allocate stake to the agents, sampling from a Pareto distribution
-            stake_distribution = hlp.generate_stake_distr_pareto(num_agents=self.n, pareto_param=pareto_param, seed=seed)#, truncation_factor=self.k)
+            stake_distribution = hlp.generate_stake_distr_pareto(num_agents=self.n, pareto_param=pareto_param, seed=seed)#, truncation_factor=self.reward_scheme.k)
         elif stake_distr_source == 'flat':
             # Distribute the total stake of the system evenly to all agents
             stake_distribution = hlp.generate_stake_distr_flat(num_agents=self.n)
@@ -222,8 +225,8 @@ class Simulation(Model):
             self.consecutive_idle_steps += 1
             if self.has_converged(): #todo make more verbose (announce convergence here) and then make param adjustments verbose too
                 self.equilibrium_steps.append(current_step - self.iterations_after_convergence)
-                if self.current_era < self.total_eras - 1:
-                    self.adjust_params()
+                if self.current_phase < self.total_phases - 1:
+                    self.change_phase()
                 else:
                     self.wrap_up_execution()
                     return
@@ -278,12 +281,12 @@ class Simulation(Model):
         decimals = 15
         row_list.extend([
             [agent_id, round(agents[agent_id].stake, decimals), round(agents[agent_id].cost, decimals),
-             round(hlp.calculate_potential_profit(agents[agent_id].stake, agents[agent_id].cost, self.a0, self.beta, self.reward_function), decimals),
+             round(hlp.calculate_potential_profit(reward_scheme=self.reward_scheme, pledge=agents[agent_id].stake, cost=agents[agent_id].cost), decimals),
              "Abstainer" if agents[agent_id].strategy is None else "Operator" if len(agents[agent_id].strategy.owned_pools) > 0 else "Delegator",
              0 if agents[agent_id].strategy is None else len(agents[agent_id].strategy.owned_pools),
              0 if agents[agent_id].strategy is None else sum([pool.stake for pool in agents[agent_id].strategy.owned_pools.values()]),
-             hlp.calculate_pool_splitting_profit(self.a0, self.extra_pool_cost_fraction, agents[agent_id].cost, agents[agent_id].stake),
-             "YES" if hlp.calculate_pool_splitting_profit(self.a0, self.extra_pool_cost_fraction, agents[agent_id].cost, agents[agent_id].stake) > 0 else "NO"
+             hlp.calculate_pool_splitting_profit(self.reward_scheme.a0, self.extra_pool_cost_fraction, agents[agent_id].cost, agents[agent_id].stake),
+             "YES" if hlp.calculate_pool_splitting_profit(self.reward_scheme.a0, self.extra_pool_cost_fraction, agents[agent_id].cost, agents[agent_id].stake) > 0 else "NO"
              ] for agent_id in range(len(agents))
         ])
 
@@ -332,8 +335,8 @@ class Simulation(Model):
         header = ["id", "n", "k", "a0", "phi", "activation order", "reward function", # "stk distr", "min cost", "max cost",
                   "descriptor", "-",
                   "#pools", "#operators", "nakamoto coeff", "comments"]
-        row = [self.seq_id, self.n, self.k, self.a0, self.extra_pool_cost_fraction, self.agent_activation_order,
-               self.reward_function, self.execution_id[self.execution_id.index('-')+1:], "",
+        row = [self.seq_id, self.n, self.reward_scheme.k, self.reward_scheme.a0, self.extra_pool_cost_fraction, self.agent_activation_order,
+               type(self.reward_scheme).__name__, self.execution_id[self.execution_id.index('-')+1:], "",
                reporters.get_number_of_pools(self), reporters.get_operator_count(self), reporters.get_nakamoto_coefficient(self), ""]
         hlp.write_to_csv(filepath, header, row)
 
@@ -394,32 +397,29 @@ class Simulation(Model):
         #todo ensure that this is < total stake (for simultaneous act)
         self.perceived_active_stake = active_stake
         # Revise expected number of pools, k  (note that the value of beta, which is used to calculate rewards, does not change in this case)
-        self.k = math.ceil(round(active_stake / self.beta, 12))  # first rounding to 12 decimal digits to avoid floating point errors
-        return
+        self.reward_scheme.k = math.ceil(round(active_stake / self.reward_scheme.beta, 12))  # first rounding to 12 decimal digits to avoid floating point errors
 
-    def adjust_params(self):
-        self.current_era += 1
+    #todo make sure that we have correct behaviour here
+    def change_phase(self): #todo update: remember that only rss params change but also that rss itself can change
+        self.current_phase += 1
         change_occured = False
         for pool in self.pools.values():
             self.pool_rankings.remove(pool)
             self.pool_rankings_myopic.remove(pool)
-        for key, value in self.adjustable_params.items():
-            if len(value) > self.current_era:
-                setattr(self, key, value[self.current_era])
+        for key, values in self.multi_phase_params.items():
+            if len(values) > self.current_phase:
+                instance = self
+                if key in vars(self.reward_scheme) or '_' + key in vars(self.reward_scheme):
+                    instance = self.reward_scheme
+                setattr(instance, key, values[self.current_phase])
                 change_occured = True
-                if key == 'k':
-                    self.k = int(self.k)
-                    # update beta in case the value of k changes
-                    self.beta = 1 / self.k
-                    #todo if I care enough about it update k again in case of known inactive_stake_fraction
+                #todo maybe update k again in case of known inactive_stake_fraction (if k was changed)
         for pool in self.pools.values():
-            pool.potential_profit = hlp.calculate_potential_profit(
-                pool.pledge, pool.cost, self.a0, self.beta, self.reward_function
-            )
-            pool.desirability = hlp.calculate_pool_desirability(margin=pool.margin, potential_profit=pool.potential_profit)
+            pool.set_profit(reward_scheme=self.reward_scheme)
+            pool.set_desirability()
             self.pool_rankings.add(pool)
             self.pool_rankings_myopic.add(pool)
-        if change_occured:
+        if change_occured: #todo do I need this flag? doesn't it always change when in this method?
             self.pivot_steps.append(self.schedule.steps)
 
     def wrap_up_execution(self):
@@ -440,7 +440,7 @@ class Simulation(Model):
         # sort pools based on their myopic desirability
         # break ties with pool id
         current_profit = hlp.calculate_current_profit(
-            pool.stake, pool.pledge, pool.cost, self.a0, self.beta, self.reward_function
+            pool.stake, pool.pledge, pool.cost, self.reward_scheme
         )
         myopic_desirability = hlp.calculate_myopic_pool_desirability(pool.margin, current_profit)
         return -myopic_desirability, pool.id

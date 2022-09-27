@@ -2,6 +2,7 @@ import random
 
 import pytest
 import logic.helper as hlp
+import logic.reward_schemes as rss
 
 from logic.pool import Pool
 
@@ -28,74 +29,74 @@ def test_generate_stake_distr_flat():
 
 def test_calculate_pool_reward_variable_stake():
     # GIVEN
-    a0 = 0.3
-    saturation_point = 0.1
+    reward_scheme = rss.CardanoRSS(k=10, a0=0.3)
     stakes = [0.01, 0.1, 0.2]
     pledges = [0.01, 0.01, 0.01]
 
     # WHEN
-    results = [hlp.calculate_pool_reward(
-        relative_stake=stakes[i],
-        relative_pledge=pledges[i],
-        a0=a0,
-        beta=saturation_point,
-        reward_function=0
-    ) for i in range(len(stakes))]
+    results = [
+        hlp.calculate_pool_reward(
+            reward_scheme=reward_scheme,
+            pool_stake=stakes[i],
+            pool_pledge=pledges[i],
+        )
+        for i in range(len(stakes))
+    ]
 
     # THEN
     assert results[0] < results[1] == results[2]
 
 
 def test_calculate_pool_reward_variable_pledge():
-    a0 = 0.3
-    saturation_point = 0.1
+    reward_scheme = rss.CardanoRSS(k=10, a0=0.3)
     stakes = [0.1, 0.1, 0.1]
     pledges = [0.01, 0.05, 0.1]
 
-    results = [hlp.calculate_pool_reward(
-        relative_stake=stakes[i],
-        relative_pledge=pledges[i],
-        a0=a0,
-        beta=saturation_point,
-        reward_function=0
-    ) for i in range(len(stakes))]
+    results = [
+        hlp.calculate_pool_reward(
+            reward_scheme=reward_scheme,
+            pool_stake=stakes[i],
+            pool_pledge=pledges[i]
+        )
+        for i in range(len(stakes))
+    ]
 
     assert results[0] < results[1] < results[2]
 
 
 def test_calculate_pool_reward_variable_stake_a0_zero():
     # GIVEN
-    a0 = 0
-    saturation_point = 0.1
+    reward_scheme = rss.CardanoRSS(k=10, a0=0)
     stakes = [0.01, 0.1, 0.2]
     pledges = [0.01, 0.01, 0.01]
 
     # WHEN
-    results = [hlp.calculate_pool_reward(
-        relative_stake=stakes[i],
-        relative_pledge=pledges[i],
-        a0=a0,
-        beta=saturation_point,
-        reward_function=0
-    ) for i in range(len(stakes))]
+    results = [
+        hlp.calculate_pool_reward(
+            reward_scheme=reward_scheme,
+            pool_stake=stakes[i],
+            pool_pledge=pledges[i]
+        )
+        for i in range(len(stakes))
+    ]
 
     # THEN
     assert results[0] < results[1] == results[2]
 
 
 def test_calculate_pool_reward_variable_pledge_a0_zero():
-    a0 = 0
-    saturation_point = 0.1
+    reward_scheme = rss.CardanoRSS(k=10, a0=0)
     stakes = [0.1, 0.1, 0.1]
     pledges = [0.01, 0.05, 0.1]
 
-    results = [hlp.calculate_pool_reward(
-        relative_stake=stakes[i],
-        relative_pledge=pledges[i],
-        a0=a0,
-        beta=saturation_point,
-        reward_function=0
-    ) for i in range(len(stakes))]
+    results = [
+        hlp.calculate_pool_reward(
+            reward_scheme=reward_scheme,
+            pool_stake=stakes[i],
+            pool_pledge=pledges[i]
+        )
+        for i in range(len(stakes))
+    ]
 
     assert results[0] == results[1] == results[2]
 
@@ -125,114 +126,109 @@ def test_calculate_ranks_with_tie_breaking():
     assert hlp.calculate_ranks(desirabilities, potential_profits, stakes, rank_ids=True) == ranks
 
 
-# todo review failing test
 def test_calculate_cost_per_pool():
     num_pools = 4
     initial_cost = 1
     extra_pool_cost_fraction = 0.6
-    expected_cost_per_pool = 0.544
-    expected_total_cost = 2.176
+    expected_cost_per_pool = 0.7
+    expected_total_cost = 2.8
 
     cost_per_pool = hlp.calculate_cost_per_pool(num_pools, initial_cost, extra_pool_cost_fraction)
 
     assert cost_per_pool == expected_cost_per_pool
     assert cost_per_pool * num_pools == expected_total_cost
 
-
+# todo maybe move test(s) to different file (for testing reward schemes)
 def test_calculate_pool_reward_curve_pledge_benefit():
     # results of options 0 and 4 must be the same when curve_root = 1
-    a0 = 0.3
-    saturation_point = 0.1
+    reward_scheme_0 = rss.CardanoRSS(k=10, a0=0.3)
     stakes = [0.01, 0.1, 0.2]
     pledges = [0.001, 0.0069, 0.012]
 
-    results_0 = [hlp.calculate_pool_reward(
-        relative_stake=stakes[i],
-        relative_pledge=pledges[i],
-        a0=a0,
-        beta=saturation_point,
-        reward_function=0
-    ) for i in range(len(stakes))]
+    results_0 = [
+        hlp.calculate_pool_reward(
+            reward_scheme=reward_scheme_0,
+            pool_stake=stakes[i],
+            pool_pledge=pledges[i]
+        )
+        for i in range(len(stakes))
+    ]
 
-    results_4 = [hlp.calculate_pool_reward(
-        relative_stake=stakes[i],
-        relative_pledge=pledges[i],
-        a0=a0,
-        beta=saturation_point,
-        reward_function=3,
-        curve_root=1
-    ) for i in range(len(stakes))]
+    reward_scheme_4 = rss.CurvePledgeBenefitRSS(k=10, a0=0.3, crossover_factor=8, curve_root=1)
+    results_4 = [
+        hlp.calculate_pool_reward(
+            reward_scheme=reward_scheme_4,
+            pool_stake=stakes[i],
+            pool_pledge=pledges[i]
+        )
+        for i in range(len(stakes))
+    ]
 
     assert results_0 == results_4
 
-    results_4_ = [hlp.calculate_pool_reward(
-        relative_stake=stakes[i],
-        relative_pledge=pledges[i],
-        a0=a0,
-        beta=saturation_point,
-        reward_function=3,
-        curve_root=3
-    ) for i in range(len(stakes))]
+    reward_scheme_4_ = rss.CurvePledgeBenefitRSS(k=10, a0=0.3, crossover_factor=8, curve_root=3)
+    results_4_ = [
+        hlp.calculate_pool_reward(
+            reward_scheme=reward_scheme_4_,
+            pool_stake=stakes[i],
+            pool_pledge=pledges[i]
+        )
+        for i in range(len(stakes))
+    ]
 
     assert results_0 != results_4_
 
 
 def test_calculate_pool_stake_nm():
-    a0 = 0.3
-    beta = 0.1
-    k = 10
-    reward_func = 0
-
+    reward_scheme = rss.CardanoRSS(k=10, a0=0.3)
     pools = {
-        i: Pool(pool_id=i, cost=0.0001, pledge=0.001, owner=i, a0=a0, beta=beta, reward_function=reward_func, margin=0)
+        i: Pool(pool_id=i, cost=0.0001, pledge=0.001, owner=i, reward_scheme=reward_scheme, margin=0)
         for i in range(1, 11)
     }
 
     # pool does not belong in the top k, so stake_nm = pledge
-    pool_11 = Pool(pool_id=11, cost=0.0001, pledge=0.001, owner=11, a0=a0, beta=beta,
-                   reward_function=reward_func, margin=0.2)
+    pool_11 = Pool(pool_id=11, cost=0.0001, pledge=0.001, owner=11, reward_scheme=reward_scheme, margin=0.2)
     pools[11] = pool_11
     ranks = list(pools.values())
     ranks.sort(key=hlp.pool_comparison_key)
-    pool_stake_nm = hlp.calculate_pool_stake_NM(pool=pool_11, pool_rankings=ranks, beta=beta, k=k)
+    pool_stake_nm = hlp.calculate_pool_stake_NM(pool=pool_11, pool_rankings=ranks, beta=reward_scheme.beta, k=reward_scheme.k)
     assert pool_stake_nm == 0.001
 
     # pool belongs in the top k and pool_stake < beta, so stake_nm = beta
-    pool_11 = Pool(pool_id=11, cost=0.0001, pledge=0.002, owner=11, a0=a0, beta=beta,
-                   reward_function=reward_func, margin=0)
+    pool_11 = Pool(pool_id=11, cost=0.0001, pledge=0.002, owner=11, reward_scheme=reward_scheme, margin=0)
     pools[11] = pool_11
     ranks = list(pools.values())
     ranks.sort(key=hlp.pool_comparison_key)
-    pool_stake_nm = hlp.calculate_pool_stake_NM(pool=pool_11, pool_rankings=ranks, beta=beta, k=k)
+    pool_stake_nm = hlp.calculate_pool_stake_NM(pool=pool_11, pool_rankings=ranks, beta=reward_scheme.beta, k=reward_scheme.k)
     assert pool_stake_nm == 0.1
 
     # pool belongs in the top k and pool_stake > beta, so stake_nm = pool_stake
-    pool_11 = Pool(pool_id=11, cost=0.0001, pledge=0.2, owner=11, a0=a0, beta=beta,
-                   reward_function=reward_func, margin=0)
+    pool_11 = Pool(pool_id=11, cost=0.0001, pledge=0.2, owner=11, reward_scheme=reward_scheme, margin=0)
     pools[11] = pool_11
     ranks = list(pools.values())
     ranks.sort(key=hlp.pool_comparison_key)
-    pool_stake_nm = hlp.calculate_pool_stake_NM(pool=pool_11, pool_rankings=ranks, beta=beta, k=k)
+    pool_stake_nm = hlp.calculate_pool_stake_NM(pool=pool_11, pool_rankings=ranks, beta=reward_scheme.beta, k=reward_scheme.k)
     assert pool_stake_nm == 0.2
 
     # pool doesn't belong in the top k because of (id) tie breaking, so stake_nm = pool_pledge
-    pool_11 = Pool(pool_id=11, cost=0.0001, pledge=0.001, owner=11, a0=a0, beta=beta,
-                   reward_function=reward_func, margin=0)
+    pool_11 = Pool(pool_id=11, cost=0.0001, pledge=0.001, owner=11, reward_scheme=reward_scheme, margin=0)
     pools[11] = pool_11
     ranks = list(pools.values())
     ranks.sort(key=hlp.pool_comparison_key)
-    pool_stake_nm = hlp.calculate_pool_stake_NM(pool=pool_11, pool_rankings=ranks, beta=beta, k=k)
+    pool_stake_nm = hlp.calculate_pool_stake_NM(pool=pool_11, pool_rankings=ranks, beta=reward_scheme.beta, k=reward_scheme.k)
     assert pool_stake_nm == 0.001
 
     # there are less than k pools, so pool necessarily in the top k
-    k = 100 # increase k
-    beta = 0.01
-    pool_11 = Pool(pool_id=11, cost=0.001, pledge=0.00001, owner=11, a0=a0, beta=beta,
-                   reward_function=reward_func, margin=0)
+    reward_scheme = rss.CardanoRSS(k=100, a0=0.3)
+    pools = {
+        i: Pool(pool_id=i, cost=0.0001, pledge=0.001, owner=i, reward_scheme=reward_scheme, margin=0)
+        for i in range(1, 11)
+    }
+    pool_11 = Pool(pool_id=11, cost=0.001, pledge=0.00001, owner=11, reward_scheme=reward_scheme, margin=0)
     pools[11] = pool_11
     ranks = list(pools.values())
     ranks.sort(key=hlp.pool_comparison_key)
-    pool_stake_nm = hlp.calculate_pool_stake_NM(pool=pool_11, pool_rankings=ranks, beta=beta, k=k)
+    pool_stake_nm = hlp.calculate_pool_stake_NM(pool=pool_11, pool_rankings=ranks, beta=reward_scheme.beta, k=reward_scheme.k)
     assert pool_stake_nm == 0.01
 
 # todo update test

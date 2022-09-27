@@ -78,8 +78,8 @@ class Stakeholder(Agent):
         # Calculate current (not expected) utility of operating own pools
         for pool in self.strategy.owned_pools.values():
             utility += hlp.calculate_operator_utility_from_pool(
-                pool_stake=pool.stake, pledge=pool.pledge, margin=pool.margin, cost=pool.cost, a0=self.model.a0,
-                beta=self.model.beta, reward_function=self.model.reward_function
+                pool_stake=pool.stake, pledge=pool.pledge, margin=pool.margin, cost=pool.cost,
+                reward_scheme=self.model.reward_scheme
             )
         for pool_id, a in self.strategy.stake_allocations.items():
             utility += self.calculate_delegator_utility_from_pool(self.model.pools[pool_id], a)
@@ -113,7 +113,7 @@ class Stakeholder(Agent):
         @return: a tuple with the utility of the chosen strategy and the strategy itself
         """
         t_min = 1
-        t_max = self.model.k
+        t_max = self.model.reward_scheme.k
         solution_found = False
 
         while not solution_found:
@@ -151,7 +151,7 @@ class Stakeholder(Agent):
         if pool.is_private:
             return 0
 
-        reference_pool = self.rankings[self.model.k-1]
+        reference_pool = self.rankings[self.model.reward_scheme.k-1]
         reference_potential_profit = reference_pool.potential_profit if reference_pool is not None else 0
         return hlp.calculate_suitable_margin(potential_profit=pool.potential_profit, target_desirability=reference_potential_profit)
 
@@ -182,7 +182,7 @@ class Stakeholder(Agent):
         current_num_pools = len(self.strategy.owned_pools)
         if current_num_pools == 0:
             # If the agent hasn't made any pools yet, consider operating up to as many pools as they can saturate with pledge + 1
-            num_pools_options = {i for i in range(1, math.ceil(self.stake / self.model.beta) + 1)}
+            num_pools_options = {i for i in range(1, math.ceil(self.stake / self.model.reward_scheme.beta) + 1)}
         else:
             num_pools_options = {i for i in range(1, current_num_pools + max_new_pools_per_round + 1)}
 
@@ -206,7 +206,7 @@ class Stakeholder(Agent):
     def determine_pledge_per_pool(self, num_pools):
         #todo maybe better to return list of pledge values
         # to accommodate potential method overrides that allocate a different pledge value to each pool
-        return hlp.calculate_pledge_per_pool(agent_stake=self.stake, beta=self.model.beta, num_pools=num_pools)
+        return hlp.calculate_pledge_per_pool(agent_stake=self.stake, beta=self.model.reward_scheme.beta, num_pools=num_pools)
 
     def find_operator_move(self, num_pools, owned_pools, margins=[]):
         pledge = self.determine_pledge_per_pool(num_pools=num_pools)
@@ -216,9 +216,9 @@ class Stakeholder(Agent):
             # For pools that already exist, modify them to match the new strategy
             pool.stake -= pool.pledge - pledge
             pool.pledge = pledge
-            pool.is_private = pool.pledge >= self.model.beta
+            pool.is_private = pool.pledge >= self.model.reward_scheme.beta
             pool.cost = cost_per_pool
-            pool.set_profit(self.model.a0, self.model.beta, self.model.reward_function)
+            pool.set_profit(reward_scheme=self.model.reward_scheme)
             pool.margin = margins[i] if len(margins) > i  else self.calculate_margin(pool)
 
         existing_pools_num = len(owned_pools)
@@ -227,8 +227,8 @@ class Stakeholder(Agent):
             pool_id = self.model.get_next_pool_id()
             # todo maybe use a temp pool id here and assign final id at execution
             pool = Pool(
-                pool_id=pool_id, cost=cost_per_pool, pledge=pledge, owner=self.unique_id, a0=self.model.a0,
-                beta=self.model.beta, is_private=pledge >= self.model.beta, reward_function=self.model.reward_function
+                pool_id=pool_id, cost=cost_per_pool, pledge=pledge, owner=self.unique_id,
+                reward_scheme=self.model.reward_scheme, is_private=pledge >= self.model.reward_scheme.beta
             )
             # private pools have margin 0 but don't allow delegations
             pool.margin = margins[i] if len(margins) > i else self.calculate_margin(pool)
@@ -255,7 +255,7 @@ class Stakeholder(Agent):
         :return:
         """
         all_pools_dict = self.model.pools
-        saturation_point = self.model.beta
+        saturation_point = self.model.reward_scheme.beta
         eligible_pools_ranked = [
             pool
             for pool in self.rankings
@@ -391,7 +391,7 @@ class Stakeholder(Agent):
                 if agent.new_strategy is not None:
                     agent.new_strategy.stake_allocations.pop(pool.id, None)
 
-    def get_status(self):
+    def get_status(self): #todo update
         print("Agent id: {}, stake: {}, cost:{}"
               .format(self.unique_id, self.stake, self.cost))
         print("\n")
