@@ -24,7 +24,7 @@ class NonMyopicStakeholder(Stakeholder):
         pool_stake_nm = hlp.calculate_pool_stake_NM(
             pool,
             all_pool_rankings,
-            self.model.reward_scheme.beta,
+            self.model.reward_scheme.global_saturation_threshold,
             self.model.reward_scheme.k
         )
 
@@ -42,7 +42,7 @@ class NonMyopicStakeholder(Stakeholder):
             hlp.calculate_pool_stake_NM(
                 pool,
                 self.rankings,
-                self.model.reward_scheme.beta,
+                self.model.reward_scheme.global_saturation_threshold,
                 self.model.reward_scheme.k
             ),
             current_stake
@@ -84,7 +84,7 @@ class NonMyopicStakeholder(Stakeholder):
                 margins.append(hlp.calculate_suitable_margin(potential_profit=potential_profit_per_pool,
                                                       target_desirability=max_target_desirability))
                 utility += hlp.calculate_operator_utility_from_pool(
-                    pool_stake=self.model.reward_scheme.beta, pledge=pledge_per_pool, margin=margins[-1], cost=cost_per_pool,
+                    pool_stake=self.model.reward_scheme.global_saturation_threshold, pledge=pledge_per_pool, margin=margins[-1], cost=cost_per_pool,
                     reward_scheme=self.model.reward_scheme
                 )
         return margins, utility
@@ -145,7 +145,7 @@ class MyopicStakeholder(Stakeholder):
             margins.append(hlp.calculate_suitable_margin(potential_profit=profit_per_pool,
                                                   target_desirability=target_desirability))
             utility += hlp.calculate_operator_utility_from_pool(
-                pool_stake=self.model.reward_scheme.beta, pledge=pledge_per_pool, margin=margins[-1], cost=cost_per_pool,
+                pool_stake=self.model.reward_scheme.global_saturation_threshold, pledge=pledge_per_pool, margin=margins[-1], cost=cost_per_pool,
                 reward_scheme=self.model.reward_scheme
             )
         return margins, utility

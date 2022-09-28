@@ -93,7 +93,7 @@ class Simulation(Model):
         self.multi_phase_params = multi_phase_params
         self.n = int(self.n) #todo no need if I ensure that the args stay int
         if args['inactive_stake_fraction_known']: #todo what if there are also Abstainer agents? do I keep both? if yes, do I update the inactive_stake_fraction?
-            # The system is aware of the system's inactive stake fraction, so it inflates k (and subsequently lowers beta)
+            # The system is aware of the system's inactive stake fraction, so it inflates k (and subsequently lowers global_saturation_threshold)
             # to make it possible to end up with the original desired number of pools
             self.reward_scheme.k = self.reward_scheme.k / (1 - args['inactive_stake_fraction']) #todo maybe add as method to rss class
 
@@ -396,8 +396,8 @@ class Simulation(Model):
         active_stake = reporters.get_total_delegated_stake(self)
         #todo ensure that this is < total stake (for simultaneous act)
         self.perceived_active_stake = active_stake
-        # Revise expected number of pools, k  (note that the value of beta, which is used to calculate rewards, does not change in this case)
-        self.reward_scheme.k = math.ceil(round(active_stake / self.reward_scheme.beta, 12))  # first rounding to 12 decimal digits to avoid floating point errors
+        # Revise expected number of pools, k  (note that the value of global_saturation_threshold, which is used to calculate rewards, does not change in this case)
+        self.reward_scheme.k = math.ceil(round(active_stake / self.reward_scheme.global_saturation_threshold, 12))  # first rounding to 12 decimal digits to avoid floating point errors
 
     #todo make sure that we have correct behaviour here
     def change_phase(self): #todo update: remember that only rss params change but also that rss itself can change

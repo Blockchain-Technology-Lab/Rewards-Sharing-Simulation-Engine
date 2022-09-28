@@ -191,23 +191,23 @@ def test_calculate_pool_stake_nm():
     pools[11] = pool_11
     ranks = list(pools.values())
     ranks.sort(key=hlp.pool_comparison_key)
-    pool_stake_nm = hlp.calculate_pool_stake_NM(pool=pool_11, pool_rankings=ranks, beta=reward_scheme.beta, k=reward_scheme.k)
+    pool_stake_nm = hlp.calculate_pool_stake_NM(pool=pool_11, pool_rankings=ranks, global_saturation_threshold=reward_scheme.global_saturation_threshold, k=reward_scheme.k)
     assert pool_stake_nm == 0.001
 
-    # pool belongs in the top k and pool_stake < beta, so stake_nm = beta
+    # pool belongs in the top k and pool_stake < global_saturation_threshold, so stake_nm = global_saturation_threshold
     pool_11 = Pool(pool_id=11, cost=0.0001, pledge=0.002, owner=11, reward_scheme=reward_scheme, margin=0)
     pools[11] = pool_11
     ranks = list(pools.values())
     ranks.sort(key=hlp.pool_comparison_key)
-    pool_stake_nm = hlp.calculate_pool_stake_NM(pool=pool_11, pool_rankings=ranks, beta=reward_scheme.beta, k=reward_scheme.k)
+    pool_stake_nm = hlp.calculate_pool_stake_NM(pool=pool_11, pool_rankings=ranks, global_saturation_threshold=reward_scheme.global_saturation_threshold, k=reward_scheme.k)
     assert pool_stake_nm == 0.1
 
-    # pool belongs in the top k and pool_stake > beta, so stake_nm = pool_stake
+    # pool belongs in the top k and pool_stake > global_saturation_threshold, so stake_nm = pool_stake
     pool_11 = Pool(pool_id=11, cost=0.0001, pledge=0.2, owner=11, reward_scheme=reward_scheme, margin=0)
     pools[11] = pool_11
     ranks = list(pools.values())
     ranks.sort(key=hlp.pool_comparison_key)
-    pool_stake_nm = hlp.calculate_pool_stake_NM(pool=pool_11, pool_rankings=ranks, beta=reward_scheme.beta, k=reward_scheme.k)
+    pool_stake_nm = hlp.calculate_pool_stake_NM(pool=pool_11, pool_rankings=ranks, global_saturation_threshold=reward_scheme.global_saturation_threshold, k=reward_scheme.k)
     assert pool_stake_nm == 0.2
 
     # pool doesn't belong in the top k because of (id) tie breaking, so stake_nm = pool_pledge
@@ -215,7 +215,7 @@ def test_calculate_pool_stake_nm():
     pools[11] = pool_11
     ranks = list(pools.values())
     ranks.sort(key=hlp.pool_comparison_key)
-    pool_stake_nm = hlp.calculate_pool_stake_NM(pool=pool_11, pool_rankings=ranks, beta=reward_scheme.beta, k=reward_scheme.k)
+    pool_stake_nm = hlp.calculate_pool_stake_NM(pool=pool_11, pool_rankings=ranks, global_saturation_threshold=reward_scheme.global_saturation_threshold, k=reward_scheme.k)
     assert pool_stake_nm == 0.001
 
     # there are less than k pools, so pool necessarily in the top k
@@ -228,7 +228,7 @@ def test_calculate_pool_stake_nm():
     pools[11] = pool_11
     ranks = list(pools.values())
     ranks.sort(key=hlp.pool_comparison_key)
-    pool_stake_nm = hlp.calculate_pool_stake_NM(pool=pool_11, pool_rankings=ranks, beta=reward_scheme.beta, k=reward_scheme.k)
+    pool_stake_nm = hlp.calculate_pool_stake_NM(pool=pool_11, pool_rankings=ranks, global_saturation_threshold=reward_scheme.global_saturation_threshold, k=reward_scheme.k)
     assert pool_stake_nm == 0.01
 
 # todo update test
@@ -262,9 +262,9 @@ def test_calculate_pool_reward_cip_50():
     relative_stake = 0.01
     relative_pledge = 0.001
     k = 100
-    beta = 1/k
+    global_saturation_threshold = 1/k
 
-    r = hlp.calculate_pool_reward_CIP_50(relative_stake, relative_pledge, beta, theta)
+    r = hlp.calculate_pool_reward_CIP_50(relative_stake, relative_pledge, global_saturation_threshold, theta)
 
     assert r == 0.01
 

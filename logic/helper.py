@@ -151,10 +151,10 @@ def calculate_potential_profit(reward_scheme, pledge, cost):
     :param pledge:
     :param cost:
     :param a0:
-    :param beta:
+    :param global_saturation_threshold:
     :return: float, the maximum possible profit that this pool can yield
     """
-    potential_reward = calculate_pool_reward(reward_scheme=reward_scheme, pool_stake=reward_scheme.beta, pool_pledge=pledge)
+    potential_reward = calculate_pool_reward(reward_scheme=reward_scheme, pool_stake=reward_scheme.global_saturation_threshold, pool_pledge=pledge)
     return potential_reward - cost
 
 #@lru_cache(maxsize=1024)
@@ -167,30 +167,30 @@ def calculate_current_profit(stake, pledge, cost, reward_scheme):
 def calculate_pool_reward(reward_scheme, pool_stake, pool_pledge):
     return reward_scheme.calculate_pool_reward(pool_pledge=pool_pledge, pool_stake=pool_stake)
 
-#@lru_cache(maxsize=1024)
+@lru_cache(maxsize=1024)
 def calculate_delegator_reward_from_pool(pool_margin, pool_cost, pool_reward, delegator_stake_fraction):
     margin_factor = (1 - pool_margin) * delegator_stake_fraction
     pool_profit = pool_reward - pool_cost
     r_d = max(margin_factor * pool_profit, 0)
     return r_d
 
-#@lru_cache(maxsize=1024)
+@lru_cache(maxsize=1024)
 def calculate_operator_reward_from_pool(pool_margin, pool_cost, pool_reward, operator_stake_fraction):
     margin_factor = pool_margin + ((1 - pool_margin) * operator_stake_fraction)
     pool_profit = pool_reward - pool_cost
     return pool_profit if pool_profit <= 0 else pool_profit * margin_factor
 
-def calculate_pool_stake_NM(pool, pool_rankings, beta, k):
+def calculate_pool_stake_NM(pool, pool_rankings, global_saturation_threshold, k):
     """
     Calculate the non-myopic stake of a pool, given the pool and the state of the system (other active pools)
     :param pool:
     :param pool_rankings:
-    :param beta: the saturation point of the system
+    :param global_saturation_threshold: the saturation point of the system
     :param k: the desired number of pools of the system
     :return: the value of the non-myopic stake of the pool with id pool_id
     """
     rank_in_top_k = pool_rankings.index(pool) < k #todo would it be faster to make list of ids and check for id?
-    return calculate_pool_stake_NM_from_rank(pool_pledge=pool.pledge, pool_stake=pool.stake, beta=beta, rank_in_top_k=rank_in_top_k)
+    return calculate_pool_stake_NM_from_rank(pool_pledge=pool.pledge, pool_stake=pool.stake, global_saturation_threshold=global_saturation_threshold, rank_in_top_k=rank_in_top_k)
 
 def calculate_ranks(ranking_dict, *tie_breaking_dicts, rank_ids=True):
     """
@@ -230,7 +230,7 @@ def generate_execution_id(args_dict):
                      else str(key) + '-' + "-".join([str(v) for v in value])
                      for key, value in list(args_dict.items())[:num_args_to_use]])[:max_characters]
 
-#@lru_cache(maxsize=1024)
+@lru_cache(maxsize=1024)
 def calculate_cost_per_pool(num_pools, initial_cost, extra_pool_cost_fraction):
     """
     Calculate the average cost of an agent's pools, assuming that any additional pool costs less than the first one
@@ -242,16 +242,16 @@ def calculate_cost_per_pool(num_pools, initial_cost, extra_pool_cost_fraction):
     """
     return (initial_cost + (num_pools - 1) * extra_pool_cost_fraction * initial_cost) / num_pools
 
-#@lru_cache(maxsize=1024)
+@lru_cache(maxsize=1024)
 def calculate_suitable_margin(potential_profit, target_desirability):
     m = 1 - target_desirability / potential_profit if potential_profit > 0 else 0
     return max(m, 0)
 
-#@lru_cache(maxsize=1024)
+@lru_cache(maxsize=1024)
 def calculate_pool_desirability(margin, potential_profit):
     return max((1 - margin) * potential_profit, 0)
 
-#@lru_cache(maxsize=1024)
+@lru_cache(maxsize=1024)
 def calculate_myopic_pool_desirability(margin, current_profit):
     return max((1 - margin) * current_profit, 0)
 
@@ -268,12 +268,12 @@ def calculate_delegator_utility_from_pool(stake_allocation, pool_stake, pledge, 
     return calculate_delegator_reward_from_pool(pool_margin=margin, pool_cost=cost, pool_reward=r, delegator_stake_fraction=stake_fraction)
 
 
-#@lru_cache(maxsize=1024)
-def calculate_pool_stake_NM_from_rank(pool_pledge, pool_stake, beta, rank_in_top_k):
-    return max(beta, pool_stake) if rank_in_top_k else pool_pledge
+@lru_cache(maxsize=1024)
+def calculate_pool_stake_NM_from_rank(pool_pledge, pool_stake, global_saturation_threshold, rank_in_top_k):
+    return max(global_saturation_threshold, pool_stake) if rank_in_top_k else pool_pledge
 
-#@lru_cache(maxsize=1024)
-def calculate_pledge_per_pool(agent_stake, beta, num_pools):
+@lru_cache(maxsize=1024)
+def calculate_pledge_per_pool(agent_stake, global_saturation_threshold, num_pools):
     """
     The agents choose to allocate their entire stake as the pledge of their pools,
     so they divide it equally among them
@@ -283,7 +283,7 @@ def calculate_pledge_per_pool(agent_stake, beta, num_pools):
     """
     if num_pools <= 0:
         raise ValueError("Agent tried to calculate pledge for zero or less pools.") #todo keep or not?
-    return min(agent_stake / num_pools, beta)
+    return min(agent_stake / num_pools, global_saturation_threshold)
 
 
 def export_csv_file(rows, filepath):
@@ -461,7 +461,7 @@ def util_by_margin_and_pools(agent, margin, num_pools):
     stake = agent.stake
     a0 = agent.model.reward_scheme.a0
     k = agent.model.reward_scheme.k
-    beta = agent.model.reward_scheme.beta
+    global_saturation_threshold = agent.model.reward_scheme.global_saturation_threshold
     R = TOTAL_EPOCH_REWARDS_R
     phi = agent.model.extra_pool_cost_fraction
     initial_cost = agent.cost
@@ -469,12 +469,12 @@ def util_by_margin_and_pools(agent, margin, num_pools):
     top_k_des = [pool.desirability if pool is not None else 0 for pool in agent.model.pool_rankings][:k]
     top_k_des.reverse()
 
-    pledge_per_pool = np.where(stake / num_pools < beta, stake / num_pools, beta)
+    pledge_per_pool = np.where(stake / num_pools < global_saturation_threshold, stake / num_pools, global_saturation_threshold)
     cost_per_pool = (1 + phi * num_pools - phi) * initial_cost / num_pools
 
-    reward_per_pool = R / (1 + a0) * (beta + pledge_per_pool * a0)
+    reward_per_pool = R / (1 + a0) * (global_saturation_threshold + pledge_per_pool * a0)
     utility_per_pool = np.where(reward_per_pool - cost_per_pool > 0,
-                                utility_from_profitable_pool(reward_per_pool, cost_per_pool, pledge_per_pool, beta,
+                                utility_from_profitable_pool(reward_per_pool, cost_per_pool, pledge_per_pool, global_saturation_threshold,
                                                              margin), reward_per_pool - cost_per_pool)
     desirability = (1 - margin) * (reward_per_pool - cost_per_pool)
 

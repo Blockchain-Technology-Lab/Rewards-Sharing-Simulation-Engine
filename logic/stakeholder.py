@@ -182,7 +182,7 @@ class Stakeholder(Agent):
         current_num_pools = len(self.strategy.owned_pools)
         if current_num_pools == 0:
             # If the agent hasn't made any pools yet, consider operating up to as many pools as they can saturate with pledge + 1
-            num_pools_options = {i for i in range(1, math.ceil(self.stake / self.model.reward_scheme.beta) + 1)}
+            num_pools_options = {i for i in range(1, math.ceil(self.stake / self.model.reward_scheme.global_saturation_threshold) + 1)}
         else:
             num_pools_options = {i for i in range(1, current_num_pools + max_new_pools_per_round + 1)}
 
@@ -206,7 +206,7 @@ class Stakeholder(Agent):
     def determine_pledge_per_pool(self, num_pools):
         #todo maybe better to return list of pledge values
         # to accommodate potential method overrides that allocate a different pledge value to each pool
-        return hlp.calculate_pledge_per_pool(agent_stake=self.stake, beta=self.model.reward_scheme.beta, num_pools=num_pools)
+        return hlp.calculate_pledge_per_pool(agent_stake=self.stake, global_saturation_threshold=self.model.reward_scheme.global_saturation_threshold, num_pools=num_pools)
 
     def find_operator_move(self, num_pools, owned_pools, margins=[]):
         pledge = self.determine_pledge_per_pool(num_pools=num_pools)
@@ -216,7 +216,7 @@ class Stakeholder(Agent):
             # For pools that already exist, modify them to match the new strategy
             pool.stake -= pool.pledge - pledge
             pool.pledge = pledge
-            pool.is_private = pool.pledge >= self.model.reward_scheme.beta
+            pool.is_private = pool.pledge >= self.model.reward_scheme.global_saturation_threshold
             pool.cost = cost_per_pool
             pool.set_profit(reward_scheme=self.model.reward_scheme)
             pool.margin = margins[i] if len(margins) > i  else self.calculate_margin(pool)
@@ -228,7 +228,7 @@ class Stakeholder(Agent):
             # todo maybe use a temp pool id here and assign final id at execution
             pool = Pool(
                 pool_id=pool_id, cost=cost_per_pool, pledge=pledge, owner=self.unique_id,
-                reward_scheme=self.model.reward_scheme, is_private=pledge >= self.model.reward_scheme.beta
+                reward_scheme=self.model.reward_scheme, is_private=pledge >= self.model.reward_scheme.global_saturation_threshold
             )
             # private pools have margin 0 but don't allow delegations
             pool.margin = margins[i] if len(margins) > i else self.calculate_margin(pool)
@@ -255,7 +255,7 @@ class Stakeholder(Agent):
         :return:
         """
         all_pools_dict = self.model.pools
-        saturation_point = self.model.reward_scheme.beta
+        saturation_point = self.model.reward_scheme.global_saturation_threshold
         eligible_pools_ranked = [
             pool
             for pool in self.rankings

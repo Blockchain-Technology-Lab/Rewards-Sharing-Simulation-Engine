@@ -64,7 +64,7 @@ def get_median_pools_per_operator(model):
 
 
 def get_avg_sat_rate(model):
-    sat_point = model.reward_scheme.beta
+    sat_point = model.reward_scheme.global_saturation_threshold
     current_pools = model.get_pools_list()
     if len(current_pools) == 0:
         return 0
