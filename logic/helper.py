@@ -386,42 +386,6 @@ def plot_aggregate_data(df, variable_param, model_reporter, color, exec_id, outp
     plt.savefig(path / filename, bbox_inches='tight')
     plt.close(fig)
 
-
-
-def plot_aggregate_data_2(df, variable_param, model_reporter, output_dir, colour_values='blue', labels = None, legend_param=None,
-                        positive_only=True, log_axis=False):
-    import matplotlib.colors as colors
-
-    path = output_dir / "figures"
-    pathlib.Path(path).mkdir(parents=True, exist_ok=True)
-
-    plt.figure()
-    if positive_only:
-        df = df[df[model_reporter] >= 0]
-    x = df[variable_param]
-    y = df[model_reporter]
-    scatter = plt.scatter(x, y, c=colour_values, norm=colors.Normalize(vmin=colour_values.min(), vmax=colour_values.max()), cmap='viridis') #if log_axis else colors.LogNorm(vmin=colour_values.min(), vmax=colour_values.max()))
-    # note: lognorm doesn't work when 0 is one of the values
-    plt.xlabel(variable_param)
-    if variable_param == 'a0':
-        plt.xlabel('a0')
-    plt.ylabel(model_reporter)
-    if log_axis:
-        plt.xscale('log')
-        plt.gca().xaxis.set_major_formatter(ticker.FuncFormatter(lambda t, _: t if t >= 0.1 else sci_notation(t, 0)))
-        plt.minorticks_off()
-    labels = [round(value,3) if value > 1e-3 else value for value in labels]
-    #plt.legend(handles=scatter.legend_elements()[0], labels=labels, title=legend_param)
-    if legend_param == 'pareto_param':
-        legend_param = 'Pareto shape parameter'
-    elif legend_param == 'extra_pool_cost_fraction':
-        legend_param = 'φ'
-    plt.colorbar(label=legend_param)
-
-    filename = model_reporter + "-per-" + variable_param + ".png"
-    plt.savefig(path / filename, bbox_inches='tight')
-
-
 #todo make sure that floats display properly (e.g. only show two decimals or don't show text att all in these cases)
 def plot_aggregate_data_heatmap(df, variables, model_reporters, output_dir):
     path = output_dir / "figures"
@@ -450,65 +414,6 @@ def plot_aggregate_data_heatmap(df, variables, model_reporters, output_dir):
 
 def utility_from_profitable_pool(r, c, l, b, m):
     return l / b * (r - c) * (1 - m) + m * (r - c)
-
-def util_by_margin_and_pools(agent, margin, num_pools):
-    stake = agent.stake
-    a0 = agent.model.reward_scheme.a0
-    k = agent.model.reward_scheme.k
-    global_saturation_threshold = agent.model.reward_scheme.global_saturation_threshold
-    R = TOTAL_EPOCH_REWARDS_R
-    phi = agent.model.extra_pool_cost_fraction
-    initial_cost = agent.cost
-
-    top_k_des = [pool.desirability if pool is not None else 0 for pool in agent.model.pool_rankings][:k]
-    top_k_des.reverse()
-
-    pledge_per_pool = np.where(stake / num_pools < global_saturation_threshold, stake / num_pools, global_saturation_threshold)
-    cost_per_pool = (1 + phi * num_pools - phi) * initial_cost / num_pools
-
-    reward_per_pool = R / (1 + a0) * (global_saturation_threshold + pledge_per_pool * a0)
-    utility_per_pool = np.where(reward_per_pool - cost_per_pool > 0,
-                                utility_from_profitable_pool(reward_per_pool, cost_per_pool, pledge_per_pool, global_saturation_threshold,
-                                                             margin), reward_per_pool - cost_per_pool)
-    desirability = (1 - margin) * (reward_per_pool - cost_per_pool)
-
-    margin_len = int(len(margin) / k)
-    d_cutoff = np.array(top_k_des*margin_len)
-    utility = np.where(desirability >= d_cutoff + num_pools * 0.00001, num_pools * utility_per_pool, 0)
-    return utility
-
-
-def plot_margin_pools_heatmap(agent):
-    from matplotlib import cm
-
-    k = agent.model.reward_scheme.k
-
-    x = np.linspace(1, k, k)
-    y = np.linspace(0, 0.25, 1000)
-    X, Y = np.meshgrid(x, y)
-    zs = np.array(util_by_margin_and_pools(agent, np.ravel(Y), np.ravel(X)))
-    Z = zs.reshape(X.shape)
-
-    mappable = plt.cm.ScalarMappable(cmap=cm.coolwarm)
-    mappable.set_array(Z)
-
-    fig = plt.figure(figsize=(6, 5))
-    ax2 = fig.add_subplot(111)
-    ax2.set_ylabel('margin')
-    ax2.set_xlabel('number of owned top-k pools')
-
-    Z = np.ma.array(Z, mask=(Z == 0))
-    masked_cmap = mappable.cmap.copy()
-    masked_cmap.set_bad(color='black')
-
-    ax2.imshow(Z, cmap=masked_cmap, norm=mappable.norm, interpolation='none', aspect='auto',
-               origin='lower', extent=(np.min(X), np.max(X), np.min(Y), np.max(Y)))
-    plt.grid()
-
-    plt.colorbar(mappable, label='utility')
-    filename = 'heatmap-round-' + str(agent.model.schedule.steps) + '-agent-' + str(agent.unique_id) + '.png'
-    plt.savefig(agent.model.directory / filename, bbox_inches='tight')
-    plt.close(fig)
 
 def calculate_pool_splitting_profit(a0, phi, cost, stake):
     return (1 + a0) * (1 - phi) * cost - TOTAL_EPOCH_REWARDS_R * stake * a0
