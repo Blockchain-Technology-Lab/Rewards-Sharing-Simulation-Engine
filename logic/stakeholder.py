@@ -168,29 +168,6 @@ class Stakeholder(Agent):
             owned_pools_to_keep = deepcopy(self.strategy.owned_pools)
         return owned_pools_to_keep
 
-    def find_operator_moves(self):
-        """
-        When agents are allowed to operate multiple pools, they try out different options to decide
-        exactly how many pools to operate. Specifically, they always consider running any number of pools up to their
-        current number (i.e. closing some pools or keeping the same number) and they also consider opening one
-        extra pool. In case an operator has recently opened a new pool, they are not allowed to close any currently open
-        pools, so they only consider keeping the same number of pools or adding one to it.
-        :return:
-        """
-        moves = dict()
-        max_new_pools_per_round = 1
-        current_num_pools = len(self.strategy.owned_pools)
-        if current_num_pools == 0:
-            # If the agent hasn't made any pools yet, consider operating up to as many pools as they can saturate with pledge + 1
-            num_pools_options = {i for i in range(1, math.ceil(self.stake / self.model.reward_scheme.global_saturation_threshold) + 1)}
-        else:
-            num_pools_options = {i for i in range(1, current_num_pools + max_new_pools_per_round + 1)}
-
-        for num_pools in num_pools_options:
-            owned_pools_copies = self.determine_pools_to_keep(num_pools)
-            moves[num_pools] = self.find_operator_move(num_pools, owned_pools_copies)
-        return moves
-
     def calculate_cost_per_pool(self, num_pools):
         """
         Calculate the average cost of a pool when the agent operates a certain number of pools.
