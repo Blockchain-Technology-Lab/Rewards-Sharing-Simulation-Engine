@@ -216,12 +216,6 @@ def calculate_ranks(ranking_dict, *tie_breaking_dicts, rank_ids=True):
     }
     return ranks
 
-def save_as_latex_table(df, sim_id, output_dir):
-    path = pathlib.Path.cwd() / output_dir
-    pathlib.Path(path).mkdir(parents=True, exist_ok=True)
-    with open(output_dir + sim_id + "-output.tex", 'w', newline='') as file:
-        df.to_latex(file, index=False)
-
 def generate_execution_id(args_dict):
     num_args_to_use = 5
     max_characters = 100
