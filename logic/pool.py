@@ -11,8 +11,7 @@ class Pool:
         self.is_private = is_private
         self.delegators = dict()
         self.set_profit(reward_scheme)
-        self._margin = margin
-        self.set_desirability()
+        self.margin = margin
 
     @property
     def margin(self): #maybe also make pledge property? and whenever it's set then change potential profit
