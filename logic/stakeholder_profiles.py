@@ -21,15 +21,15 @@ class NonMyopicStakeholder(Stakeholder):
         return utility
 
     def calculate_operator_utility_from_pool(self, pool, all_pool_rankings):
-        pool_stake_nm = hlp.calculate_pool_stake_NM(
-            pool,
-            all_pool_rankings,
-            self.model.reward_scheme.global_saturation_threshold,
-            self.model.reward_scheme.k
+        non_myopic_pool_stake = hlp.calculate_non_myopic_pool_stake(
+            pool=pool,
+            pool_rankings=all_pool_rankings,
+            reward_scheme=self.model.reward_scheme,
+            total_stake=self.model.total_stake
         )
 
         return hlp.calculate_operator_utility_from_pool(
-            pool_stake=pool_stake_nm, pledge=pool.pledge, margin=pool.margin, cost=pool.cost,
+            pool_stake=non_myopic_pool_stake, pledge=pool.pledge, margin=pool.margin, cost=pool.cost,
             reward_scheme=self.model.reward_scheme
         )
 
@@ -39,11 +39,11 @@ class NonMyopicStakeholder(Stakeholder):
             if pool.id in self.strategy.stake_allocations else 0
         current_stake = pool.stake - previous_allocation_to_pool + stake_allocation
         pool_stake = max(
-            hlp.calculate_pool_stake_NM(
-                pool,
-                self.rankings,
-                self.model.reward_scheme.global_saturation_threshold,
-                self.model.reward_scheme.k
+            hlp.calculate_non_myopic_pool_stake(
+                pool=pool,
+                pool_rankings=self.rankings,
+                reward_scheme=self.model.reward_scheme,
+                total_stake=self.model.total_stake
             ),
             current_stake
         )
@@ -53,6 +53,7 @@ class NonMyopicStakeholder(Stakeholder):
     def calculate_margins_and_utility(self, num_pools):
         cost_per_pool = self.calculate_cost_per_pool(num_pools)
         pledge_per_pool = self.determine_pledge_per_pool(num_pools)
+        pool_saturation_threshold = self.model.reward_scheme.get_pool_saturation_threshold(pledge_per_pool)
         potential_profit_per_pool = hlp.calculate_potential_profit(
             reward_scheme=self.model.reward_scheme, pledge=pledge_per_pool, cost=cost_per_pool
         )
@@ -67,14 +68,16 @@ class NonMyopicStakeholder(Stakeholder):
         ]
 
         for t in range(1, num_pools+1):
-            target_pool = fixed_pools_ranked[self.model.reward_scheme.k - t]
-            target_desirability, target_pp =  (target_pool.desirability, target_pool.potential_profit) if target_pool is not None else (0, 0)
+            target_pool = fixed_pools_ranked[self.model.reward_scheme.k - t] # todo remove dependency from k to accommodate broader class of reward schemes
+            target_desirability, target_pp =  (target_pool.desirability, target_pool.potential_profit) \
+                if target_pool is not None else (0, 0)
             target_desirability += boost
             if potential_profit_per_pool < target_desirability:
                 # can't reach target desirability even with zero margin, so we can assume that the pool won't be in the top k
                 margins.append(0)
                 utility += hlp.calculate_operator_utility_from_pool(
-                    pool_stake=pledge_per_pool, pledge=pledge_per_pool, margin=0, cost=cost_per_pool, reward_scheme=self.model.reward_scheme
+                    pool_stake=pledge_per_pool, pledge=pledge_per_pool, margin=0, cost=cost_per_pool,
+                    reward_scheme=self.model.reward_scheme
                 )
             else:
                 # the pool has potential to surpass the target desirability so we proceed by finding an appropriate margin
@@ -84,8 +87,8 @@ class NonMyopicStakeholder(Stakeholder):
                 margins.append(hlp.calculate_suitable_margin(potential_profit=potential_profit_per_pool,
                                                       target_desirability=max_target_desirability))
                 utility += hlp.calculate_operator_utility_from_pool(
-                    pool_stake=self.model.reward_scheme.global_saturation_threshold, pledge=pledge_per_pool, margin=margins[-1], cost=cost_per_pool,
-                    reward_scheme=self.model.reward_scheme
+                    pool_stake=pool_saturation_threshold, pledge=pledge_per_pool, margin=margins[-1],
+                    cost=cost_per_pool, reward_scheme=self.model.reward_scheme
                 )
         return margins, utility
 
@@ -115,6 +118,7 @@ class MyopicStakeholder(Stakeholder):
     def calculate_margins_and_utility(self, num_pools):
         cost_per_pool = self.calculate_cost_per_pool(num_pools)
         pledge_per_pool = self.determine_pledge_per_pool(num_pools)
+        pool_saturation_threshold = self.model.reward_scheme.get_pool_saturation_threshold(pledge_per_pool)
 
         agent_total_delegated_stake = max(sum([pool.stake for pool in self.strategy.owned_pools.values()]), self.stake)
         expected_stake_per_pool = agent_total_delegated_stake / num_pools
@@ -132,7 +136,7 @@ class MyopicStakeholder(Stakeholder):
         ]
 
         for t in range(1, num_pools+1):
-            target_pool = fixed_pools_ranked[self.model.reward_scheme.k - t]
+            target_pool = fixed_pools_ranked[self.model.reward_scheme.k - t] # todo remove dependency from k to accommodate broader class of reward schemes
             if target_pool is None:
                 target_desirability = 0
             else:
@@ -142,11 +146,14 @@ class MyopicStakeholder(Stakeholder):
                 target_desirability = hlp.calculate_myopic_pool_desirability(target_pool.margin, target_pool_current_profit)
             target_desirability += boost
 
-            margins.append(hlp.calculate_suitable_margin(potential_profit=profit_per_pool,
-                                                  target_desirability=target_desirability))
+            margins.append(
+                hlp.calculate_suitable_margin(
+                    potential_profit=profit_per_pool, target_desirability=target_desirability
+                )
+            )
             utility += hlp.calculate_operator_utility_from_pool(
-                pool_stake=self.model.reward_scheme.global_saturation_threshold, pledge=pledge_per_pool, margin=margins[-1], cost=cost_per_pool,
-                reward_scheme=self.model.reward_scheme
+                pool_stake=pool_saturation_threshold, pledge=pledge_per_pool, margin=margins[-1],
+                cost=cost_per_pool, reward_scheme=self.model.reward_scheme
             )
         return margins, utility
 

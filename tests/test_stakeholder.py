@@ -225,7 +225,7 @@ def test_execute_strategy(mocker):
 
 
     # new strategy for delegator: open pool
-    pool3 = Pool(cost=0.001, pledge=0.001, owner=3, a0=0.3, global_saturation_threshold=0.1, pool_id=3, reward_function=0, margin=0)
+    pool3 = Pool(cost=0.001, pledge=0.001, owner=3, pool_id=3, reward_scheme=model.reward_scheme, margin=0)
     new_strategy3 = Strategy(stake_allocations=None, owned_pools={3: pool3})
     agent3.new_strategy = new_strategy3
     

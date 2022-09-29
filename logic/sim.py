@@ -121,11 +121,12 @@ class Simulation(Model):
 
         if total_stake <= 0: #todo do I need this check?
             raise ValueError('Total stake must be > 0')
-        self.perceived_active_stake = total_stake
 
         if total_stake != 1:
             # normalize stake values so that they are expressed as relative stakes
-            self.normalize_agent_stake(total_stake)
+            total_stake = self.normalize_agent_stake(total_stake)
+        self.total_stake = total_stake
+        self.perceived_active_stake = total_stake
 
         self.export_input_desc_file(seed) #todo rename to initial state desc (also for final)
 
@@ -193,6 +194,8 @@ class Simulation(Model):
             # sure that the sum of all agent stakes is equal to 1
             flt_error = 1 - norm_total_stake
             agent.stake += flt_error
+            norm_total_stake += flt_error
+        return norm_total_stake
 
     # todo use itertools instead (next)
     def initialize_pool_id_seq(self):

@@ -4,7 +4,7 @@ import numpy as np
 from scipy import stats
 import csv
 import pathlib
-from math import floor, log10
+from math import floor, log10, fsum
 from functools import lru_cache
 import json
 import matplotlib.pyplot as plt
@@ -148,13 +148,14 @@ def generate_cost_distr_nrm(num_agents, low, high, mean, stddev):
 def calculate_potential_profit(reward_scheme, pledge, cost):
     """
     Calculate a pool's potential profit, which can be defined as the profit it would get at saturation level
-    :param pledge:
-    :param cost:
-    :param a0:
-    :param global_saturation_threshold:
-    :return: float, the maximum possible profit that this pool can yield
+    :param reward_scheme: the reward scheme object (of an RSS subclass) used in the simulation
+    :param pledge: the pledge of the pool in question
+    :param cost: the cost of the pool in question
+    :return: float, the maximum possible profit that this pool can yield, aka its profit at saturation
     """
-    potential_reward = calculate_pool_reward(reward_scheme=reward_scheme, pool_stake=reward_scheme.global_saturation_threshold, pool_pledge=pledge)
+    potential_reward = calculate_pool_reward(
+        reward_scheme=reward_scheme, pool_stake=reward_scheme.get_pool_saturation_threshold(pledge), pool_pledge=pledge
+    )
     return potential_reward - cost
 
 #@lru_cache(maxsize=1024)
@@ -180,17 +181,24 @@ def calculate_operator_reward_from_pool(pool_margin, pool_cost, pool_reward, ope
     pool_profit = pool_reward - pool_cost
     return pool_profit if pool_profit <= 0 else pool_profit * margin_factor
 
-def calculate_pool_stake_NM(pool, pool_rankings, global_saturation_threshold, k):
+def calculate_non_myopic_pool_stake(pool, pool_rankings, reward_scheme, total_stake):
     """
     Calculate the non-myopic stake of a pool, given the pool and the state of the system (other active pools)
     :param pool:
     :param pool_rankings:
-    :param global_saturation_threshold: the saturation point of the system
-    :param k: the desired number of pools of the system
+    :param reward_scheme: the reward scheme object used in the simulation
+    :total_stake: the total stake of the system
     :return: the value of the non-myopic stake of the pool with id pool_id
     """
-    rank_in_top_k = pool_rankings.index(pool) < k #todo would it be faster to make list of ids and check for id?
-    return calculate_pool_stake_NM_from_rank(pool_pledge=pool.pledge, pool_stake=pool.stake, global_saturation_threshold=global_saturation_threshold, rank_in_top_k=rank_in_top_k)
+    rank = pool_rankings.index(pool)
+    better_pools_stake_at_saturation = fsum([reward_scheme.get_pool_saturation_threshold(p.pledge) for p in pool_rankings[:rank]])
+    rank_in_top_pools = better_pools_stake_at_saturation + MIN_STAKE_UNIT < total_stake # check whether the higher-ranked pools suffice to cover the system's total stake without getting over-saturated
+    return calculate_non_myopic_pool_stake_from_rank(
+        pool_pledge=pool.pledge,
+        pool_stake=pool.stake,
+        pool_saturation_threshold=reward_scheme.get_pool_saturation_threshold(pool.pledge),
+        rank_in_top_pools=rank_in_top_pools
+    )
 
 def calculate_ranks(ranking_dict, *tie_breaking_dicts, rank_ids=True):
     """
@@ -263,8 +271,8 @@ def calculate_delegator_utility_from_pool(stake_allocation, pool_stake, pledge, 
 
 
 @lru_cache(maxsize=1024)
-def calculate_pool_stake_NM_from_rank(pool_pledge, pool_stake, global_saturation_threshold, rank_in_top_k):
-    return max(global_saturation_threshold, pool_stake) if rank_in_top_k else pool_pledge
+def calculate_non_myopic_pool_stake_from_rank(pool_pledge, pool_stake, pool_saturation_threshold, rank_in_top_pools):
+    return max(pool_saturation_threshold, pool_stake) if rank_in_top_pools else pool_pledge
 
 @lru_cache(maxsize=1024)
 def calculate_pledge_per_pool(agent_stake, global_saturation_threshold, num_pools):
@@ -412,11 +420,28 @@ def plot_aggregate_data_heatmap(df, variables, model_reporters, output_dir):
         plt.savefig(path / filename, bbox_inches='tight')
         plt.close(fig)
 
-def utility_from_profitable_pool(r, c, l, b, m):
-    return l / b * (r - c) * (1 - m) + m * (r - c)
-
 def calculate_pool_splitting_profit(a0, phi, cost, stake):
     return (1 + a0) * (1 - phi) * cost - TOTAL_EPOCH_REWARDS_R * stake * a0
+
+def find_target_pool(pools_ranked, target_stake, reward_scheme):
+    """
+    Find the "worst" pool that is still required in order to cover target_stake without any pool getting over-saturated.
+    Not used at the moment but might be useful for generalising the methodology to a broader class of reward schemes.
+    @param pools_ranked: a list of pools sorted from best to worst
+    @param target_stake: the amount of stake that needs to be covered by the pools
+    @param reward_scheme: the reward scheme object used in the simulation
+    @return: the "worst" pool that is required to cover target_stake
+    """
+    covered_stake = 0
+    top_pools = [] # the pools that can collectively cover the target amount of stake if saturated (and without getting over-saturated)
+    for pool in pools_ranked:
+        if covered_stake >= target_stake:
+            break
+        top_pools.append(pool)
+        if pool is None:
+            break
+        covered_stake = fsum([reward_scheme.get_pool_saturation_threshold(pool.pledge) for pool in top_pools]) # using fsum to avoid floating point errors but it might be an overhead
+    return top_pools[-1] if len(top_pools) > 0 else None
 
 def pool_comparison_key(pool):
     """
@@ -473,7 +498,7 @@ def add_script_arguments(parser):
                         help='The k value of the system (natural number). Default is 100.')
     parser.add_argument('--a0', nargs="+", type=non_negative_float, default=0.3,
                         help='The a0 value of the system (decimal number between 0 and 1). Default is 0.3')
-    parser.add_argument('--reward_function', nargs="+", type=int, default=0, choices=range(len(RSS_MAPPING)),
+    parser.add_argument('--reward_function', nargs="?", type=int, default=0, choices=range(len(RSS_MAPPING)), #todo maybe allow multiple args to enable changing the reward scheme of the system during runtime
                         help='The reward function to use in the simulation. 0 for the original function, 1 for a '
                              'simplified version, 2 for alternative-1 and 3 for alternative-2.')
     parser.add_argument('--agent_profile_distr', nargs=len(PROFILE_MAPPING), type=non_negative_float, default=[1, 0, 0],

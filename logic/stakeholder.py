@@ -141,7 +141,7 @@ class Stakeholder(Agent):
             utility = self.calculate_expected_utility(strategy) # recalculating utility to account for possible delegations
         return utility, strategy
 
-    def calculate_margin(self, pool):
+    def calculate_margin(self, pool): # todo is this method necessary? maybe remove
         """
         The agent ranks all existing pools based on their potential
         profit and chooses a margin that can guarantee the pool's desirability (non-zero only if the pool
@@ -151,7 +151,7 @@ class Stakeholder(Agent):
         if pool.is_private:
             return 0
 
-        reference_pool = self.rankings[self.model.reward_scheme.k-1]
+        reference_pool = self.rankings[self.model.reward_scheme.k-1] #todo if keeping method then remove dependency from k to accommodate broader class of reward schemes
         reference_potential_profit = reference_pool.potential_profit if reference_pool is not None else 0
         return hlp.calculate_suitable_margin(potential_profit=pool.potential_profit, target_desirability=reference_potential_profit)
 
@@ -181,8 +181,7 @@ class Stakeholder(Agent):
         return hlp.calculate_cost_per_pool(num_pools=num_pools, initial_cost=self.cost, extra_pool_cost_fraction=self.model.extra_pool_cost_fraction)
 
     def determine_pledge_per_pool(self, num_pools):
-        #todo maybe better to return list of pledge values
-        # to accommodate potential method overrides that allocate a different pledge value to each pool
+        #todo maybe better to return list of pledge values to accommodate potential method overrides that allocate a different pledge value to each pool
         return hlp.calculate_pledge_per_pool(agent_stake=self.stake, global_saturation_threshold=self.model.reward_scheme.global_saturation_threshold, num_pools=num_pools)
 
     def find_operator_move(self, num_pools, owned_pools, margins=[]):
@@ -193,7 +192,7 @@ class Stakeholder(Agent):
             # For pools that already exist, modify them to match the new strategy
             pool.stake -= pool.pledge - pledge
             pool.pledge = pledge
-            pool.is_private = pool.pledge >= self.model.reward_scheme.global_saturation_threshold
+            pool.is_private = pool.pledge >= self.model.reward_scheme.get_pool_saturation_threshold(pool.pledge)
             pool.cost = cost_per_pool
             pool.set_profit(reward_scheme=self.model.reward_scheme)
             pool.margin = margins[i] if len(margins) > i  else self.calculate_margin(pool)
@@ -205,7 +204,7 @@ class Stakeholder(Agent):
             # todo maybe use a temp pool id here and assign final id at execution
             pool = Pool(
                 pool_id=pool_id, cost=cost_per_pool, pledge=pledge, owner=self.unique_id,
-                reward_scheme=self.model.reward_scheme, is_private=pledge >= self.model.reward_scheme.global_saturation_threshold
+                reward_scheme=self.model.reward_scheme, is_private=pledge >= self.model.reward_scheme.get_pool_saturation_threshold(pledge)
             )
             # private pools have margin 0 but don't allow delegations
             pool.margin = margins[i] if len(margins) > i else self.calculate_margin(pool)
@@ -229,10 +228,10 @@ class Stakeholder(Agent):
         Choose a delegation move based on the desirability of the existing pools. If two or more pools are tied,
         choose the one with the highest potential profit, as it promises higher potential rewards (further ties are
         broken using ids, so that older pools are preferred).
-        :return:
+        :stake_to_delegate: the amount of stake to delegate
+        :return: a dictionary with delegation allocations {pool_id: stake_to_delegate_to_pool}
         """
         all_pools_dict = self.model.pools
-        saturation_point = self.model.reward_scheme.global_saturation_threshold
         eligible_pools_ranked = [
             pool
             for pool in self.rankings
@@ -254,7 +253,8 @@ class Stakeholder(Agent):
         while len(eligible_pools_ranked) > 0:
             # first attempt to delegate to unsaturated pools
             best_pool = eligible_pools_ranked.pop(0)
-            stake_to_saturation = saturation_point - best_pool.stake
+            saturation_threshold = self.model.reward_scheme.get_pool_saturation_threshold(best_pool.pledge)
+            stake_to_saturation = saturation_threshold - best_pool.stake
             if stake_to_saturation < hlp.MIN_STAKE_UNIT:
                 if best_saturated_pool is None:
                     best_saturated_pool = best_pool

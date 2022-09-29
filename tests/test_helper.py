@@ -138,6 +138,7 @@ def test_calculate_cost_per_pool():
     assert cost_per_pool == expected_cost_per_pool
     assert cost_per_pool * num_pools == expected_total_cost
 
+
 # todo maybe move test(s) to different file (for testing reward schemes)
 def test_calculate_pool_reward_curve_pledge_benefit():
     # results of options 0 and 4 must be the same when curve_root = 1
@@ -179,7 +180,7 @@ def test_calculate_pool_reward_curve_pledge_benefit():
     assert results_0 != results_4_
 
 
-def test_calculate_pool_stake_nm():
+def test_calculate_non_myopic_pool_stake():
     reward_scheme = rss.CardanoRSS(k=10, a0=0.3)
     pools = {
         i: Pool(pool_id=i, cost=0.0001, pledge=0.001, owner=i, reward_scheme=reward_scheme, margin=0)
@@ -191,7 +192,8 @@ def test_calculate_pool_stake_nm():
     pools[11] = pool_11
     ranks = list(pools.values())
     ranks.sort(key=hlp.pool_comparison_key)
-    pool_stake_nm = hlp.calculate_pool_stake_NM(pool=pool_11, pool_rankings=ranks, global_saturation_threshold=reward_scheme.global_saturation_threshold, k=reward_scheme.k)
+    pool_stake_nm = hlp.calculate_non_myopic_pool_stake(pool=pool_11, pool_rankings=ranks, reward_scheme=reward_scheme,
+                                                        total_stake=1)
     assert pool_stake_nm == 0.001
 
     # pool belongs in the top k and pool_stake < global_saturation_threshold, so stake_nm = global_saturation_threshold
@@ -199,7 +201,8 @@ def test_calculate_pool_stake_nm():
     pools[11] = pool_11
     ranks = list(pools.values())
     ranks.sort(key=hlp.pool_comparison_key)
-    pool_stake_nm = hlp.calculate_pool_stake_NM(pool=pool_11, pool_rankings=ranks, global_saturation_threshold=reward_scheme.global_saturation_threshold, k=reward_scheme.k)
+    pool_stake_nm = hlp.calculate_non_myopic_pool_stake(pool=pool_11, pool_rankings=ranks, reward_scheme=reward_scheme,
+                                                        total_stake=1)
     assert pool_stake_nm == 0.1
 
     # pool belongs in the top k and pool_stake > global_saturation_threshold, so stake_nm = pool_stake
@@ -207,7 +210,8 @@ def test_calculate_pool_stake_nm():
     pools[11] = pool_11
     ranks = list(pools.values())
     ranks.sort(key=hlp.pool_comparison_key)
-    pool_stake_nm = hlp.calculate_pool_stake_NM(pool=pool_11, pool_rankings=ranks, global_saturation_threshold=reward_scheme.global_saturation_threshold, k=reward_scheme.k)
+    pool_stake_nm = hlp.calculate_non_myopic_pool_stake(pool=pool_11, pool_rankings=ranks, reward_scheme=reward_scheme,
+                                                        total_stake=1)
     assert pool_stake_nm == 0.2
 
     # pool doesn't belong in the top k because of (id) tie breaking, so stake_nm = pool_pledge
@@ -215,7 +219,8 @@ def test_calculate_pool_stake_nm():
     pools[11] = pool_11
     ranks = list(pools.values())
     ranks.sort(key=hlp.pool_comparison_key)
-    pool_stake_nm = hlp.calculate_pool_stake_NM(pool=pool_11, pool_rankings=ranks, global_saturation_threshold=reward_scheme.global_saturation_threshold, k=reward_scheme.k)
+    pool_stake_nm = hlp.calculate_non_myopic_pool_stake(pool=pool_11, pool_rankings=ranks, reward_scheme=reward_scheme,
+                                                        total_stake=1)
     assert pool_stake_nm == 0.001
 
     # there are less than k pools, so pool necessarily in the top k
@@ -228,8 +233,10 @@ def test_calculate_pool_stake_nm():
     pools[11] = pool_11
     ranks = list(pools.values())
     ranks.sort(key=hlp.pool_comparison_key)
-    pool_stake_nm = hlp.calculate_pool_stake_NM(pool=pool_11, pool_rankings=ranks, global_saturation_threshold=reward_scheme.global_saturation_threshold, k=reward_scheme.k)
+    pool_stake_nm = hlp.calculate_non_myopic_pool_stake(pool=pool_11, pool_rankings=ranks, reward_scheme=reward_scheme,
+                                                        total_stake=1)
     assert pool_stake_nm == 0.01
+
 
 # todo update test
 def test_read_stake_distr_from_file():
@@ -256,15 +263,25 @@ def test_write_read_seq_id():
     assert seq_id == 555
 
 
-# todo update test
 def test_calculate_pool_reward_cip_50():
-    theta = 100
-    relative_stake = 0.01
-    relative_pledge = 0.001
-    k = 100
-    global_saturation_threshold = 1/k
+    stake = 0.01
+    pledge = 0.001
+    reward_scheme = rss.CIP50RSS(k=100, a0=100)
 
-    r = hlp.calculate_pool_reward_CIP_50(relative_stake, relative_pledge, global_saturation_threshold, theta)
+    r = hlp.calculate_pool_reward(reward_scheme, stake, pledge)
 
     assert r == 0.01
 
+
+def test_find_target_pool():
+    reward_scheme = rss.CardanoRSS(k=100, a0=0.3)
+    target_stake = 0.14
+    pools = [
+        Pool(pool_id=i, cost=0.0001, pledge=0.001+0.00001*i, owner=i, reward_scheme=reward_scheme, margin=0)
+        for i in range(1, 150)
+    ]
+    pools.sort(key=hlp.pool_comparison_key)
+
+    target_pool = hlp.find_target_pool(pools, target_stake, reward_scheme)
+
+    assert pools.index(target_pool) == 13
