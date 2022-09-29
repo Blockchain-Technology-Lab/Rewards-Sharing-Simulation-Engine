@@ -34,7 +34,7 @@ def main():
         agent_activation_order=args.agent_activation_order,
         #total stake
         iterations_after_convergence=args.iterations_after_convergence,
-        reward_function = args.reward_function,
+        reward_scheme = args.reward_scheme,
         execution_id=args.execution_id,
         #seq_id
         #parent_dir

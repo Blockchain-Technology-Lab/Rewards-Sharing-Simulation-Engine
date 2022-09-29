@@ -23,7 +23,7 @@ class Simulation(Model):
             inactive_stake_fraction=0, inactive_stake_fraction_known=False, relative_utility_threshold=0,
             absolute_utility_threshold=0, seed=None, pareto_param=2.0, max_iterations=1000, cost_min=1e-5,
             cost_max=1e-4, extra_pool_cost_fraction=0.4, agent_activation_order="random",
-            iterations_after_convergence=10, reward_function=0, execution_id='', seq_id=-1, parent_dir='',
+            iterations_after_convergence=10, reward_scheme=0, execution_id='', seq_id=-1, parent_dir='',
             metrics=None, generate_graphs=True, input_from_file=False
     ):
         if input_from_file:
@@ -68,7 +68,7 @@ class Simulation(Model):
         self.current_phase = 0
         total_phases = 1
 
-        self.reward_scheme = rss.RSS_MAPPING[args['reward_function']](-1, -1)
+        self.reward_scheme = rss.RSS_MAPPING[args['reward_scheme']](-1, -1)
 
         other_fields = [
             'n', 'k', 'a0', 'relative_utility_threshold', 'absolute_utility_threshold', 'max_iterations',

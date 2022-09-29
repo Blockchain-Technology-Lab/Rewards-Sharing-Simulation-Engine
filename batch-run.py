@@ -44,7 +44,7 @@ if __name__ == "__main__":
                              'the original cost value of the stakeholder. Default is 40%%.')
     parser.add_argument('--stake_distr_source', nargs="?", type=str, default='Pareto',
                         help='The distribution type to use for the initial allocation of stake to the agents.')
-    parser.add_argument('--reward_function', nargs="?", type=int, default=0, choices=range(4),
+    parser.add_argument('--reward_scheme', nargs="?", type=int, default=0, choices=range(4),
                         help='The reward function to use in the simulation. 0 for the old function, 1 for the new one, '
                              '2 for alternative-1 and 3 for alternative-2.') #todo update help
     parser.add_argument('--relative_utility_threshold', nargs="+", type=float, default=0,

@@ -498,7 +498,7 @@ def add_script_arguments(parser):
                         help='The k value of the system (natural number). Default is 100.')
     parser.add_argument('--a0', nargs="+", type=non_negative_float, default=0.3,
                         help='The a0 value of the system (decimal number between 0 and 1). Default is 0.3')
-    parser.add_argument('--reward_function', nargs="?", type=int, default=0, choices=range(len(RSS_MAPPING)), #todo maybe allow multiple args to enable changing the reward scheme of the system during runtime
+    parser.add_argument('--reward_scheme', nargs="?", type=int, default=0, choices=range(len(RSS_MAPPING)), #todo maybe allow multiple args to enable changing the reward scheme of the system during runtime
                         help='The reward function to use in the simulation. 0 for the original function, 1 for a '
                              'simplified version, 2 for alternative-1 and 3 for alternative-2.')
     parser.add_argument('--agent_profile_distr', nargs=len(PROFILE_MAPPING), type=non_negative_float, default=[1, 0, 0],
