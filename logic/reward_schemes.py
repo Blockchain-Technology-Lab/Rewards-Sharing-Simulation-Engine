@@ -96,7 +96,7 @@ class CIP50RSS(RSS):
     experimentation concerning CIP-50.
     """
     def __init__(self, k, a0):
-        super().__init__(k=k, a0=a0, supports_custom_saturations=True)
+        super().__init__(k=k, a0=a0)
 
     def calculate_pool_reward(self, pool_pledge, pool_stake):
         pool_saturation_threshold = self.get_pool_saturation_threshold(pool_pledge)
