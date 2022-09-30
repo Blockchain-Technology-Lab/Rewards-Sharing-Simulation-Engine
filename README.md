@@ -21,16 +21,18 @@ following command from the root directory of the project (assuming that the ```p
 
 ## Using the simulation engine
 
-There are 2 main options to execute the simulation with user-defined options.
+The simulation engine is a CLI tool, i.e. it can be executed through a terminal. In the future, a user-friendly 
+interface may be added, but for now the best way to interact with the simulation is by running a python script that 
+invokes it.
 
-The first option is to run the ```main.py``` script through the terminal. 
+The first option is to run the ```main.py``` script, which also accepts user-defined options. 
 An example command to run from the project's root directory is:
 
     python main.py --n=2000 --execution_id=2000-agents 
 
 which executes the simulation with 2000 agents instead of the default 1000.
 If no command-line arguments are passed, then the simulation is run with all its default values.
-To see all argument options and their default values, you can run the following command:
+To see all argument options and their default values, one can run the following command:
 
     python main.py --help 
 
@@ -55,6 +57,15 @@ Again, running:
 
 will show all the different options and the corresponding default values for batch running simulations.
 
+## Contributing
+Everyone is welcome to contribute to our Rewards Sharing Simulation Engine! 
+
+For changes in the code, please fork the repo first, commit your changes and then issue a pull request with your commits. 
+For reporting a bug or other issue, please head over to our 
+[Issues](https://github.com/Blockchain-Technology-Lab/Rewards-Sharing-Simulation-Engine/issues) page, and also feel free 
+to engage in our [Disccussions](https://github.com/Blockchain-Technology-Lab/Rewards-Sharing-Simulation-Engine/discussions) 
+by starting a new thread or responding to existing ones.
+
 ## License
 This project is licensed under the terms and conditions of the Apache 2.0 [license](LICENSE). Contributions are welcome 
-and will be covered by the same license.
+and will be covered by the same license. 
