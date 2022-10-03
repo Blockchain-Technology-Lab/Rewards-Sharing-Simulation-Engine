@@ -28,4 +28,4 @@ Batch run with 1000 agents and 5 different values for k (100, 200, 300, 400, 500
 
 Batch run with 1000 agents, k = 100 and 3 different values for a0 (0.01, 0.1, 1): 
 
-    python batch-run.py --n=1000 --k=100 --a0 -0.01 0.1 1 --execution_id=batch-run-varying-a0
+    python batch-run.py --n=1000 --k=100 --a0 0.01 0.1 1 --execution_id=batch-run-varying-a0
