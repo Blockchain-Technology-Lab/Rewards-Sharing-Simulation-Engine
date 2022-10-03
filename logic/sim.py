@@ -219,8 +219,8 @@ class Simulation(Model):
         if current_step >= self.max_iterations:
             self.wrap_up_execution()
             return
-        if current_step % self.revision_frequency == 0 and current_step > 0:
-            self.revise_beliefs()
+        # if current_step % self.revision_frequency == 0 and current_step > 0:
+        #     self.revise_beliefs()
 
         # Activate all agents (in the order specified by self.schedule) to perform all their actions for one time step
         self.schedule.step()
@@ -401,9 +401,9 @@ class Simulation(Model):
         self.perceived_active_stake = active_stake
         # Revise expected number of pools, k  (note that the value of global_saturation_threshold, which is used to calculate rewards, does not change in this case)
         self.reward_scheme.k = math.ceil(round(active_stake / self.reward_scheme.global_saturation_threshold, 12))  # first rounding to 12 decimal digits to avoid floating point errors
+        # todo if we keep method then make sure that the change of rss params is properly followed by changes in potential profits etc (see method below)
 
-    #todo make sure that we have correct behaviour here
-    def change_phase(self): #todo update: remember that only rss params change but also that rss itself can change
+    def change_phase(self): #todo update: remember that only rss params change but also that rss itself can potentially change (for now it cannot)
         self.current_phase += 1
         change_occured = False
         for pool in self.pools.values():
