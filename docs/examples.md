@@ -22,11 +22,10 @@ Run with 5,000 agents, k = 500 and a specified seed (42):
 
 ## Batch runs
 
-Batch run with 1000 agents and a range of 5 different values for k (100, 200, 300, 400, 500): 
+Batch run with 1000 agents and 5 different values for k (100, 200, 300, 400, 500): 
 
-    python batch-run.py --n=1000 --k 100 501 100 --execution_id=batch-run-varying-k
+    python batch-run.py --n=1000 --k 100 200 300 400 500 --execution_id=batch-run-varying-k
 
-Batch run with 1000 agents, k = 100 and a range of 5 values for a0 (0.001, 0.01, 0.1, 1, 10): 
+Batch run with 1000 agents, k = 100 and 3 different values for a0 (0.01, 0.1, 1): 
 
-    python batch-run.py --n=1000 --k=100 --a0 -3 1 5 --execution_id=batch-run-varying-a0-log
-
+    python batch-run.py --n=1000 --k=100 --a0 -0.01 0.1 1 --execution_id=batch-run-varying-a0

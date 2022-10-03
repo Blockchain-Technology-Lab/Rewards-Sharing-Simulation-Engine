@@ -76,23 +76,12 @@ if __name__ == "__main__":
     params = {}
     variable_params = {}
 
-    for arg_name, arg_values in args_dict.items():
-        if isinstance(arg_values, list):
-            if len(arg_values) > 2:
-                if arg_name == 'a0' or arg_name == 'cost_min':
-                    variable_params[arg_name] = [float(x) for x in np.logspace(arg_values[0], arg_values[1], num=int(arg_values[2]))]
-                else:
-                    scale_factor = 1e6
-                    int_range = [int(v * scale_factor) for v in arg_values]
-                    #todo this is the reason why some ints turn to floats (e.g. k, n)
-                    variable_params[arg_name] = [v / scale_factor for v in range(int_range[0], int_range[1], int_range[2])]
-            else:
-                params[arg_name] = arg_values[0]
-        else:
-            params[arg_name] = arg_values
+    for arg_name, arg_value in args_dict.items(): #todo update docs to match change
+        params[arg_name] = arg_value
+        if isinstance(arg_value, list) and len(arg_value) > 1:
+            variable_params[arg_name] = arg_value
 
     print("Variable parameter(s): ", variable_params)
-    params.update(variable_params)
 
     start_time = time.time()
     results, batch_run_directory = custom_batch_run(
