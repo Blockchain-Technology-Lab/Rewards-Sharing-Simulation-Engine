@@ -113,6 +113,8 @@ value is used (for all arguments and their default values see the <a href="../co
 <pre><code>python main.py --agent_profile_distr 1 1 0
 </code></pre>
 <h2 id="batch-runs">Batch runs</h2>
+<p>In batch runs, when multiple values are provided for an argument then multiple simulation instances are created, one 
+for each combination of the variable arguments.</p>
 <p>Batch run with 1000 agents and 5 different values for k (100, 200, 300, 400, 500): </p>
 <pre><code>python batch-run.py --n=1000 --k 100 200 300 400 500 --execution_id=batch-run-varying-k
 </code></pre>
