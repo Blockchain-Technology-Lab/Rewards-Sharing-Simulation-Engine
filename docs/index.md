@@ -36,3 +36,9 @@ is welcome to contribute to it by proposing or implementing their ideas. Example
 limited to, adding a new feature to the simulation engine (e.g. integration of exchange rates), improving the 
 performance of the simulations, or creating a user-friendly interface for configuring and running simulations. Note that
 all contributions to the project will be covered by the above-mentioned license.
+
+When making changes in the code, contributors are required to fork the project's repository first and then issue a pull 
+request with their changes, which will be reviewed before being integrated to the main branch. Bugs can be reported 
+in the [Issues](https://github.com/Blockchain-Technology-Lab/Rewards-Sharing-Simulation-Engine/issues) page, and all 
+sorts of comments and ideas can be addressed in the project's 
+[Disccussions](https://github.com/Blockchain-Technology-Lab/Rewards-Sharing-Simulation-Engine/discussions).

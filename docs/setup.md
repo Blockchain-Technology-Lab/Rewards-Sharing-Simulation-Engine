@@ -2,9 +2,10 @@
 
 ## Dependencies
 The simulation engine is written in Python 3.9, so the first thing to ensure when running it on some machine is 
-that Python 3.9 is installed there. The remaining dependencies of the project can be found in the 
-[requirements file](requirements.txt). Running the following from the root directory of the project installs all 
-required packages in one go (assuming that the ```python``` command corresponds to a Python 3.9 installation):
+that [Python 3.9](https://www.python.org/downloads/release/python-390/) is installed there. The remaining dependencies 
+of the project can be found in the [requirements file](requirements.txt). Running the following from the root directory 
+of the project installs all required packages in one go (assuming that the ```python``` command corresponds to a 
+Python 3.9 installation):
     
     python -m pip install -r requirements.txt
 
