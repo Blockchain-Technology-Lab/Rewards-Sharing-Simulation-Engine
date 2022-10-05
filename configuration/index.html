@@ -93,13 +93,15 @@
               
                 <h1 id="configuration">Configuration</h1>
 <p>The simulation engine is highly configurable. From the reward scheme parameters to be used to the output files to be 
-generated, there are numerous variables that can vary from execution to execution. This customisation is performed
+generated, there are numerous variables that can vary from execution to execution. This customization is performed
 using command-line arguments when running the <code>main.py</code> or <code>batch-run.py</code> scripts. We will go through all the 
 available options here, but it's also possible to get an overview of the arguments and their default values by running 
 the corresponding help commands:</p>
 <pre><code>python main.py --help
 python batch-run.py --help
 </code></pre>
+<p>Remember though that all arguments are optional, so it is not mandatory to manually set values for any of them. 
+If not value is explicitly provided, then the corresponding default value is used.</p>
 <h2 id="command-line-options">Command-line options</h2>
 <p>These are all the arguments that can be configured during execution from the command line: </p>
 <hr />
@@ -112,10 +114,14 @@ any natural number is accepted. Note that the higher the value of <strong>k</str
 <p><strong>--a0</strong>: Stake influence factor (reward sharing scheme parameter). The default value is 0.3, but any non-negative 
 real number is accepted. </p>
 <hr />
-<p><strong>--reward_function</strong>: The function that is used to calculate the rewards of a pool. There are currently four options,
+<p><strong>--reward_scheme</strong>: The function that is used to calculate the rewards of a pool. There are currently five options,
 which correspond to the original reward function of Cardano (0), a simplified version of the original function (1), a 
-version that uses flat pledge benefit (2) and one that uses curve pledge benefit (3), which corresponds to the one 
-proposed in <a href="https://cips.cardano.org/cips/cip7/">CIP-7</a>.</p>
+version that uses flat pledge benefit (2), one that uses curve pledge benefit (3) which corresponds to the one 
+proposed in <a href="https://cips.cardano.org/cips/cip7/">CIP-7</a> and one that corresponds to 
+<a href="https://github.com/michael-liesenfelt/CIPs/blob/CIP-Liesenfelt-Shelleys_Voltaire_decentralization_update/CIP-Liesenfelt-Shelleys_Voltaire_decentralization_update/README.md">CIP-50</a>
+(4). More reward schemes can be easily added by extending the relevant class. Please note, however, that our methodology 
+includes heuristics that were designed based on the current reward scheme of Cardano, so it might need some adjustments 
+to yield meaningful results when used with different reward schemes.</p>
 <hr />
 <p><strong>--agent_profile_distr</strong>: List of weights that determine how agents are distributed across the different behavioral 
 profiles. Currently, there are three different profiles: non-myopic stakeholder, myopic stakeholder and abstainer. When 
@@ -153,7 +159,10 @@ number is accepted. For example, if this threshold is 0.1 then it means that a n
 10% higher than that of the current move in order to be selected.</p>
 <hr />
 <p><strong>--stake_distr_source</strong>: The distribution to use for the initial allocation of stake to the agents. The default choice 
-is "Pareto", but other options include "Flat", "Disparity" and "File" (custom distribution that is read from file).</p>
+is "Pareto", but other options include "Flat" for a distribution where all agents start with equal stake and "File" 
+where a custom distribution is read from a csv file. In the latter case, the relevant file is expected to be at the root 
+directory of the project, contain only stake values separated by commas and be named 
+synthetic-stake-distribution-X-agents.csv where X is the number of agents used.</p>
 <hr />
 <p><strong>--pareto_param</strong>: The parameter that determines the shape of the Pareto distribution that the stake is sampled from
 (only relevant if stake_distr_source is set to "pareto"). The default value is 2 but any positive real number is 
@@ -175,7 +184,7 @@ is 2000, but any natural number is accepted (it is recommended to keep this numb
 opportunity for simulations to converge to equilibria).</p>
 <hr />
 <p><strong>--metrics</strong>: A list of ids that correspond to metrics that are tracked during the simulation. Default is [1, 2, 3, 4, 
-6, 17, 18, 26, 27]. For the full list of metrics and their corresponding identifiers, see the <a href="../metrics/">Metrics</a> page.</p>
+6, 17, 18, 24, 25]. For the full list of metrics and their corresponding identifiers, see the <a href="../metrics/">Metrics</a> page.</p>
 <hr />
 <p><strong>--generate_graphs</strong>: A flag that determines whether graphs relating to the tracked metrics are generated upon 
 termination of the simulation. By default, this is activated.</p>

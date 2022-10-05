@@ -106,15 +106,21 @@ value is used (for all arguments and their default values see the <a href="../co
 <p>Run with two phases, first with k = 100 and then k = 200: </p>
 <pre><code>python main.py --k 100 200 --execution_id=increasing-k
 </code></pre>
-<p>Run with 5,000 agents, k = 500 and a specified seed (42):</p>
-<pre><code>python main.py --n=5000 --k=500 --seed=42 --execution_id=n-5K-k-500-seed-42
+<p>Run with 3,000 agents, k = 500 and a specified seed (42):</p>
+<pre><code>python main.py --n=3000 --k=500 --seed=42 --execution_id=n-3K-k-500-seed-42
+</code></pre>
+<p>Run with 50% of the agents being myopic:</p>
+<pre><code>python main.py --agent_profile_distr 1 1 0
 </code></pre>
 <h2 id="batch-runs">Batch runs</h2>
-<p>Batch run with 1000 agents and a range of 5 different values for k (100, 200, 300, 400, 500): </p>
-<pre><code>python batch-run.py --n=1000 --k 100 501 100 --execution_id=batch-run-varying-k
+<p>Batch run with 1000 agents and 5 different values for k (100, 200, 300, 400, 500): </p>
+<pre><code>python batch-run.py --n=1000 --k 100 200 300 400 500 --execution_id=batch-run-varying-k
 </code></pre>
-<p>Batch run with 1000 agents, k = 100 and a range of 5 values for a0 (0.001, 0.01, 0.1, 1, 10): </p>
-<pre><code>python batch-run.py --n=1000 --k=100 --a0 -3 1 5 --execution_id=batch-run-varying-a0-log
+<p>Batch run with 1000 agents, k = 100 and 3 different values for a0 (0.01, 0.1, 1): </p>
+<pre><code>python batch-run.py --n=1000 --k=100 --a0 0.01 0.1 1 --execution_id=batch-run-varying-a0
+</code></pre>
+<p>Batch run with two variables, using 3 values for k and 3 values for a0 (total of 9 combinations):</p>
+<pre><code>python batch-run.py --n=500 --k 50 100 150 --a0 0.05 0.1 0.3 --execution_id=batch-run-varying-k-a0-3x3
 </code></pre>
               
             </div>
