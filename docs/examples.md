@@ -25,6 +25,8 @@ Run with 50% of the agents being myopic:
 
 
 ## Batch runs
+In batch runs, when multiple values are provided for an argument then multiple simulation instances are created, one 
+for each combination of the variable arguments.
 
 Batch run with 1000 agents and 5 different values for k (100, 200, 300, 400, 500): 
 
