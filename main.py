@@ -12,9 +12,6 @@ def main():
     hlp.add_script_arguments(parser)
     args = parser.parse_args()
 
-    # todo deal with invalid inputs, e.g. negative n
-    # todo make it possible to run more simulations w/o having to rerun the program (e.g. press any key to continue)
-
     sim = simulation.Simulation(
         n=args.n,
         k=args.k,

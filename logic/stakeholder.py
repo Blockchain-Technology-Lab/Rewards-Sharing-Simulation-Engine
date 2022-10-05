@@ -8,7 +8,6 @@ import logic.helper as hlp
 from logic.pool import Pool
 from logic.strategy import Strategy
 
-#todo move methods to children classes when necessary
 class Stakeholder(Agent):
 
     def __init__(self, unique_id, model, stake, cost, strategy=None):
@@ -60,14 +59,9 @@ class Stakeholder(Agent):
         # in case of a tie, the max function picks the element with the lowest index, so we have strategically ordered
         # them earlier so that the "easiest" move is preferred ( current -> delegator -> operator)
         max_utility_option = max(possible_moves, key=lambda key: possible_moves[key][0])
-        #todo maybe discard temp pool ids here
-        '''if max_utility_option == "operator":
-            hlp.plot_margin_pools_heatmap(self)'''
         self.new_strategy = None if max_utility_option == "current" else possible_moves[max_utility_option][1]
 
-    #todo either use or discard method
-    def discard_draft_pools(self, operator_strategy):
-        # todo problem: if there are many different pool strategies developed, should we discard drafts from all of them?
+    def discard_draft_pools(self, operator_strategy): # unused for now
         # Discard the pool ids that were used for the hypothetical operator move
         old_owned_pools = set(self.strategy.owned_pools.keys())
         hypothetical_owned_pools = set(operator_strategy.owned_pools.keys())
@@ -141,7 +135,7 @@ class Stakeholder(Agent):
             utility = self.calculate_expected_utility(strategy) # recalculating utility to account for possible delegations
         return utility, strategy
 
-    def calculate_margin(self, pool): # todo is this method necessary? maybe remove
+    def calculate_margin(self, pool):
         """
         The agent ranks all existing pools based on their potential
         profit and chooses a margin that can guarantee the pool's desirability (non-zero only if the pool
@@ -159,7 +153,6 @@ class Stakeholder(Agent):
         if num_pools_to_keep < len(self.strategy.owned_pools):
             # Only keep the pool(s) that rank best (based on desirability, potential profit, stake and "age")
             owned_pools_to_keep = dict()
-            #todo just check pool rankings instead
             pool_properties = [(pool.desirability, pool.potential_profit, pool.stake, -pool_id) for pool_id, pool in self.strategy.owned_pools.items()]
             top_pools_ids = {-p[3] for p in heapq.nlargest(num_pools_to_keep, pool_properties)}
             for pool_id in top_pools_ids:
@@ -201,7 +194,6 @@ class Stakeholder(Agent):
         for i in range(existing_pools_num, num_pools):
             # For pools under consideration of opening, create according to the strategy
             pool_id = self.model.get_next_pool_id()
-            # todo maybe use a temp pool id here and assign final id at execution
             pool = Pool(
                 pool_id=pool_id, cost=cost_per_pool, pledge=pledge, owner=self.unique_id,
                 reward_scheme=self.model.reward_scheme, is_private=pledge >= self.model.reward_scheme.get_pool_saturation_threshold(pledge)
@@ -244,7 +236,7 @@ class Stakeholder(Agent):
         # Remove the agent's stake from the pools in case it's being delegated
         for pool_id, allocation in self.strategy.stake_allocations.items():
             pool = all_pools_dict[pool_id]
-            self.model.pool_rankings_myopic.remove(pool) #todo tmp find better way
+            self.model.pool_rankings_myopic.remove(pool)
             pool.update_delegation(new_delegation=0, delegator_id=self.unique_id)
             self.model.pool_rankings_myopic.add(pool)
 
@@ -271,7 +263,7 @@ class Stakeholder(Agent):
         # Return the agent's stake to the pools it was delegated to
         for pool_id, allocation in self.strategy.stake_allocations.items():
             pool = all_pools_dict[pool_id]
-            self.model.pool_rankings_myopic.remove(pool)  # todo tmp find better way
+            self.model.pool_rankings_myopic.remove(pool)
             pool.update_delegation(new_delegation=allocation, delegator_id=self.unique_id)
             self.model.pool_rankings_myopic.add(pool)
         return allocations
@@ -295,14 +287,14 @@ class Stakeholder(Agent):
         new_allocations = self.new_strategy.stake_allocations
         for pool_id in old_allocations.keys() - new_allocations.keys():
             pool = current_pools[pool_id]
-            if pool is not None:  # todo can't really be none here, right? maybe in simultaneous act? check if else clause is needed (e.g. to update strategy)
+            if pool is not None:
                 # remove delegation
                 self.model.pool_rankings_myopic.remove(pool)
                 pool.update_delegation(new_delegation=0, delegator_id=self.unique_id)
                 self.model.pool_rankings_myopic.add(pool)
         for pool_id in new_allocations.keys() :
             pool = current_pools[pool_id]
-            if pool is not None:  # todo can't really be none here, right? maybe in simultaneous act? check if else clause is needed (e.g. to update strategy)
+            if pool is not None:
                 # add / modify delegation
                 self.model.pool_rankings_myopic.remove(pool)
                 pool.update_delegation(new_delegation=new_allocations[pool_id], delegator_id=self.unique_id)
@@ -364,11 +356,11 @@ class Stakeholder(Agent):
 
         # Also remove pool from agents' upcoming moves in case of (semi)simultaneous activation
         if "simultaneous" in self.model.agent_activation_order.lower():
-            for agent in agents.values():  # todo alternatively save potential delegators somewhere so that we don't go through the whole list of agents here
+            for agent in agents.values():
                 if agent.new_strategy is not None:
                     agent.new_strategy.stake_allocations.pop(pool.id, None)
 
-    def get_status(self): #todo update
+    def get_status(self): #todo update to sth more meaningful
         print("Agent id: {}, stake: {}, cost:{}"
               .format(self.unique_id, self.stake, self.cost))
         print("\n")

@@ -19,10 +19,9 @@ from logic.reward_schemes import TOTAL_EPOCH_REWARDS_R
 
 sns.set_theme()
 
-MAX_NUM_POOLS = 1000 #todo this is only used for run_viz, keep or not?
-MIN_STAKE_UNIT = 2.2e-17 #todo explain how we got this value
+# MAX_NUM_POOLS = 1000 # potentially needed for run_viz
+MIN_STAKE_UNIT = 2.2e-17
 
-#todo make this read from file only?
 def read_stake_distr_from_file(num_agents=10000, seed=42):
     default_filename = 'synthetic-stake-distribution-10000-agents.csv'
     filename = 'synthetic-stake-distribution-' + str(num_agents) + '-agents.csv'
@@ -163,8 +162,6 @@ def calculate_current_profit(stake, pledge, cost, reward_scheme):
     reward = calculate_pool_reward(reward_scheme=reward_scheme, pool_stake=stake, pool_pledge=pledge)
     return reward - cost
 
-#todo does the cache work properly if given rss object as param? yes and no -> problem when rss fields change (cache treats it as same object)
-#@lru_cache(maxsize=1024)
 def calculate_pool_reward(reward_scheme, pool_stake, pool_pledge):
     return reward_scheme.calculate_pool_reward(pool_pledge=pool_pledge, pool_stake=pool_stake)
 
@@ -284,7 +281,7 @@ def calculate_pledge_per_pool(agent_stake, global_saturation_threshold, num_pool
     would yield suboptimal rewards
     """
     if num_pools <= 0:
-        raise ValueError("Agent tried to calculate pledge for zero or less pools.") #todo keep or not?
+        raise ValueError("Agent tried to calculate pledge for zero or less pools.")
     return min(agent_stake / num_pools, global_saturation_threshold)
 
 
@@ -394,7 +391,6 @@ def plot_aggregate_data(df, variable_param, model_reporter, color, exec_id, outp
     plt.savefig(path / filename, bbox_inches='tight')
     plt.close(fig)
 
-#todo make sure that floats display properly (e.g. only show two decimals or don't show text att all in these cases)
 def plot_aggregate_data_heatmap(df, variables, model_reporters, output_dir):
     path = output_dir / "figures"
     pathlib.Path(path).mkdir(parents=True, exist_ok=True)
@@ -499,8 +495,9 @@ def add_script_arguments(parser):
     parser.add_argument('--a0', nargs="+", type=non_negative_float, default=0.3,
                         help='The a0 value of the system (decimal number between 0 and 1). Default is 0.3')
     parser.add_argument('--reward_scheme', nargs="?", type=int, default=0, choices=range(len(RSS_MAPPING)), #todo maybe allow multiple args to enable changing the reward scheme of the system during runtime
-                        help='The reward function to use in the simulation. 0 for the original function, 1 for a '
-                             'simplified version, 2 for alternative-1 and 3 for alternative-2.')
+                        help='The reward scheme to use in the simulation. 0 for the original reward scheme of Cardano, '
+                             '1 for a simplified version of it, 2 for a reward scheme with flat pledge benefit, 3 for '
+                             'a reward scheme with curved pledge benefit (CIP-7) and 4 for the reward scheme of CIP-50.')
     parser.add_argument('--agent_profile_distr', nargs=len(PROFILE_MAPPING), type=non_negative_float, default=[1, 0, 0],
                         help='The weights for assigning different profiles to the agents. Default is [1, 0, 0], i.e. '
                              '100%% non-myopic agents.')
@@ -531,7 +528,7 @@ def add_script_arguments(parser):
     parser.add_argument('--inactive_stake_fraction_known', type=bool, default=False,
                         action=argparse.BooleanOptionalAction,
                         help='Is the inactive stake fraction of the system known beforehand? Default is no.')
-    parser.add_argument('--iterations_after_convergence',  nargs="?", type=int, default=10,
+    parser.add_argument('--iterations_after_convergence',  nargs="?", type=int, default=10, # todo maybe make constant
                         help='The minimum consecutive idle iterations that are required before terminations. '
                              'Default is 10.')
     parser.add_argument('--max_iterations',  nargs="?", type=positive_int, default=2000,

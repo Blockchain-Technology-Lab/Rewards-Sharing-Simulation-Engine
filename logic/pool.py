@@ -21,7 +21,6 @@ class Pool:
     def margin(self, m):
         self._margin = m
         # whenever the margin changes, the pool's desirability gets automatically re-calculated
-        #todo shouldn't it also change when pledge, cost / pp is changed? -> not an issue in practice because whenever pledge changes margin also changes but maybe can make it better
         self.set_desirability()
 
     def set_profit(self, reward_scheme):

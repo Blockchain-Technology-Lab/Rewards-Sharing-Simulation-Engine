@@ -72,7 +72,7 @@ class Simulation(Model):
             'n', 'k', 'a0', 'relative_utility_threshold', 'absolute_utility_threshold', 'max_iterations',
             'extra_pool_cost_fraction', 'agent_activation_order', 'generate_graphs'
         ]
-        multi_phase_params = {} #todo remember it's only rss that can change, do I really need this?
+        multi_phase_params = {}
         for field in other_fields:
             if field in vars(self.reward_scheme) or '_' + field in vars(self.reward_scheme):
                 instance = self.reward_scheme
@@ -89,11 +89,10 @@ class Simulation(Model):
 
         self.total_phases = total_phases
         self.multi_phase_params = multi_phase_params
-        self.n = int(self.n) #todo no need if I ensure that the args stay int
-        if args['inactive_stake_fraction_known']: #todo what if there are also Abstainer agents? do I keep both? if yes, do I update the inactive_stake_fraction?
+        if args['inactive_stake_fraction_known']:
             # The system is aware of the system's inactive stake fraction, so it inflates k (and subsequently lowers global_saturation_threshold)
             # to make it possible to end up with the original desired number of pools
-            self.reward_scheme.k = self.reward_scheme.k / (1 - args['inactive_stake_fraction']) #todo maybe add as method to rss class
+            self.reward_scheme.k = self.reward_scheme.k / (1 - args['inactive_stake_fraction'])
 
         self.running = True  # for batch running and visualisation purposes
         agent_activation_orders = {
@@ -107,7 +106,7 @@ class Simulation(Model):
 
         # Initialize rankings of the system's pools
         self.pool_rankings = SortedList([None] * (self.reward_scheme.k + 1),
-                                        key=hlp.pool_comparison_key)  # all pools ranked from best to worst non-myopically#todo do I need Nones?
+                                        key=hlp.pool_comparison_key)  # all pools ranked from best to worst non-myopically
         self.pool_rankings_myopic = SortedList([None] * (self.reward_scheme.k + 1),
                                                key=self.pool_comparison_key_myopic)  # all pools ranked from best to worst myopically
 
@@ -117,7 +116,7 @@ class Simulation(Model):
         )
         total_stake /= (1 - args['inactive_stake_fraction'])
 
-        if total_stake <= 0: #todo do I need this check?
+        if total_stake <= 0:
             raise ValueError('Total stake must be > 0')
 
         if total_stake != 1:
@@ -126,7 +125,7 @@ class Simulation(Model):
         self.total_stake = total_stake
         self.perceived_active_stake = total_stake
 
-        self.export_input_desc_file(seed) #todo rename to initial state desc (also for final)
+        self.export_initial_state_desc_file(seed)
 
         self.consecutive_idle_steps = 0  # steps towards convergence
         self.current_step_idle = True
@@ -159,12 +158,7 @@ class Simulation(Model):
         total_stake = sum(stake_distribution)
 
         # Allocate cost to the agents, sampling from a uniform distribution
-        #todo make cost distr configurable? allow reading from file maybe?
-        #cost_distribution = hlp.generate_cost_distr_disparity(n=self.n, low=cost_min, high=cost_max)
         cost_distribution = hlp.generate_cost_distr_unfrm(num_agents=self.n, low=cost_min, high=cost_max, seed=seed)
-        #cost_distribution = hlp.generate_cost_distr_bands(num_agents=self.n, low=cost_min, high=cost_max, num_bands=1)
-        #cost_distribution = hlp.generate_cost_distr_nrm(num_agents=self.n, low=cost_min, high=cost_max, mean=5e-6, stddev=5e-1)
-        #cost_distribution = hlp.generate_cost_distr_bands_manual(num_agents=self.n, low=cost_min, high=cost_max, num_bands=1)
 
         agent_profiles = self.random.choices(list(profiles.PROFILE_MAPPING.keys()), k=self.n, weights=agent_profile_distr)
         for i in range(self.n):
@@ -195,7 +189,6 @@ class Simulation(Model):
             norm_total_stake += flt_error
         return norm_total_stake
 
-    # todo use itertools instead (next)
     def initialize_pool_id_seq(self):
         self.id_seq = 0
 
@@ -224,7 +217,7 @@ class Simulation(Model):
         self.schedule.step()
         if self.current_step_idle:
             self.consecutive_idle_steps += 1
-            if self.has_converged(): #todo make more verbose (announce convergence here) and then make param adjustments verbose too
+            if self.has_converged():
                 self.equilibrium_steps.append(current_step - self.iterations_after_convergence)
                 if self.current_phase < self.total_phases - 1:
                     self.change_phase()
@@ -257,7 +250,7 @@ class Simulation(Model):
         filepath = self.directory / filename
         hlp.export_json_file(args, filepath)
 
-    def export_input_desc_file(self, seed):
+    def export_initial_state_desc_file(self, seed):
         # generate file that describes the state of the system at step 0
         stake_stats = reporters.get_stake_distr_stats(self)
         descriptors = {
@@ -317,7 +310,7 @@ class Simulation(Model):
         filepath = self.directory / filename
         df.to_csv(filepath, index_label='Round')
 
-    def export_output_desc_file(self, filename = "final-state-descriptors.json"):
+    def export_final_state_desc_file(self, filename ="final-state-descriptors.json"):
         # generate file that describes the state of the system at termination
         descriptors = {
             'Equilibrium reached': 'Yes' if self.has_converged() else 'No',
@@ -330,8 +323,6 @@ class Simulation(Model):
         hlp.export_json_file(descriptors, filepath)
 
     def append_to_experiment_tracker(self, filename='experiment-tracker.csv'):
-        # todo also include input descriptors here, like NC prior?
-        # todo add equilibrium step  / number of rounds
         filepath = "output/" + filename
         header = ["id", "n", "k", "a0", "phi", "activation order", "reward function", # "stk distr", "min cost", "max cost",
                   "descriptor", "-",
@@ -395,13 +386,12 @@ class Simulation(Model):
         """
         # Revise active stake
         active_stake = reporters.get_total_delegated_stake(self)
-        #todo ensure that this is < total stake (for simultaneous act)
         self.perceived_active_stake = active_stake
         # Revise expected number of pools, k  (note that the value of global_saturation_threshold, which is used to calculate rewards, does not change in this case)
         self.reward_scheme.k = math.ceil(round(active_stake / self.reward_scheme.global_saturation_threshold, 12))  # first rounding to 12 decimal digits to avoid floating point errors
         # todo if we keep method then make sure that the change of rss params is properly followed by changes in potential profits etc (see method below)
 
-    def change_phase(self): #todo update: remember that only rss params change but also that rss itself can potentially change (for now it cannot)
+    def change_phase(self):
         self.current_phase += 1
         change_occured = False
         for pool in self.pools.values():
@@ -414,13 +404,12 @@ class Simulation(Model):
                     instance = self.reward_scheme
                 setattr(instance, key, values[self.current_phase])
                 change_occured = True
-                #todo maybe update k again in case of known inactive_stake_fraction (if k was changed)
         for pool in self.pools.values():
             pool.set_profit(reward_scheme=self.reward_scheme)
             pool.set_desirability()
             self.pool_rankings.add(pool)
             self.pool_rankings_myopic.add(pool)
-        if change_occured: #todo do I need this flag? doesn't it always change when in this method?
+        if change_occured:
             self.pivot_steps.append(self.schedule.steps)
 
     def wrap_up_execution(self):
@@ -429,7 +418,7 @@ class Simulation(Model):
         self.export_pools_file()
         self.export_agents_file()
         self.export_metrics_file()
-        self.export_output_desc_file()
+        self.export_final_state_desc_file()
         self.append_to_experiment_tracker()
         self.save_model_state_pkl()
         if self.generate_graphs:

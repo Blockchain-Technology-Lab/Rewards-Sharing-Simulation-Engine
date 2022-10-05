@@ -45,13 +45,14 @@ if __name__ == "__main__":
     parser.add_argument('--stake_distr_source', nargs="?", type=str, default='Pareto',
                         help='The distribution type to use for the initial allocation of stake to the agents.')
     parser.add_argument('--reward_scheme', nargs="?", type=int, default=0, choices=range(4),
-                        help='The reward function to use in the simulation. 0 for the old function, 1 for the new one, '
-                             '2 for alternative-1 and 3 for alternative-2.') #todo update help
+                        help='The reward scheme to use in the simulation. 0 for the original reward scheme of Cardano, '
+                             '1 for a simplified version of it, 2 for a reward scheme with flat pledge benefit, 3 for '
+                             'a reward scheme with curved pledge benefit (CIP-7) and 4 for the reward scheme of CIP-50.')
     parser.add_argument('--relative_utility_threshold', nargs="+", type=float, default=0,
                         help='The utility increase ratio under which moves are disregarded. Default is 0%%.')
     parser.add_argument('--absolute_utility_threshold', nargs="+", type=float, default=0,
                         help='The utility threshold under which moves are disregarded. Default is 1e-9.')
-    parser.add_argument('--iterations_after_convergence', type=int, default=10, #todo remove from here and set as constant (or read from json file)
+    parser.add_argument('--iterations_after_convergence', type=int, default=10,
                         help='The minimum consecutive idle iterations that are required before terminations. '
                              'Default is 10.')
     parser.add_argument('--agent_profile_distr', nargs="*", type=float, default=[1, 0, 0],
@@ -74,7 +75,7 @@ if __name__ == "__main__":
     params = {}
     variable_params = {}
 
-    for arg_name, arg_value in args_dict.items(): #todo update docs to match change
+    for arg_name, arg_value in args_dict.items():
         params[arg_name] = arg_value
         if isinstance(arg_value, list) and len(arg_value) > 1:
             variable_params[arg_name] = arg_value
@@ -102,7 +103,7 @@ if __name__ == "__main__":
     all_reporter_colours = dict(zip(ALL_MODEL_REPORTEERS.keys(), random_colours))
     model_reporters = [key for key in results_df.keys() if key in ALL_MODEL_REPORTEERS.keys()] #todo figure out if I can exclude some model reporters from the sim e.g. stake by agent (or somehow deal with them in plots if not excluded)
     for variable_param in variable_params:
-        useLogAxis = True if variable_param == 'a0' else False #todo use logaxis ever or not?
+        useLogAxis = False  #True if variable_param == 'a0' else False #todo use logaxis for a0 or not?
         for model_reporter in model_reporters:
             hlp.plot_aggregate_data(results_df, variable_param, model_reporter,
                                     all_reporter_colours[model_reporter],

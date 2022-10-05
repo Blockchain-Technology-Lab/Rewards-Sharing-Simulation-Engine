@@ -1,4 +1,3 @@
-
 TOTAL_EPOCH_REWARDS_R = 1
 
 class RSS:

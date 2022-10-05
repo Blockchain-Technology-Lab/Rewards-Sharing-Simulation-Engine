@@ -3,15 +3,14 @@ import logic.helper as hlp
 
 from sortedcontainers import SortedList
 
-#todo add required methods to parent class (and raise NotImplementedError)
 class NonMyopicStakeholder(Stakeholder):
     def __init__(self, unique_id, model, stake, cost, strategy=None):
         super().__init__(unique_id=unique_id, model=model, stake=stake, cost=cost, strategy=strategy)
         self.rankings = self.model.pool_rankings
 
-    def calculate_operator_utility_from_strategy(self, strategy): #todo can also have in parent class if I define a self.comparison_key like the rankings
+    def calculate_operator_utility_from_strategy(self, strategy):
         potential_pools = strategy.owned_pools.values()
-        temp_rankings = SortedList([pool for pool in self.rankings if pool is not None and pool.owner != self.unique_id], key=hlp.pool_comparison_key) #todo maybe more efficient way to copy / slice sorted list
+        temp_rankings = SortedList([pool for pool in self.rankings if pool is not None and pool.owner != self.unique_id], key=hlp.pool_comparison_key)
         temp_rankings.update(potential_pools)
 
         utility = 0
@@ -57,7 +56,7 @@ class NonMyopicStakeholder(Stakeholder):
         potential_profit_per_pool = hlp.calculate_potential_profit(
             reward_scheme=self.model.reward_scheme, pledge=pledge_per_pool, cost=cost_per_pool
         )
-        boost = 1e-6  # to ensure that the new desirability will be higher than the target one #todo tune boost
+        boost = 1e-6  # to ensure that the new desirability will be higher than the target one
         margins = [] # note that pools by the same agent may end up with different margins  because of the different pools they aim to outperform
         utility = 0
 
@@ -97,7 +96,7 @@ class MyopicStakeholder(Stakeholder):
         super().__init__(unique_id=unique_id, model=model, stake=stake, cost=cost, strategy=strategy)
         self.rankings = self.model.pool_rankings_myopic
 
-    def calculate_operator_utility_from_strategy(self, strategy):  # todo can also have in parent class if I define a self.comparison_key like the rankings
+    def calculate_operator_utility_from_strategy(self, strategy):
         potential_pools = strategy.owned_pools.values()
         utility = 0
         for pool in potential_pools:
@@ -125,7 +124,7 @@ class MyopicStakeholder(Stakeholder):
         profit_per_pool = hlp.calculate_current_profit(
             expected_stake_per_pool, pledge_per_pool, cost_per_pool, self.model.reward_scheme
         )
-        boost = 1e-6  # to ensure that the new desirability will be higher than the target one #todo tune boost
+        boost = 1e-6  # to ensure that the new desirability will be higher than the target one
         margins = [] # note that pools by the same agent may end up with different margins  because of the different pools they aim to outperform
         utility = 0
 
