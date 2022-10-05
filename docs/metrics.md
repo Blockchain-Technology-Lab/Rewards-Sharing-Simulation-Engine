@@ -16,7 +16,7 @@ an id for convenience. We provide details for all of them below:
 10. **Statistical distance**: the [statistical distance](https://en.wikipedia.org/wiki/Statistical_distance) of the 
     distributions of the stake that agents controlled at the beginning of the simulation vs on this round.
 11. **Min-aggregate pledge**: the minimum aggregate pledge of pools that collectively control more than 50% of the 
-    system's active stake.
+    system's active stake. Note that the calculation of this metric is slow because of the complexity of the problem.
 12. **Pledge rate**: the fraction of active stake that is used as pledge (total pledge / total active stake).
 13. **Pool homogeneity factor**: a metric that describes how homogeneous the pools of the system are (the highest 
     possible value is 1, which is given when all pools have the same size).

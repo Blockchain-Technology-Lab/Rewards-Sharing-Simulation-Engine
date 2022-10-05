@@ -15,9 +15,13 @@ Run with two phases, first with k = 100 and then k = 200:
 
     python main.py --k 100 200 --execution_id=increasing-k
 
-Run with 5,000 agents, k = 500 and a specified seed (42):
+Run with 3,000 agents, k = 500 and a specified seed (42):
 
-    python main.py --n=5000 --k=500 --seed=42 --execution_id=n-5K-k-500-seed-42
+    python main.py --n=3000 --k=500 --seed=42 --execution_id=n-3K-k-500-seed-42
+
+Run with 50% of the agents being myopic:
+
+    python main.py --agent_profile_distr 1 1 0
 
 
 ## Batch runs
@@ -29,3 +33,7 @@ Batch run with 1000 agents and 5 different values for k (100, 200, 300, 400, 500
 Batch run with 1000 agents, k = 100 and 3 different values for a0 (0.01, 0.1, 1): 
 
     python batch-run.py --n=1000 --k=100 --a0 0.01 0.1 1 --execution_id=batch-run-varying-a0
+
+Batch run with two variables, using 3 values for k and 3 values for a0 (total of 9 combinations):
+
+    python batch-run.py --n=500 --k 50 100 150 --a0 0.05 0.1 0.3 --execution_id=batch-run-varying-k-a0-3x3

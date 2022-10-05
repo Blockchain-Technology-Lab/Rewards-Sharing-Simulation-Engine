@@ -74,7 +74,6 @@ def custom_batch_run(
         seq_id = i + 1
         execution_id = '-'.join([str(key) + '-' + str(value) for key, value in params.items() if key not in fixed_params])
         params.update({'seq_id': seq_id, 'execution_id': execution_id})
-        print(execution_id)
     process_func = partial(
         _model_run_func,
         model_cls,

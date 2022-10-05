@@ -1,13 +1,16 @@
 # Configuration
 
 The simulation engine is highly configurable. From the reward scheme parameters to be used to the output files to be 
-generated, there are numerous variables that can vary from execution to execution. This customisation is performed
+generated, there are numerous variables that can vary from execution to execution. This customization is performed
 using command-line arguments when running the ```main.py``` or ```batch-run.py``` scripts. We will go through all the 
 available options here, but it's also possible to get an overview of the arguments and their default values by running 
 the corresponding help commands:
 
 	python main.py --help
     python batch-run.py --help
+
+Remember though that all arguments are optional, so it is not mandatory to manually set values for any of them. 
+If not value is explicitly provided, then the corresponding default value is used.
 
 ## Command-line options
 
@@ -23,10 +26,14 @@ any natural number is accepted. Note that the higher the value of **k** the slow
 **--a0**: Stake influence factor (reward sharing scheme parameter). The default value is 0.3, but any non-negative 
 real number is accepted. 
 ---
-**--reward_function**: The function that is used to calculate the rewards of a pool. There are currently four options,
+**--reward_scheme**: The function that is used to calculate the rewards of a pool. There are currently five options,
 which correspond to the original reward function of Cardano (0), a simplified version of the original function (1), a 
-version that uses flat pledge benefit (2) and one that uses curve pledge benefit (3), which corresponds to the one 
-proposed in [CIP-7](https://cips.cardano.org/cips/cip7/).
+version that uses flat pledge benefit (2), one that uses curve pledge benefit (3) which corresponds to the one 
+proposed in [CIP-7](https://cips.cardano.org/cips/cip7/) and one that corresponds to 
+[CIP-50](https://github.com/michael-liesenfelt/CIPs/blob/CIP-Liesenfelt-Shelleys_Voltaire_decentralization_update/CIP-Liesenfelt-Shelleys_Voltaire_decentralization_update/README.md)
+(4). More reward schemes can be easily added by extending the relevant class. Please note, however, that our methodology 
+includes heuristics that were designed based on the current reward scheme of Cardano, so it might need some adjustments 
+to yield meaningful results when used with different reward schemes.
 ---
 **--agent_profile_distr**: List of weights that determine how agents are distributed across the different behavioral 
 profiles. Currently, there are three different profiles: non-myopic stakeholder, myopic stakeholder and abstainer. When 
@@ -64,7 +71,10 @@ number is accepted. For example, if this threshold is 0.1 then it means that a n
 10% higher than that of the current move in order to be selected.
 ---
 **--stake_distr_source**: The distribution to use for the initial allocation of stake to the agents. The default choice 
-is "Pareto", but other options include "Flat", "Disparity" and "File" (custom distribution that is read from file).
+is "Pareto", but other options include "Flat" for a distribution where all agents start with equal stake and "File" 
+where a custom distribution is read from a csv file. In the latter case, the relevant file is expected to be at the root 
+directory of the project, contain only stake values separated by commas and be named 
+synthetic-stake-distribution-X-agents.csv where X is the number of agents used.
 ---
 **--pareto_param**: The parameter that determines the shape of the Pareto distribution that the stake is sampled from
 (only relevant if stake_distr_source is set to "pareto"). The default value is 2 but any positive real number is 
@@ -86,7 +96,7 @@ is 2000, but any natural number is accepted (it is recommended to keep this numb
 opportunity for simulations to converge to equilibria).
 ---
 **--metrics**: A list of ids that correspond to metrics that are tracked during the simulation. Default is [1, 2, 3, 4, 
-6, 17, 18, 26, 27]. For the full list of metrics and their corresponding identifiers, see the [Metrics](metrics.md) page.
+6, 17, 18, 24, 25]. For the full list of metrics and their corresponding identifiers, see the [Metrics](metrics.md) page.
 ---
 **--generate_graphs**: A flag that determines whether graphs relating to the tracked metrics are generated upon 
 termination of the simulation. By default, this is activated.
@@ -102,4 +112,3 @@ the output folder / files. If no identifier is provided, then one is generated a
 placed in the root directory of the project). If this is activated, then any other command line arguments are discarded.
 By default, this flag is not activated. 
 ---
-
