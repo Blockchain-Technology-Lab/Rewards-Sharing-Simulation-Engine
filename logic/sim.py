@@ -17,7 +17,6 @@ import logic.stakeholder_profiles as profiles
 import logic.reward_schemes as rss
 
 class Simulation(Model):
-    #todo split into two classes? simulation (with max_iterations, iterations_after_convergence etc) and rss (with k, a0, reward function option, etc)
     def __init__(
             self, n=1000, k=100, a0=0.3, stake_distr_source='Pareto', agent_profile_distr=None,
             inactive_stake_fraction=0, inactive_stake_fraction_known=False, relative_utility_threshold=0,
@@ -41,9 +40,8 @@ class Simulation(Model):
             args['agent_profile_distr'] = [1, 0, 0]
 
         seed = args['seed']
-        if seed is None or seed == 'None':
+        if seed is None:
             seed = random.randint(0, 9999999)
-        seed = str(seed)  # to maintain consistency among seeds, because command line arguments are parsed as strings
         super().__init__(seed=seed)
 
         seq_id = args['seq_id']
@@ -134,7 +132,7 @@ class Simulation(Model):
         self.current_step_idle = True
         self.iterations_after_convergence = args['iterations_after_convergence']
         self.pools = dict()
-        self.revision_frequency = 10  # defines how often agents revise their belief about the active stake and expected #pools
+        #self.revision_frequency = 10  # defines how often agents revise their belief about the active stake and expected #pools
         self.initialize_pool_id_seq()  # initialize pool id sequence for the new model run
 
         # metrics to track at every step of the simulation
@@ -387,7 +385,7 @@ class Simulation(Model):
         print("Step {}: {} pools"
               .format(self.schedule.steps, len(self.pools)))
 
-    def revise_beliefs(self):
+    def revise_beliefs(self): # currently not used
         """
         Revise the perceived active stake and expected number of pools,
         to reflect the current state of the system

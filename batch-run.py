@@ -17,7 +17,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Pooling Games Batch Run')
     parser.add_argument('--execution_id', nargs="?", type=str, default='batch-run',
                         help='The identifier of this execution, to be used for naming the output files.')
-    parser.add_argument('--seed', nargs="?", default='None',
+    parser.add_argument('--seed', nargs="?", type=int, default=None,
                         help='Seed for reproducibility. Default is None, which means that a seed will be generated '
                              'randomly and then used for all executions of the batch run.')
     parser.add_argument('--max_iterations', nargs="?", type=int, default=2000,
@@ -67,10 +67,8 @@ if __name__ == "__main__":
 
     seed = args_dict["seed"]
     args_dict.pop("seed")
-    if seed == "None":
+    if seed is None:
         seed = random.randint(0, 9999999)
-    else:
-        seed = int(seed)
 
     args_dict.pop("agent_profile_distr") #todo deal with this instead of popping
     params = {}
@@ -104,7 +102,7 @@ if __name__ == "__main__":
     all_reporter_colours = dict(zip(ALL_MODEL_REPORTEERS.keys(), random_colours))
     model_reporters = [key for key in results_df.keys() if key in ALL_MODEL_REPORTEERS.keys()] #todo figure out if I can exclude some model reporters from the sim e.g. stake by agent (or somehow deal with them in plots if not excluded)
     for variable_param in variable_params:
-        useLogAxis = True if variable_param == 'a0' else False
+        useLogAxis = True if variable_param == 'a0' else False #todo use logaxis ever or not?
         for model_reporter in model_reporters:
             hlp.plot_aggregate_data(results_df, variable_param, model_reporter,
                                     all_reporter_colours[model_reporter],
