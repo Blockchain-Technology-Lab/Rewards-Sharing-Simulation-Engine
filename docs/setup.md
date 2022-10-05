@@ -16,6 +16,10 @@ Installing the simulation engine is very simple, as it only involves cloning the
     git clone https://github.com/Blockchain-Technology-Lab/Rewards-Sharing-Simulation-Engine.git
 
 ## Execution
+The simulation engine is a CLI tool, i.e. it can be executed through a terminal. In the future, a user-friendly 
+interface may be added, but for now the best way to interact with the simulation is by running a python script that 
+invokes it.
+
 To run the simulation, navigate to the directory of the project and run the ```main.py``` script from a terminal:
 
     python main.py
