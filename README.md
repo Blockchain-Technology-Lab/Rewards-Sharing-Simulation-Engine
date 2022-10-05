@@ -46,9 +46,9 @@ optionally files that track metrics on each round, and more.
 The other option is to use the ```batch-run.py``` script to run multiple instances of the simulation at once, using 
 multiprocessing. An example of such a command is: 
 
-    python batch-run.py --n=1000 --k 100 501 100 --alpha=0.3 --execution_id=batch-run-varying-k
+    python batch-run.py --n=1000 --k 100 200 300 --a0=0.3 --execution_id=batch-run-varying-k
 
-which runs the simulation for 5 different values of k (100, 200, 300, 400, 500). The output of all the runs is saved in 
+which runs the simulation for 3 different values of k (100, 200, 300). The output of all the runs is saved in 
 a relevant folder, with subfolders for each execution.
 
 Again, running: 
