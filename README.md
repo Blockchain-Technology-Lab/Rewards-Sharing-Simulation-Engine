@@ -19,6 +19,34 @@ following command from the root directory of the project (assuming that the ```p
 
     python -m pip install -r requirements.txt
 
+### Ubuntu 20.04 specific Installation
+
+The default Ubuntu 20.04 installation does not meet Python version 3.9 requirement of the engine.
+However, Python v.3.9 was backported to Ubuntu 20.04, which allows the engine run on 20.04.
+
+Follow the steps below to use the engine on Ubuntu 20.04.
+
+``` bash
+# 1. Install Python v3.9 from the official repo
+$ sudo apt update
+$ sudo apt install python3.9
+
+# 2. Install the non-backporteed pip3.9 from PyPA
+$ curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py
+$ python3.9 get-pip.py --user
+$ pip3 --version
+pip 22.2.2 from /home/ilap/.local/lib/python3.9/site-packages/pip (python 3.9)
+
+# 2.1 If it shows:
+# pip 20.0.2 from /usr/lib/python3/dist-packages/pip (python 3.8)
+# then use pip3.9 in the cli/terminal instead.
+
+# 3. Install simulations engine's pre-requisities
+$ pip3.9 install -U Pillow --user
+$ python3.9 -m pip install -r requirements.txt
+```
+Follow the steps below for using/running the engine on Ubuntu 20.04.
+
 ## Using the simulation engine
 
 The simulation engine is a CLI tool, i.e. it can be executed through a terminal. In the future, a user-friendly 

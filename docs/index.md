@@ -3,7 +3,7 @@
 This is the documentation for the Rewards Sharing Simulation Engine built by the University of Edinburgh's Blockchain 
 Technology Lab. 
 The source code is available on 
-[Github](https://github.com/Blockchain-Technology-Laboratory/Rewards-Sharing-Simulation-Engine).
+[Github](https://github.com/Blockchain-Technology-Lab/Rewards-Sharing-Simulation-Engine).
 
 ## Overview
 
