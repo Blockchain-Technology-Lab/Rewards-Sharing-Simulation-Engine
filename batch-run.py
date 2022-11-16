@@ -22,9 +22,9 @@ if __name__ == "__main__":
                              'randomly and then used for all executions of the batch run.')
     parser.add_argument('--max_iterations', nargs="?", type=int, default=2000,
                         help='The maximum number of iterations of the system. Default is 1000.')
-    parser.add_argument('--n', nargs="*", type=int, default=100,
+    parser.add_argument('--n', nargs="*", type=int, default=1000,
                         help='The number of agents (natural number). Default is 100.')
-    parser.add_argument('--k', nargs="*", type=int, default=[10, 31, 10],
+    parser.add_argument('--k', nargs="*", type=int, default=[100, 200, 300],
                         help='The k value of the system (natural number). Default is 10.')
     parser.add_argument('--a0', nargs="*", type=float, default=0.3,
                         help='The a0 value of the system (decimal number between 0 and 1). Default is 0.3')
@@ -35,9 +35,9 @@ if __name__ == "__main__":
                         help='Is the inactive stake fraction of the system known beforehand? Default is no.')
     parser.add_argument('--pareto_param', nargs="*", type=float, default=2.0,
                         help='The shape value of the Pareto distribution for the initial stake allocation.')
-    parser.add_argument('--cost_min', nargs="*", type=float, default=1e-4,
+    parser.add_argument('--cost_min', nargs="*", type=float, default=1e-5,
                         help='The minimum possible cost for operating a stake pool. Default is 1e-4.')
-    parser.add_argument('--cost_max', nargs="*", type=float, default=1e-3,
+    parser.add_argument('--cost_max', nargs="*", type=float, default=1e-4,
                         help='The maximum possible cost for operating a stake pool. Default is 2e-3.')
     parser.add_argument('--extra_pool_cost_fraction', nargs="*", type=float, default=0.4,
                         help='The factor that determines how much an additional pool costs as a fraction of '
@@ -72,6 +72,7 @@ if __name__ == "__main__":
         seed = random.randint(0, 9999999)
 
     args_dict.pop("agent_profile_distr") #todo deal with this instead of popping
+
     params = {}
     variable_params = {}
 
