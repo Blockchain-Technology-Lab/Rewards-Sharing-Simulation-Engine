@@ -92,26 +92,28 @@ def test_get_pool_splitter_count(mocker):
 
 
 def test_gini_coefficient():
-    # results retreived from: https://shlegeris.com/gini.html (3 decimal accuracy)
+    # results retreived from: https://goodcalculators.com/gini-coefficient-calculator/ (5 decimal accuracy)
+    decimals = 5
+
     x1 = np.array([1, 2, 3, 4, 5])
     g1 = gini_coefficient(x1)
-    assert round(g1, 3) == 0.267
+    assert round(g1, decimals) == 0.26667
 
     x2 = np.array([368, 156, 20, 7, 10, 49, 22, 1])
     g2 = gini_coefficient(x2)
-    assert round(g2, 3) == 0.678
+    assert round(g2, decimals) ==  0.67792
 
     x3 = np.array([11, 2, 1])
     g3 = gini_coefficient(x3)
-    assert round(g3, 3) == 0.476
+    assert round(g3, decimals) == 0.47619
 
     x4 = np.array([0.11, 0.06, 0.06])
     g4 = gini_coefficient(x4)
-    assert round(g4, 3) == 0.145
+    assert round(g4, decimals) == 0.14493
 
     x5 = np.array([1, 1, 3, 0, 0])
     g5 = gini_coefficient(x5)
-    assert round(g5, 3) == 0.56
+    assert round(g5, decimals) == 0.56000
 
 
 def test_get_gini_id_coeff_pool_count():
