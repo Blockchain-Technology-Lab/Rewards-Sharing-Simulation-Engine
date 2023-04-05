@@ -91,8 +91,12 @@ class Stakeholder(Agent):
                 pool_stake=pool.stake, pledge=pool.pledge, margin=pool.margin, cost=pool.cost,
                 reward_scheme=self.model.reward_scheme
             )
-        for pool_id, a in self.strategy.stake_allocations.items():
-            utility += self.calculate_delegator_utility_from_pool(self.model.pools[pool_id], a)
+        for pool_id, allocation in self.strategy.stake_allocations.items():
+            pool = self.model.pools[pool_id]
+            utility += hlp.calculate_delegator_utility_from_pool(
+                stake_allocation=allocation, pool_stake=pool.stake, pledge=pool.pledge, margin=pool.margin,
+                cost=pool.cost, reward_scheme=self.model.reward_scheme
+            )
         return utility
 
     def calculate_expected_utility(self, strategy):
