@@ -21,6 +21,21 @@ class Stakeholder(Agent):
             strategy = Strategy()
         self.strategy = strategy
 
+    def calculate_operator_utility_from_strategy(self, strategy):
+        raise NotImplementedError(
+            "Stakeholder subclass must implement 'calculate_operator_utility_from_strategy' method."
+        )
+
+    def calculate_delegator_utility_from_pool(self, pool, stake_allocation):
+        raise NotImplementedError(
+            "Stakeholder subclass must implement 'calculate_delegator_utility_from_pool' method."
+        )
+
+    def calculate_margins_and_utility(self, num_pools):
+        raise NotImplementedError(
+            "Stakeholder subclass must implement 'calculate_margins_and_utility' method."
+        )
+
     def step(self):
         self.update_strategy()
         if "simultaneous" not in self.model.agent_activation_order.lower():

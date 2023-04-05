@@ -3,8 +3,10 @@ TOTAL_EPOCH_REWARDS_R = 1
 
 class RSS:
     """
-    Parent class for the Reward Sharing Scheme that is used in the simulation.
+    Base class for the Reward Sharing Scheme that is used in the simulation.
     Determines the rewards that a pool receives.
+    Note that this class cannot be used on its own, only its child-classes can be used, which must implement the
+    'calculate_pool_reward' method
     """
 
     def __init__(self, k, a0):
@@ -29,7 +31,8 @@ class RSS:
     def get_pool_saturation_threshold(self, pool_pledge):
         """
         By default, the saturation point of all pools is given by the global_saturation_threshold. However, some
-        reward schemes may choose to have different saturation thresholds for different pools, depending on their pledge.
+        reward schemes may choose to have different saturation thresholds for different pools, depending on
+        their pledge for example. In these cases, this method would have to be overridden.
         @param pool_pledge: the pledge of the relevant pool
         @return: the saturation threshold of a pool with the given pledge
         """
