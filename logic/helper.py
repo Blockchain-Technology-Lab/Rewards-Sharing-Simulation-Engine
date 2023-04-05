@@ -22,6 +22,7 @@ sns.set_theme()
 # MAX_NUM_POOLS = 1000 # potentially needed for run_viz
 MIN_STAKE_UNIT = 2.2e-17
 
+
 def read_stake_distr_from_file(num_agents=10000, seed=42):
     default_filename = 'synthetic-stake-distribution-10000-agents.csv'
     filename = 'synthetic-stake-distribution-' + str(num_agents) + '-agents.csv'
@@ -48,22 +49,25 @@ def read_stake_distr_from_file(num_agents=10000, seed=42):
         return rng.choice(stk_dstr, num_agents, replace=False)
     return rng.choice(stk_dstr, num_agents, replace=True)
 
+
 def generate_stake_distr_disparity(n, x=0.3, c=3):
     stk_dstr = []
     high_end_stake = x / c
     low_end_stake = (1 - x) / (n - c)
     stk_dstr.extend([high_end_stake for _ in range(c)])
-    stk_dstr.extend([low_end_stake for _ in range(n-c)])
+    stk_dstr.extend([low_end_stake for _ in range(n - c)])
 
     return stk_dstr
+
 
 def generate_cost_distr_disparity(n, low, high, c=10):
     if high < low:
         raise ValueError("invalid cost_max ( < cost_min)")
     costs = []
     costs.extend([high for _ in range(c)])
-    costs.extend([low for _ in range(n-c)])
+    costs.extend([low for _ in range(n - c)])
     return costs
+
 
 def generate_stake_distr_pareto(num_agents, pareto_param=2, seed=156, truncation_factor=-1):
     """
@@ -82,6 +86,7 @@ def generate_stake_distr_pareto(num_agents, pareto_param=2, seed=156, truncation
         stake_sample = truncate_pareto(rng, (a, m), stake_sample, truncation_factor)
     return stake_sample
 
+
 def truncate_pareto(rng, pareto_params, sample, truncation_factor):
     a, m = pareto_params
     while 1:
@@ -93,9 +98,11 @@ def truncate_pareto(rng, pareto_params, sample, truncation_factor):
         else:
             return sample
 
+
 def generate_stake_distr_flat(num_agents):
     stake_per_agent = 1 / num_agents if num_agents > 0 else 0
     return [stake_per_agent for _ in range(num_agents)]
+
 
 def generate_cost_distr_unfrm(num_agents, low, high, seed=156):
     """
@@ -112,6 +119,7 @@ def generate_cost_distr_unfrm(num_agents, low, high, seed=156):
     costs = rng.uniform(low=low, high=high, size=num_agents)
     return costs
 
+
 def generate_cost_distr_bands(num_agents, low, high, num_bands, seed=156):
     if high < low:
         raise ValueError("invalid cost_max ( < cost_min)")
@@ -120,18 +128,20 @@ def generate_cost_distr_bands(num_agents, low, high, num_bands, seed=156):
     costs = rng.choice(bands, num_agents)
     return costs
 
+
 def generate_cost_distr_bands_manual(num_agents, low, high, num_bands, seed=156):
     if high < low:
         raise ValueError("invalid cost_max ( < cost_min)")
     rng = default_rng(seed=seed)
     bands = rng.uniform(low=low, high=high, size=num_bands)
-    costs = rng.choice(bands, num_agents-3)
+    costs = rng.choice(bands, num_agents - 3)
     costs = np.append(costs, [low for _ in range(3)])
 
     low_cost_agents = 5
-    common_cost = high#(low + high) / 2
+    common_cost = high  # (low + high) / 2
     costs = [low if i < low_cost_agents else common_cost for i in range(num_agents)]
     return costs
+
 
 def generate_cost_distr_nrm(num_agents, low, high, mean, stddev):
     """
@@ -143,7 +153,8 @@ def generate_cost_distr_nrm(num_agents, low, high, mean, stddev):
     costs = stats.truncnorm.rvs(low, high, loc=mean, scale=stddev, size=num_agents)
     return costs
 
-#@lru_cache(maxsize=1024)
+
+# @lru_cache(maxsize=1024)
 def calculate_potential_profit(reward_scheme, pledge, cost):
     """
     Calculate a pool's potential profit, which can be defined as the profit it would get at saturation level
@@ -157,13 +168,16 @@ def calculate_potential_profit(reward_scheme, pledge, cost):
     )
     return potential_reward - cost
 
-#@lru_cache(maxsize=1024)
+
+# @lru_cache(maxsize=1024)
 def calculate_current_profit(stake, pledge, cost, reward_scheme):
     reward = calculate_pool_reward(reward_scheme=reward_scheme, pool_stake=stake, pool_pledge=pledge)
     return reward - cost
 
+
 def calculate_pool_reward(reward_scheme, pool_stake, pool_pledge):
     return reward_scheme.calculate_pool_reward(pool_pledge=pool_pledge, pool_stake=pool_stake)
+
 
 @lru_cache(maxsize=1024)
 def calculate_delegator_reward_from_pool(pool_margin, pool_cost, pool_reward, delegator_stake_fraction):
@@ -172,11 +186,13 @@ def calculate_delegator_reward_from_pool(pool_margin, pool_cost, pool_reward, de
     r_d = max(margin_factor * pool_profit, 0)
     return r_d
 
+
 @lru_cache(maxsize=1024)
 def calculate_operator_reward_from_pool(pool_margin, pool_cost, pool_reward, operator_stake_fraction):
     margin_factor = pool_margin + ((1 - pool_margin) * operator_stake_fraction)
     pool_profit = pool_reward - pool_cost
     return pool_profit if pool_profit <= 0 else pool_profit * margin_factor
+
 
 def calculate_non_myopic_pool_stake(pool, pool_rankings, reward_scheme, total_stake):
     """
@@ -188,14 +204,17 @@ def calculate_non_myopic_pool_stake(pool, pool_rankings, reward_scheme, total_st
     :return: the value of the non-myopic stake of the pool with id pool_id
     """
     rank = pool_rankings.index(pool)
-    better_pools_stake_at_saturation = fsum([reward_scheme.get_pool_saturation_threshold(p.pledge) for p in pool_rankings[:rank]])
-    rank_in_top_pools = better_pools_stake_at_saturation + MIN_STAKE_UNIT < total_stake # check whether the higher-ranked pools suffice to cover the system's total stake without getting over-saturated
+    better_pools_stake_at_saturation = fsum(
+        [reward_scheme.get_pool_saturation_threshold(p.pledge) for p in pool_rankings[:rank]])
+    # check whether the higher-ranked pools suffice to cover the system's total stake without getting over-saturated
+    rank_in_top_pools = better_pools_stake_at_saturation + MIN_STAKE_UNIT < total_stake
     return calculate_non_myopic_pool_stake_from_rank(
         pool_pledge=pool.pledge,
         pool_stake=pool.stake,
         pool_saturation_threshold=reward_scheme.get_pool_saturation_threshold(pool.pledge),
         rank_in_top_pools=rank_in_top_pools
     )
+
 
 def calculate_ranks(ranking_dict, *tie_breaking_dicts, rank_ids=True):
     """
@@ -221,6 +240,7 @@ def calculate_ranks(ranking_dict, *tie_breaking_dicts, rank_ids=True):
     }
     return ranks
 
+
 def generate_execution_id(args_dict):
     num_args_to_use = 5
     max_characters = 100
@@ -228,6 +248,7 @@ def generate_execution_id(args_dict):
                      if not isinstance(value, list)
                      else str(key) + '-' + "-".join([str(v) for v in value])
                      for key, value in list(args_dict.items())[:num_args_to_use]])[:max_characters]
+
 
 @lru_cache(maxsize=1024)
 def calculate_cost_per_pool(num_pools, initial_cost, extra_pool_cost_fraction):
@@ -241,35 +262,43 @@ def calculate_cost_per_pool(num_pools, initial_cost, extra_pool_cost_fraction):
     """
     return (initial_cost + (num_pools - 1) * extra_pool_cost_fraction * initial_cost) / num_pools
 
+
 @lru_cache(maxsize=1024)
 def calculate_suitable_margin(potential_profit, target_desirability):
     m = 1 - target_desirability / potential_profit if potential_profit > 0 else 0
     return max(m, 0)
 
+
 @lru_cache(maxsize=1024)
 def calculate_pool_desirability(margin, potential_profit):
     return max((1 - margin) * potential_profit, 0)
+
 
 @lru_cache(maxsize=1024)
 def calculate_myopic_pool_desirability(margin, current_profit):
     return max((1 - margin) * current_profit, 0)
 
-#@lru_cache(maxsize=1024)
+
+# @lru_cache(maxsize=1024)
 def calculate_operator_utility_from_pool(pool_stake, pledge, margin, cost, reward_scheme):
     r = calculate_pool_reward(reward_scheme=reward_scheme, pool_stake=pool_stake, pool_pledge=pledge)
     stake_fraction = pledge / pool_stake
-    return calculate_operator_reward_from_pool(pool_margin=margin, pool_cost=cost, pool_reward=r, operator_stake_fraction=stake_fraction)
+    return calculate_operator_reward_from_pool(pool_margin=margin, pool_cost=cost, pool_reward=r,
+                                               operator_stake_fraction=stake_fraction)
 
-#@lru_cache(maxsize=1024)
+
+# @lru_cache(maxsize=1024)
 def calculate_delegator_utility_from_pool(stake_allocation, pool_stake, pledge, margin, cost, reward_scheme):
     r = calculate_pool_reward(reward_scheme=reward_scheme, pool_stake=pool_stake, pool_pledge=pledge)
     stake_fraction = stake_allocation / pool_stake
-    return calculate_delegator_reward_from_pool(pool_margin=margin, pool_cost=cost, pool_reward=r, delegator_stake_fraction=stake_fraction)
+    return calculate_delegator_reward_from_pool(pool_margin=margin, pool_cost=cost, pool_reward=r,
+                                                delegator_stake_fraction=stake_fraction)
 
 
 @lru_cache(maxsize=1024)
 def calculate_non_myopic_pool_stake_from_rank(pool_pledge, pool_stake, pool_saturation_threshold, rank_in_top_pools):
     return max(pool_saturation_threshold, pool_stake) if rank_in_top_pools else pool_pledge
+
 
 @lru_cache(maxsize=1024)
 def calculate_pledge_per_pool(agent_stake, global_saturation_threshold, num_pools):
@@ -290,9 +319,11 @@ def export_csv_file(rows, filepath):
         writer = csv.writer(file)
         writer.writerows(rows)
 
+
 def export_json_file(data, filepath):
     with open(filepath, 'w', encoding='utf-8') as f:
         json.dump(data, f, ensure_ascii=False, indent=4, default=lambda x: str(x))
+
 
 def read_args_from_file(filepath):
     try:
@@ -300,11 +331,14 @@ def read_args_from_file(filepath):
             args = json.load(f)
         return args
     except FileNotFoundError:
-        print("Couldn't find file to read parameter values from. Please make sure that the file exists under the name 'args.json'.")
+        print(
+            "Couldn't find file to read parameter values from. "
+            "Please make sure that the file exists under the name 'args.json'.")
         raise
     except ValueError:
         print("Invalid format for file 'args.json'.")
         raise
+
 
 def read_seq_id(filename='sequence.dat'):
     try:
@@ -314,23 +348,26 @@ def read_seq_id(filename='sequence.dat'):
         seq = 0
     return seq
 
+
 def write_seq_id(seq, filename='sequence.dat'):
     with open(filename, 'w') as f:
         f.write(str(seq))
 
+
 def write_to_csv(filepath, header, row):
     with open(filepath, 'a', newline='') as f:
         writer = csv.writer(f)
-        if f.tell()==0:
+        if f.tell() == 0:
             writer.writerow(header)
         writer.writerow(row)
+
 
 def plot_line(data, execution_id, color, x_label, y_label, filename, equilibrium_steps, pivot_steps,
               path, title='', show_equilibrium=False):
     equilibrium_colour = 'mediumseagreen'
     pivot_colour = 'gold'
 
-    fig = plt.figure(figsize=(10,5))
+    fig = plt.figure(figsize=(10, 5))
     data.plot(color=color)
     if show_equilibrium:
         for i, step in enumerate(equilibrium_steps):
@@ -344,8 +381,9 @@ def plot_line(data, execution_id, color, x_label, y_label, filename, equilibrium
     plt.ylabel(y_label)
     plt.legend()
     filename = execution_id + "-" + filename + ".png"
-    plt.savefig(path / filename , bbox_inches='tight')
+    plt.savefig(path / filename, bbox_inches='tight')
     plt.close(fig)
+
 
 def plot_stack_area_chart(pool_sizes_by_step, execution_id, path):
     pool_sizes_by_agent = np.array(list(pool_sizes_by_step)).T
@@ -359,6 +397,7 @@ def plot_stack_area_chart(pool_sizes_by_step, execution_id, path):
     plt.savefig(path / filename, bbox_inches='tight')
     plt.close(fig)
 
+
 def sci_notation(num, decimal_digits=1, precision=None, exponent=None):
     if exponent is None:
         exponent = int(floor(log10(abs(num))))
@@ -367,6 +406,7 @@ def sci_notation(num, decimal_digits=1, precision=None, exponent=None):
         precision = decimal_digits
     return r"${0:.{2}f}\cdot10^{{{1:d}}}$".format(coeff, exponent,
                                                   precision) if coeff > 1 else r"$10^{{{0:d}}}$".format(exponent)
+
 
 def plot_aggregate_data(df, variable_param, model_reporter, color, exec_id, output_dir, positive_only=True,
                         log_axis=False):
@@ -391,6 +431,7 @@ def plot_aggregate_data(df, variable_param, model_reporter, color, exec_id, outp
     plt.savefig(path / filename, bbox_inches='tight')
     plt.close(fig)
 
+
 def plot_aggregate_data_heatmap(df, variables, model_reporters, output_dir):
     path = output_dir / "figures"
     pathlib.Path(path).mkdir(parents=True, exist_ok=True)
@@ -406,7 +447,7 @@ def plot_aggregate_data_heatmap(df, variables, model_reporters, output_dir):
             "orientation": "vertical",
             'extend': 'max',
             "label": reporter
-            }
+        }
         ax = sns.heatmap(unstacked_df, annot=True, annot_kws={"size": 12}, fmt='g', cbar_kws=cbar_kws, cmap='flare')
         ax.invert_yaxis()
         labels = [item.get_text() for item in ax.get_yticklabels()]
@@ -416,8 +457,10 @@ def plot_aggregate_data_heatmap(df, variables, model_reporters, output_dir):
         plt.savefig(path / filename, bbox_inches='tight')
         plt.close(fig)
 
+
 def calculate_pool_splitting_profit(a0, phi, cost, stake):
     return (1 + a0) * (1 - phi) * cost - TOTAL_EPOCH_REWARDS_R * stake * a0
+
 
 def find_target_pool(pools_ranked, target_stake, reward_scheme):
     """
@@ -429,15 +472,17 @@ def find_target_pool(pools_ranked, target_stake, reward_scheme):
     @return: the "worst" pool that is required to cover target_stake
     """
     covered_stake = 0
-    top_pools = [] # the pools that can collectively cover the target amount of stake if saturated (and without getting over-saturated)
+    top_pools = []  # the pools that can collectively cover the target amount of stake if saturated (and without getting over-saturated)
     for pool in pools_ranked:
         if covered_stake >= target_stake:
             break
         top_pools.append(pool)
         if pool is None:
             break
-        covered_stake = fsum([reward_scheme.get_pool_saturation_threshold(pool.pledge) for pool in top_pools]) # using fsum to avoid floating point errors but it might be an overhead
+        covered_stake = fsum([reward_scheme.get_pool_saturation_threshold(pool.pledge) for pool in
+                              top_pools])  # using fsum to avoid floating point errors but it might be an overhead
     return top_pools[-1] if len(top_pools) > 0 else None
+
 
 def pool_comparison_key(pool):
     """
@@ -448,11 +493,13 @@ def pool_comparison_key(pool):
         return 0, 0, 0
     return -pool.desirability, -pool.potential_profit, pool.id
 
+
 def positive_int(value):
     int_value = int(value)
     if int_value <= 0:
         raise argparse.ArgumentTypeError("invalid positive int value: {}".format(value))
     return int_value
+
 
 def non_negative_int(value):
     int_value = int(value)
@@ -460,11 +507,13 @@ def non_negative_int(value):
         raise argparse.ArgumentTypeError("invalid non-negative int value: {}".format(value))
     return int_value
 
+
 def positive_float(value):
     float_value = float(value)
     if float_value <= 0:
         raise argparse.ArgumentTypeError("invalid positive float value: {}".format(value))
     return float_value
+
 
 def non_negative_float(value):
     float_value = float(value)
@@ -472,11 +521,13 @@ def non_negative_float(value):
         raise argparse.ArgumentTypeError("invalid non-negative float value: {}".format(value))
     return float_value
 
+
 def fraction(value):
     float_value = float(value)
     if float_value < 0 or float_value > 1:
         raise argparse.ArgumentTypeError("invalid fraction value: {}".format(value))
     return float_value
+
 
 def add_script_arguments(parser):
     """
@@ -494,7 +545,8 @@ def add_script_arguments(parser):
                         help='The k value of the system (natural number). Default is 100.')
     parser.add_argument('--a0', nargs="+", type=non_negative_float, default=0.3,
                         help='The a0 value of the system (decimal number between 0 and 1). Default is 0.3')
-    parser.add_argument('--reward_scheme', nargs="?", type=int, default=0, choices=range(len(RSS_MAPPING)), #todo maybe allow multiple args to enable changing the reward scheme of the system during runtime
+    parser.add_argument('--reward_scheme', nargs="?", type=int, default=0, choices=range(len(RSS_MAPPING)),
+                        # todo maybe allow multiple args to enable changing the reward scheme of the system during runtime
                         help='The reward scheme to use in the simulation. 0 for the original reward scheme of Cardano, '
                              '1 for a simplified version of it, 2 for a reward scheme with flat pledge benefit, 3 for '
                              'a reward scheme with curved pledge benefit (CIP-7) and 4 for the reward scheme of CIP-50.')
@@ -516,32 +568,33 @@ def add_script_arguments(parser):
                         help='The utility threshold under which moves are disregarded. Default is 1e-9.')
     parser.add_argument('--relative_utility_threshold', nargs="?", type=non_negative_float, default=0,
                         help='The utility increase ratio under which moves are disregarded. Default is 0%%.')
-    parser.add_argument('--stake_distr_source', nargs="?", type=str.lower, default='pareto', choices = ["pareto", "flat",
-                                                                                             "disparity", "file"],
+    parser.add_argument('--stake_distr_source', nargs="?", type=str.lower, default='pareto', choices=["pareto", "flat",
+                                                                                                      "disparity",
+                                                                                                      "file"],
                         help='The distribution type to use for the initial allocation of stake to the agents.')
     parser.add_argument('--pareto_param', nargs="?", type=positive_float, default=2.0,
                         help='The parameter that determines the shape of the distribution that the stake will be '
                              'sampled from (in the case that stake_distr_source is pareto). Default is 2.')
-    parser.add_argument('--inactive_stake_fraction',  nargs="?", type=fraction, default=0,
+    parser.add_argument('--inactive_stake_fraction', nargs="?", type=fraction, default=0,
                         help='The fraction of the total stake that remains inactive (does not belong to any of the '
                              'agents). Default is 0.')
     parser.add_argument('--inactive_stake_fraction_known', type=bool, default=False,
                         action=argparse.BooleanOptionalAction,
                         help='Is the inactive stake fraction of the system known beforehand? Default is no.')
-    parser.add_argument('--iterations_after_convergence',  nargs="?", type=int, default=10, # todo maybe make constant
+    parser.add_argument('--iterations_after_convergence', nargs="?", type=int, default=10,  # todo maybe make constant
                         help='The minimum consecutive idle iterations that are required before terminations. '
                              'Default is 10.')
-    parser.add_argument('--max_iterations',  nargs="?", type=positive_int, default=2000,
+    parser.add_argument('--max_iterations', nargs="?", type=positive_int, default=2000,
                         help='The maximum number of iterations of the system. Default is 2000.')
-    parser.add_argument('--metrics', nargs="+", type=int, default=None, choices=range(1, len(REPORTER_IDS)+1),
+    parser.add_argument('--metrics', nargs="+", type=int, default=None, choices=range(1, len(REPORTER_IDS) + 1),
                         help='The list of ids that correspond to metrics that are tracked during the simulation. Default'
                              'is [1, 2, 3, 4, 6, 17, 18, 26, 27]')
     parser.add_argument('--generate_graphs', type=bool, default=True, action=argparse.BooleanOptionalAction,
                         help='If True then graphs relating to the tracked metrics are generated upon completion. Default'
                              'is True.'),
-    parser.add_argument('--seed',  nargs="?", type=non_negative_int, default=None,
+    parser.add_argument('--seed', nargs="?", type=non_negative_int, default=None,
                         help='Seed for reproducibility. Default is None, which means that a seed is chosen at random.')
-    parser.add_argument('--execution_id',  nargs="?", type=str, default='',
+    parser.add_argument('--execution_id', nargs="?", type=str, default='',
                         help='An optional identifier for the specific simulation run, '
                              'which will be used to name the output folder / files.')
     parser.add_argument('--input_from_file', type=bool, default=False, action=argparse.BooleanOptionalAction,

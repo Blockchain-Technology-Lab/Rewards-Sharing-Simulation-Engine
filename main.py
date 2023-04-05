@@ -1,7 +1,6 @@
 import logic.sim as simulation
 import logic.helper as hlp
 
-import pathlib
 import argparse
 
 
@@ -19,7 +18,7 @@ def main():
         stake_distr_source=args.stake_distr_source,
         agent_profile_distr=args.agent_profile_distr,
         inactive_stake_fraction=args.inactive_stake_fraction,
-        inactive_stake_fraction_known= args.inactive_stake_fraction_known,
+        inactive_stake_fraction_known=args.inactive_stake_fraction_known,
         relative_utility_threshold=args.relative_utility_threshold,
         absolute_utility_threshold=args.absolute_utility_threshold,
         seed=args.seed,
@@ -29,12 +28,12 @@ def main():
         cost_max=args.cost_max,
         extra_pool_cost_fraction=args.extra_pool_cost_fraction,
         agent_activation_order=args.agent_activation_order,
-        #total stake
+        # total stake
         iterations_after_convergence=args.iterations_after_convergence,
-        reward_scheme = args.reward_scheme,
+        reward_scheme=args.reward_scheme,
         execution_id=args.execution_id,
-        #seq_id
-        #parent_dir
+        # seq_id
+        # parent_dir
         metrics=args.metrics,
         generate_graphs=args.generate_graphs,
         input_from_file=args.input_from_file
@@ -63,4 +62,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-

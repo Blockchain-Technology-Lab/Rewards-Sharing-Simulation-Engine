@@ -8,6 +8,7 @@ import logic.helper as hlp
 from logic.pool import Pool
 from logic.strategy import Strategy
 
+
 class Stakeholder(Agent):
 
     def __init__(self, unique_id, model, stake, cost, strategy=None):
@@ -61,7 +62,7 @@ class Stakeholder(Agent):
         max_utility_option = max(possible_moves, key=lambda key: possible_moves[key][0])
         self.new_strategy = None if max_utility_option == "current" else possible_moves[max_utility_option][1]
 
-    def discard_draft_pools(self, operator_strategy): # unused for now
+    def discard_draft_pools(self, operator_strategy):  # unused for now
         # Discard the pool ids that were used for the hypothetical operator move
         old_owned_pools = set(self.strategy.owned_pools.keys())
         hypothetical_owned_pools = set(operator_strategy.owned_pools.keys())
@@ -98,11 +99,13 @@ class Stakeholder(Agent):
         """
         Find a suitable pool operation strategy by using the following process:
             - Start with an arbitrary number of pools t (we set this to (k+1)/2)
-            - Calculate suitable margins so that all t pools end up in the top k (if not possible for some pools then set their margin to 0)
+            - Calculate suitable margins so that all t pools end up in the top k
+                (if not possible for some pools then set their margin to 0)
             - Calculate the agent's utility for this number of pools and margins
             - Do the same for the two neighbours of this strategy, i.e. operating t-1 pools and t+1 pools
             - Choose the direction with the highest utility and make a "jump" in t
-            - If none of the neighbours have higher utility, solution found (strategy with t pools and calculated margins)
+            - If none of the neighbours have higher utility,
+                then solution found (strategy with t pools and calculated margins)
         This works because the utility of an agent as a function of the number of pools to operate has only one local max
         @return: a tuple with the utility of the chosen strategy and the strategy itself
         """
@@ -122,7 +125,7 @@ class Stakeholder(Agent):
                 margins_t_plus, utility_t_plus = self.calculate_margins_and_utility(num_pools=t + 1)
                 if utility_t_plus > utility_t:
                     t_min = t + 1
-                    continue # checking only one of them suffices under the assumption that the function has one local max and is otherwise monotonincally increasing/decreasing
+                    continue  # checking only one of them suffices under the assumption that the function has one local max and is otherwise monotonincally increasing/decreasing
             # none of the neighbours has higher utility (or there are no feasible neighbours), so we are at the local max
             solution_found = True
 
@@ -132,7 +135,8 @@ class Stakeholder(Agent):
         if num_pools > 0:
             owned_pools_copies = self.determine_pools_to_keep(num_pools)
             strategy = self.find_operator_move(num_pools, owned_pools_copies, margins)
-            utility = self.calculate_expected_utility(strategy) # recalculating utility to account for possible delegations
+            utility = self.calculate_expected_utility(
+                strategy)  # recalculating utility to account for possible delegations
         return utility, strategy
 
     def calculate_margin(self, pool):
@@ -145,15 +149,18 @@ class Stakeholder(Agent):
         if pool.is_private:
             return 0
 
-        reference_pool = self.rankings[self.model.reward_scheme.k-1] #todo if keeping method then remove dependency from k to accommodate broader class of reward schemes
+        reference_pool = self.rankings[
+            self.model.reward_scheme.k - 1]  # todo if keeping method then remove dependency from k to accommodate broader class of reward schemes
         reference_potential_profit = reference_pool.potential_profit if reference_pool is not None else 0
-        return hlp.calculate_suitable_margin(potential_profit=pool.potential_profit, target_desirability=reference_potential_profit)
+        return hlp.calculate_suitable_margin(potential_profit=pool.potential_profit,
+                                             target_desirability=reference_potential_profit)
 
     def determine_pools_to_keep(self, num_pools_to_keep):
         if num_pools_to_keep < len(self.strategy.owned_pools):
             # Only keep the pool(s) that rank best (based on desirability, potential profit, stake and "age")
             owned_pools_to_keep = dict()
-            pool_properties = [(pool.desirability, pool.potential_profit, pool.stake, -pool_id) for pool_id, pool in self.strategy.owned_pools.items()]
+            pool_properties = [(pool.desirability, pool.potential_profit, pool.stake, -pool_id) for pool_id, pool in
+                               self.strategy.owned_pools.items()]
             top_pools_ids = {-p[3] for p in heapq.nlargest(num_pools_to_keep, pool_properties)}
             for pool_id in top_pools_ids:
                 owned_pools_to_keep[pool_id] = deepcopy(self.strategy.owned_pools[pool_id])
@@ -171,11 +178,17 @@ class Stakeholder(Agent):
         @param num_pools: the number of pools the agent operates
         @return: the average cost of a pool owned by the agent, given the above assumption about cost values
         """
-        return hlp.calculate_cost_per_pool(num_pools=num_pools, initial_cost=self.cost, extra_pool_cost_fraction=self.model.extra_pool_cost_fraction)
+        return hlp.calculate_cost_per_pool(num_pools=num_pools, initial_cost=self.cost,
+                                           extra_pool_cost_fraction=self.model.extra_pool_cost_fraction)
 
     def determine_pledge_per_pool(self, num_pools):
-        #todo maybe better to return list of pledge values to accommodate potential method overrides that allocate a different pledge value to each pool
-        return hlp.calculate_pledge_per_pool(agent_stake=self.stake, global_saturation_threshold=self.model.reward_scheme.global_saturation_threshold, num_pools=num_pools)
+        #  todo maybe better to return list of pledge values to accommodate potential method overrides that allocate
+        #   a different pledge value to each pool
+        return hlp.calculate_pledge_per_pool(
+            agent_stake=self.stake,
+            global_saturation_threshold=self.model.reward_scheme.global_saturation_threshold,
+            num_pools=num_pools
+        )
 
     def find_operator_move(self, num_pools, owned_pools, margins=[]):
         pledge = self.determine_pledge_per_pool(num_pools=num_pools)
@@ -188,7 +201,7 @@ class Stakeholder(Agent):
             pool.is_private = pool.pledge >= self.model.reward_scheme.get_pool_saturation_threshold(pool.pledge)
             pool.cost = cost_per_pool
             pool.set_profit(reward_scheme=self.model.reward_scheme)
-            pool.margin = margins[i] if len(margins) > i  else self.calculate_margin(pool)
+            pool.margin = margins[i] if len(margins) > i else self.calculate_margin(pool)
 
         existing_pools_num = len(owned_pools)
         for i in range(existing_pools_num, num_pools):
@@ -196,13 +209,14 @@ class Stakeholder(Agent):
             pool_id = self.model.get_next_pool_id()
             pool = Pool(
                 pool_id=pool_id, cost=cost_per_pool, pledge=pledge, owner=self.unique_id,
-                reward_scheme=self.model.reward_scheme, is_private=pledge >= self.model.reward_scheme.get_pool_saturation_threshold(pledge)
+                reward_scheme=self.model.reward_scheme,
+                is_private=pledge >= self.model.reward_scheme.get_pool_saturation_threshold(pledge)
             )
             # private pools have margin 0 but don't allow delegations
             pool.margin = margins[i] if len(margins) > i else self.calculate_margin(pool)
             owned_pools[pool_id] = pool
 
-        allocations = self.find_delegation_for_operator(pledge*num_pools)
+        allocations = self.find_delegation_for_operator(pledge * num_pools)
 
         return Strategy(stake_allocations=allocations, owned_pools=owned_pools)
 
@@ -257,7 +271,8 @@ class Stakeholder(Agent):
             if stake_to_delegate < hlp.MIN_STAKE_UNIT:
                 break
         if stake_to_delegate >= hlp.MIN_STAKE_UNIT and best_saturated_pool is not None:
-            # if the stake to delegate does not fit in unsaturated pools, delegate to the saturated one with the highest desirability
+            #  if the stake to delegate does not fit in unsaturated pools, delegate to the saturated one with the
+            #  highest desirability
             allocations[best_saturated_pool.id] = stake_to_delegate
 
         # Return the agent's stake to the pools it was delegated to
@@ -292,7 +307,7 @@ class Stakeholder(Agent):
                 self.model.pool_rankings_myopic.remove(pool)
                 pool.update_delegation(new_delegation=0, delegator_id=self.unique_id)
                 self.model.pool_rankings_myopic.add(pool)
-        for pool_id in new_allocations.keys() :
+        for pool_id in new_allocations.keys():
             pool = current_pools[pool_id]
             if pool is not None:
                 # add / modify delegation
@@ -360,7 +375,7 @@ class Stakeholder(Agent):
                 if agent.new_strategy is not None:
                     agent.new_strategy.stake_allocations.pop(pool.id, None)
 
-    def get_status(self): #todo update to sth more meaningful
+    def get_status(self):  # todo update to sth more meaningful
         print("Agent id: {}, stake: {}, cost:{}"
               .format(self.unique_id, self.stake, self.cost))
         print("\n")

@@ -8,6 +8,7 @@ Module for drawing live-updating line charts using Charts.js
 import json
 from mesa.visualization.ModularVisualization import VisualizationElement
 
+
 class StackedChartModule(VisualizationElement):
     """Each chart can visualize one or more model-level series as lines
      with the data value on the Y axis and the step number as the X axis.
@@ -33,11 +34,11 @@ class StackedChartModule(VisualizationElement):
     local_includes = ["stackedChartModule.js"]
 
     def __init__(
-        self,
-        series,
-        canvas_height=200,
-        canvas_width=500,
-        data_collector_name="datacollector",
+            self,
+            series,
+            canvas_height=200,
+            canvas_width=500,
+            data_collector_name="datacollector",
     ):
         """
         Create a new stacked lines chart visualization.

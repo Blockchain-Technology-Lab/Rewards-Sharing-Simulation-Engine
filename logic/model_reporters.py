@@ -6,6 +6,7 @@ from math import fsum
 
 import logic.helper as hlp
 
+
 def get_number_of_pools(model):
     return len(model.pools)
 
@@ -20,6 +21,7 @@ def get_median_margin(model):
     pools = model.get_pools_list()
     margins = [pool.margin for pool in pools]
     return statistics.median(margins) if len(margins) > 0 else 0
+
 
 def get_avg_pledge(model):
     current_pool_pledges = [pool.pledge for pool in model.get_pools_list()]
@@ -151,7 +153,7 @@ def get_nakamoto_coefficient(model):
     final_stake = [controlled_stake[agent_id] for agent_id in active_agents.keys()]
     total_active_stake = fsum(final_stake)
     sorted_final_stake = sorted(final_stake, reverse=True)
-    cumulative_final_stake = np.array([fsum(sorted_final_stake[:i+1]) for i in range(len(sorted_final_stake))])
+    cumulative_final_stake = np.array([fsum(sorted_final_stake[:i + 1]) for i in range(len(sorted_final_stake))])
     majority_threshold = total_active_stake / 2
     nc = np.argmax(cumulative_final_stake > majority_threshold) + 1
     return nc
@@ -185,8 +187,8 @@ def get_min_aggregate_pledge(model):
     g.options.SOLVER = 1
 
     try:
-        g.solve(disp=False) # choose disp = True to print details while running
-    except Exception as e: #todo catch specific errors
+        g.solve(disp=False)  # choose disp = True to print details while running
+    except Exception as e:  # todo catch specific errors
         print("Min aggregate pledge not found")
         return -2
 
@@ -308,7 +310,7 @@ def gini_coefficient(np_array):
     """Compute Gini coefficient of array of values
     using the fact that their Gini coefficient is half their relative mean absolute difference,
     as noted here: https://en.wikipedia.org/wiki/Mean_absolute_difference#Relative_mean_absolute_difference """
-    diffsum = 0 # sum of absolute differences
+    diffsum = 0  # sum of absolute differences
     for i, xi in enumerate(np_array[:-1], 1):
         diffsum += np.sum(np.abs(xi - np_array[i:]))
     return diffsum / (len(np_array) * sum(np_array)) if sum(np_array) != 0 else -1
@@ -317,7 +319,7 @@ def gini_coefficient(np_array):
 def get_gini_id_coeff_pool_count(model):
     # gather data
     pools = model.get_pools_list()
-    #todo check later if you can abstract this to a function that serves this one, NC and others
+    # todo check later if you can abstract this to a function that serves this one, NC and others
     pools_owned = collections.defaultdict(lambda: 0)
     for pool in pools:
         pools_owned[pool.owner] += 1
@@ -372,7 +374,8 @@ def get_active_stake_agents(model):
 
 def get_stake_distr_stats(model):
     stake_distribution = np.array([agent.stake for agent in model.schedule.agents])
-    return stake_distribution.max(), stake_distribution.min(), stake_distribution.mean(), np.median(stake_distribution), stake_distribution.std()
+    return stake_distribution.max(), stake_distribution.min(), stake_distribution.mean(), np.median(
+        stake_distribution), stake_distribution.std()
 
 
 def get_operator_count(model):

@@ -5,17 +5,18 @@ from mesa.visualization.ModularVisualization import ModularServer
 from logic.sim import Simulation
 from logic.helper import MAX_NUM_POOLS
 
-#from myModularVisualization import MyModularServer
+# from myModularVisualization import MyModularServer
 from interactiveViz.stackedChartModule import StackedChartModule
 from interactiveViz.bubbleChartModule import BubbleChartModule
 from interactiveViz.myChartModule import MyChartModule
 
-#todo figure out how to add buttons next to the charts for downloading image upon request or sth similar
+# todo figure out how to add buttons next to the charts for downloading image upon request or sth similar
 poolsChart = MyChartModule([{"label": "Pool count", "title": "Number of pools over time", "xLabel": "Round",
                              "yLabel": "Pool count", "tooltipText": " pools", "color": "Blue"}])
 
-poolDynamicsStackedChart = StackedChartModule([{"Label": "Stake per agent id", "tooltipText": " Agent", "xLabel": "Round",
-                                                "yLabel": "Stake per operator", "Num_pools": MAX_NUM_POOLS}])
+poolDynamicsStackedChart = StackedChartModule(
+    [{"Label": "Stake per agent id", "tooltipText": " Agent", "xLabel": "Round",
+      "yLabel": "Stake per operator", "Num_pools": MAX_NUM_POOLS}])
 
 poolScatterChart = BubbleChartModule([{"Label": "StakePairs"}])
 
@@ -55,7 +56,7 @@ model_params = {
     )
 }
 
-#todo add option for different distributions
+# todo add option for different distributions
 
 '''
     "myopic_fraction": UserSettableParameter(
@@ -83,11 +84,10 @@ model_params = {
     )
     '''
 
-
 # figure out why MyModularServer was not working at some point
 # figured out: it only works when I use the ModularServer first so it probably caches some necessary files
 server = ModularServer(Simulation,
-                       [poolsChart, poolDynamicsStackedChart, poolScatterChart], # pledgeChart
+                       [poolsChart, poolDynamicsStackedChart, poolScatterChart],  # pledgeChart
                        "PoS Pooling Games",
                        model_params)
 

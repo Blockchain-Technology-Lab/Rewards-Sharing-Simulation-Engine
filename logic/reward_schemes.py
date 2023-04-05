@@ -1,13 +1,15 @@
 TOTAL_EPOCH_REWARDS_R = 1
 
+
 class RSS:
     """
     Parent class for the Reward Sharing Scheme that is used in the simulation.
     Determines the rewards that a pool receives.
     """
+
     def __init__(self, k, a0):
         self.k = k
-        self.a0 = a0 # todo maybe rename to sth more general, e.g. pledge_influence?
+        self.a0 = a0  # todo maybe rename to sth more general, e.g. pledge_influence?
 
     @property
     def k(self):
@@ -46,6 +48,7 @@ class CardanoRSS(RSS):
                                             / self.global_saturation_threshold)))
         return r
 
+
 class SimplifiedRSS(RSS):
     def __init__(self, k, a0):
         super().__init__(k=k, a0=a0)
@@ -56,6 +59,7 @@ class SimplifiedRSS(RSS):
         r = (TOTAL_EPOCH_REWARDS_R / (1 + self.a0)) * stake_ * \
             (1 + (self.a0 * pledge_ / self.global_saturation_threshold))
         return r
+
 
 class FlatPledgeBenefitRSS(RSS):
     def __init__(self, k, a0):
@@ -68,7 +72,7 @@ class FlatPledgeBenefitRSS(RSS):
         return r
 
 
-class CurvePledgeBenefitRSS(RSS): #CIP-7
+class CurvePledgeBenefitRSS(RSS):  # CIP-7
     def __init__(self, k, a0, crossover_factor, curve_root):
         super().__init__(k=k, a0=a0)
         self.crossover_factor = crossover_factor
@@ -76,7 +80,8 @@ class CurvePledgeBenefitRSS(RSS): #CIP-7
 
     def calculate_pool_reward(self, pool_pledge, pool_stake):
         crossover = self.global_saturation_threshold / self.crossover_factor
-        pledge_factor = (pool_pledge ** (1 / self.curve_root)) * (crossover ** ((self.curve_root - 1) / self.curve_root))
+        pledge_factor = (pool_pledge ** (1 / self.curve_root)) * (
+                    crossover ** ((self.curve_root - 1) / self.curve_root))
         pledge_ = min(pledge_factor, self.global_saturation_threshold)
         stake_ = min(pool_stake, self.global_saturation_threshold)
         r = (TOTAL_EPOCH_REWARDS_R / (1 + self.a0)) * \
@@ -94,6 +99,7 @@ class CIP50RSS(RSS):
     slightly different logic, which we believe is more compatible - please refer to that one for extensive
     experimentation concerning CIP-50.
     """
+
     def __init__(self, k, a0):
         super().__init__(k=k, a0=a0)
 
@@ -105,6 +111,7 @@ class CIP50RSS(RSS):
     def get_pool_saturation_threshold(self, pool_pledge):
         custom_saturation_threshold = self.a0 * pool_pledge
         return min(custom_saturation_threshold, self.global_saturation_threshold)
+
 
 RSS_MAPPING = {
     0: CardanoRSS,

@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 import logic.helper as hlp
 
+
 class Pool:
     def __init__(self, pool_id, cost, pledge, owner, reward_scheme, margin=-1, is_private=False):
         self.id = pool_id
@@ -14,7 +15,7 @@ class Pool:
         self.margin = margin
 
     @property
-    def margin(self): #maybe also make pledge property? and whenever it's set then change potential profit
+    def margin(self):  # maybe also make pledge property? and whenever it's set then change potential profit
         return self._margin
 
     @margin.setter
@@ -24,7 +25,8 @@ class Pool:
         self.set_desirability()
 
     def set_profit(self, reward_scheme):
-        self.potential_profit = hlp.calculate_potential_profit(reward_scheme=reward_scheme, pledge=self.pledge, cost=self.cost)
+        self.potential_profit = hlp.calculate_potential_profit(reward_scheme=reward_scheme, pledge=self.pledge,
+                                                               cost=self.cost)
 
     def set_desirability(self):
         self.desirability = hlp.calculate_pool_desirability(margin=self.margin, potential_profit=self.potential_profit)
@@ -36,6 +38,3 @@ class Pool:
         self.delegators[delegator_id] = new_delegation
         if self.delegators[delegator_id] < hlp.MIN_STAKE_UNIT:
             self.delegators.pop(delegator_id)
-
-
-
