@@ -11,7 +11,7 @@ class RSS:
 
     def __init__(self, k, a0):
         self.k = k
-        self.a0 = a0  # todo maybe rename to sth more general, e.g. pledge_influence?
+        self.a0 = a0 
 
     @property
     def k(self):
@@ -23,7 +23,7 @@ class RSS:
             raise ValueError('k parameter of reward scheme cannot be 0')
         self._k = int(k_value)
         # whenever k changes, the global saturation threshold also changes
-        self.global_saturation_threshold = 1 / k_value
+        self.global_saturation_threshold = TOTAL_EPOCH_REWARDS_R / k_value
 
     def calculate_pool_reward(self, pool_pledge, pool_stake):
         raise NotImplementedError("RSS subclass must implement 'calculate_pool_reward' method.")
