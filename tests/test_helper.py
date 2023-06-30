@@ -285,3 +285,4 @@ def test_find_target_pool():
     target_pool = hlp.find_target_pool(pools, target_stake, reward_scheme)
 
     assert pools.index(target_pool) == 13
+

@@ -9,3 +9,5 @@ class Strategy:
             stake_allocations = dict()
         self.stake_allocations = stake_allocations
         self.owned_pools = owned_pools
+
+

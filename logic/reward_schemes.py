@@ -1,4 +1,7 @@
-TOTAL_EPOCH_REWARDS_R = 1
+import math
+
+TOTAL_EPOCH_REWARDS_R = 1 ## why having this factor? it is diffcult to calculate the reward using this factor in ethereum. Because it is not porpotional to this one. Or I should make it porpotional!!
+TOTAL_EFFECTIVE_BALANCE = 1
 
 
 class RSS:
@@ -9,10 +12,10 @@ class RSS:
     'calculate_pool_reward' method
     """
 
-    def __init__(self, k, a0):
+    def __init__(self, k, a0, e):
         self.k = k
         self.a0 = a0  # todo maybe rename to sth more general, e.g. pledge_influence?
-
+        self.e = e # total_deposited_ether = min_deposit_size * number_of_validators， e= min_deposit_size
     @property
     def k(self):
         return self._k
@@ -114,6 +117,81 @@ class CIP50RSS(RSS):
     def get_pool_saturation_threshold(self, pool_pledge):
         custom_saturation_threshold = self.a0 * pool_pledge
         return min(custom_saturation_threshold, self.global_saturation_threshold)
+    
+
+class EthereumSoloStakingOnly(RSS):
+    """
+    SoloStaking, people can only stake on ethereum, no pools
+    Attestationreward==Basereward
+    """
+    FlagWeight = 64
+    base_reward_factor = 64
+    base_reward_per_epoch = 4
+    SyncComSize = 512
+    SlotsPerEpoch = 32
+    epochs_per_sync_committee_period = 256 # 256 epochs, ~27 hours
+
+    #Collective reward Scheme
+    timely_source_weight = 14
+    timely_target_weight = 26
+    timely_head_weight = 14
+    timely_reward_weight = 2
+    proposer_weight = 8
+
+    ## posibility of being selected as a proposer: 
+    ## posibility of being selected as a SyncCommittee member: 
+
+    def calculate_attestation_reward(self, pool_stake):
+        effective_balance = min(pool_stake, self.get_pool_saturation_threshold)
+        TOTAL_ACTIVE_BALANCE = TOTAL_EFFECTIVE_BALANCE + TOTAL_EPOCH_REWARDS_R
+        base_reward = effective_balance * (self.base_reward_factor / (self.base_reward_per_epoch * math.sqrt(TOTAL_ACTIVE_BALANCE)))
+        r=base_reward*(self.timely_source_weight+self.timely_target_weight+self.timely_head_weight)/self.base_reward_factor
+        return r
+    
+    def calculate_SyncCommittees_reward(self, pool_stake):
+        effective_balance = min(pool_stake, self.get_pool_saturation_threshold)
+        TOTAL_ACTIVE_BALANCE = TOTAL_EFFECTIVE_BALANCE + TOTAL_EPOCH_REWARDS_R
+        base_reward = effective_balance * (self.base_reward_factor / (self.base_reward_per_epoch * math.sqrt(TOTAL_ACTIVE_BALANCE)))
+        r=base_reward*(self.timely_reward_weight)/self.base_reward_factor
+        return r
+    
+    def calculate_proposer_reward(self,pool_stake):
+        effective_balance = min(pool_stake, self.get_pool_saturation_threshold)
+        TOTAL_ACTIVE_BALANCE = TOTAL_EFFECTIVE_BALANCE + TOTAL_EPOCH_REWARDS_R
+        base_reward = effective_balance * (self.base_reward_factor / (self.base_reward_per_epoch * math.sqrt(TOTAL_ACTIVE_BALANCE)))
+        r=base_reward*(self.proposer_weight)/self.base_reward_factor
+        return r
+    
+    def calculate_pool_reward(self, pool_stake):
+        calculated_attestation_reward = self.calculate_attestation_reward(pool_stake)
+        calculated_SyncCommittees_reward = self.calculate_SyncCommittees_reward(pool_stake)
+        calculated_proposer_reward = self.calculate_proposer_reward(pool_stake)
+        r=calculated_attestation_reward+calculated_SyncCommittees_reward+calculated_proposer_reward
+        return r
+
+    def get_pool_saturation_threshold(self):
+        """
+        @param pool_pledge: the pledge of the relevant pool
+        @return: the saturation threshold of a pool with the given pledge
+        """
+        saturation_threshold = self.e  # effective_balance == Max_effective_balance
+        return saturation_threshold
+    
+
+
+
+class EthereumLiquidStaking(RSS):
+    """
+    Reward scheme equivalent to that of CIP-50.
+    """
+
+    def get_pool_saturation_threshold(self, pool_pledge):
+        """
+        @param pool_pledge: the pledge of the relevant pool
+        @return: the saturation threshold of a pool with the given pledge
+        """
+        saturation_threshold = pool_pledge
+        return saturation_threshold
 
 
 RSS_MAPPING = {
@@ -121,5 +199,7 @@ RSS_MAPPING = {
     1: SimplifiedRSS,
     2: FlatPledgeBenefitRSS,
     3: CurvePledgeBenefitRSS,
-    4: CIP50RSS
-}
+    4: CIP50RSS,
+    5: EthereumSoloStakingOnly,
+    6: EthereumLiquidStaking
+    }
