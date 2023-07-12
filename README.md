@@ -1,3 +1,7 @@
+# Reward Sharing Simulation Engine for Ethereum Proof of Stake
+This project is forked from BTL, Reward Sharing simulation Engine for Cardano. This is MSc degree project for Yinan Mi.
+
+
 # Rewards Sharing Simulation Engine
 Tool to simulate staking behaviour in Proof-of-Stake blockchains, especially tailored towards Cardano.
 
