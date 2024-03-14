@@ -1,0 +1,7 @@
+version: "3"
+services:
+  simulator:
+    build: .
+    volumes:
+      - .:/usr/src/app
+    command: python main.py --n=100 --execution_id=100-agents
