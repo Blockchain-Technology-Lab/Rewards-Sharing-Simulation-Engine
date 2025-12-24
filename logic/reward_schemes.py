@@ -96,23 +96,25 @@ class CurvePledgeBenefitRSS(RSS):  # CIP-7
 class CIP50RSS(RSS):
     """
     Reward scheme equivalent to that of CIP-50.
-    Note that even though it's possible to use this reward scheme in the simulation, it might not give accurate results
-    because our methodology was based on nuances of the original reward scheme that are not present in this one
-    (e.g. the expectation of ending up with k pools). There is a separate branch for this reward scheme that uses a
-    slightly different logic, which we believe is more compatible - please refer to that one for extensive
-    experimentation concerning CIP-50.
+    Corrected to reflect the existing CardanoRSS, but with an additional secondary satuation
+    threshold that is calculated from a pool's pledge and the added L parameter.
     """
 
-    def __init__(self, k, a0):
+    def __init__(self, k, a0, L=1000):
         super().__init__(k=k, a0=a0)
+        self.L = L
 
     def calculate_pool_reward(self, pool_pledge, pool_stake):
         pool_saturation_threshold = self.get_pool_saturation_threshold(pool_pledge)
-        r = TOTAL_EPOCH_REWARDS_R * min(pool_stake, pool_saturation_threshold)
+        pledge_ = min(pool_pledge, pool_saturation_threshold)
+        stake_ = min(pool_stake, pool_saturation_threshold)
+        r = (TOTAL_EPOCH_REWARDS_R / (1 + self.a0)) * \
+            (stake_ + (pledge_ * self.a0 * ((stake_ - pledge_ * (1 - stake_ / pool_saturation_threshold))
+                                            / pool_saturation_threshold)))
         return r
 
     def get_pool_saturation_threshold(self, pool_pledge):
-        custom_saturation_threshold = self.a0 * pool_pledge
+        custom_saturation_threshold = self.L * pool_pledge
         return min(custom_saturation_threshold, self.global_saturation_threshold)
 
 

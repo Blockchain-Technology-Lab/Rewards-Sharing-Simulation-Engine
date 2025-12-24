@@ -44,10 +44,12 @@ if __name__ == "__main__":
                              'the original cost value of the stakeholder. Default is 40%%.')
     parser.add_argument('--stake_distr_source', nargs="?", type=str, default='Pareto',
                         help='The distribution type to use for the initial allocation of stake to the agents.')
-    parser.add_argument('--reward_scheme', nargs="?", type=int, default=0, choices=range(4),
+    parser.add_argument('--reward_scheme', nargs="?", type=int, default=0, choices=range(5),
                         help='The reward scheme to use in the simulation. 0 for the original reward scheme of Cardano, '
                              '1 for a simplified version of it, 2 for a reward scheme with flat pledge benefit, 3 for '
                              'a reward scheme with curved pledge benefit (CIP-7) and 4 for the reward scheme of CIP-50.')
+    parser.add_argument('--L', nargs="*", type=int, default=1000,
+                        help='The L parameter for CIP50RSS (custom saturation threshold factor). Default is 1000.')
     parser.add_argument('--relative_utility_threshold', nargs="+", type=float, default=0,
                         help='The utility increase ratio under which moves are disregarded. Default is 0%%.')
     parser.add_argument('--absolute_utility_threshold', nargs="+", type=float, default=0,

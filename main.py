@@ -31,6 +31,7 @@ def main():
         # total stake
         iterations_after_convergence=args.iterations_after_convergence,
         reward_scheme=args.reward_scheme,
+        L=args.L,
         execution_id=args.execution_id,
         # seq_id
         # parent_dir

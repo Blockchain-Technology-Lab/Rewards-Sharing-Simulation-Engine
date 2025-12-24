@@ -550,6 +550,8 @@ def add_script_arguments(parser):
                         help='The reward scheme to use in the simulation. 0 for the original reward scheme of Cardano, '
                              '1 for a simplified version of it, 2 for a reward scheme with flat pledge benefit, 3 for '
                              'a reward scheme with curved pledge benefit (CIP-7) and 4 for the reward scheme of CIP-50.')
+    parser.add_argument('--L', nargs="?", type=positive_int, default=1000,
+                        help='The L parameter for CIP50RSS (custom saturation threshold factor). Default is 1000.')
     parser.add_argument('--agent_profile_distr', nargs=len(PROFILE_MAPPING), type=non_negative_float, default=[1, 0, 0],
                         help='The weights for assigning different profiles to the agents. Default is [1, 0, 0], i.e. '
                              '100%% non-myopic agents.')
